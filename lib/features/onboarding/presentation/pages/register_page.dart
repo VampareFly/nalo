@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
+import 'package:tester_kit/features/notifications/presentation/pages/notification_permission_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
 import 'package:tester_kit/features/onboarding/view_models/register_view_model.dart';
 
@@ -35,13 +35,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   Future<void> _register() async {
     _dismissKeyboard();
-    final message = await ref.read(registerViewModelProvider.notifier).register(
-      firstName: _firstNameController.text,
-      lastName: _lastNameController.text,
-      birthday: ref.read(registerViewModelProvider).birthday,
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
+    final message = await ref
+        .read(registerViewModelProvider.notifier)
+        .register(
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+          gender: ref.read(registerViewModelProvider).gender,
+          birthday: ref.read(registerViewModelProvider).birthday,
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
 
     if (!mounted) return;
     if (message != null) {
@@ -49,7 +52,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       BotToast.showText(text: message, align: Alignment.center);
       return;
     }
-    context.go(HomePage.path);
+    context.go(NotificationPermissionPage.path);
   }
 
   void _dismissKeyboard([String? _]) {
@@ -75,9 +78,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isPasswordObscured = ref.watch(
-      registerViewModelProvider.select((state) => state.isPasswordObscured),
-    );
+    final isPasswordObscured = ref.watch(registerViewModelProvider.select((state) => state.isPasswordObscured));
+    final selectedGender = ref.watch(registerViewModelProvider.select((state) => state.gender));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F4F1),
@@ -93,103 +95,152 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   constraints: BoxConstraints(minHeight: constraints.maxHeight - 68),
                   child: IntrinsicHeight(
                     child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'About you',
-                        style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 40,
-                          fontStyle: FontStyle.italic,
-                          height: 1.1,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'About you',
+                          style: TextStyle(fontFamily: 'serif', fontSize: 40, fontStyle: FontStyle.italic, height: 1.1),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Helps us personalize your insights. Nothing is shared.',
-                        style: TextStyle(
-                          color: Color(0xFF717277),
-                          fontSize: 17,
-                          height: 1.45,
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Helps us personalize your insights. Nothing is shared.',
+                          style: TextStyle(color: Color(0xFF717277), fontSize: 17, height: 1.45),
                         ),
-                      ),
-                      const SizedBox(height: 34),
-                      _RegisterField(
-                        label: 'First name',
-                        placeholder: 'John',
-                        controller: _firstNameController,
-                        textInputAction: TextInputAction.done,
-                        textCapitalization: TextCapitalization.words,
-                        onSubmitted: _dismissKeyboard,
-                      ),
-                      const SizedBox(height: 22),
-                      _RegisterField(
-                        label: 'Last name',
-                        placeholder: 'Smith',
-                        controller: _lastNameController,
-                        textInputAction: TextInputAction.done,
-                        textCapitalization: TextCapitalization.words,
-                        onSubmitted: _dismissKeyboard,
-                      ),
-                      const SizedBox(height: 22),
-                      _RegisterField(
-                        label: 'Birthday',
-                        placeholder: 'Select your birthday',
-                        controller: _birthdayController,
-                        readOnly: true,
-                        onTap: _selectBirthday,
-                        suffixIcon: const Icon(
-                          Icons.calendar_today_outlined,
-                          color: Color(0xFF717277),
-                          size: 21,
+                        const SizedBox(height: 34),
+                        _RegisterField(
+                          label: 'First name',
+                          placeholder: 'John',
+                          controller: _firstNameController,
+                          textInputAction: TextInputAction.done,
+                          textCapitalization: TextCapitalization.words,
+                          onSubmitted: _dismissKeyboard,
                         ),
-                      ),
-                      const SizedBox(height: 22),
-                      _RegisterField(
-                        label: 'Enter email address',
-                        placeholder: 'john.smith@example.com',
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.email],
-                        onSubmitted: _dismissKeyboard,
-                      ),
-                      const SizedBox(height: 22),
-                      _RegisterField(
-                        label: 'Create a password',
-                        placeholder: '........',
-                        controller: _passwordController,
-                        obscureText: isPasswordObscured,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.newPassword],
-                        onSubmitted: _dismissKeyboard,
-                        suffixIcon: IconButton(
-                          tooltip: isPasswordObscured
-                              ? 'Show password'
-                              : 'Hide password',
-                          onPressed: ref
-                              .read(registerViewModelProvider.notifier)
-                              .togglePasswordVisibility,
-                          style: IconButton.styleFrom(
-                            overlayColor: Colors.transparent,
+                        const SizedBox(height: 22),
+                        _RegisterField(
+                          label: 'Last name',
+                          placeholder: 'Smith',
+                          controller: _lastNameController,
+                          textInputAction: TextInputAction.done,
+                          textCapitalization: TextCapitalization.words,
+                          onSubmitted: _dismissKeyboard,
+                        ),
+                        const SizedBox(height: 22),
+                        const Text(
+                          'Gender',
+                          style: TextStyle(color: Color(0xFF66676B), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 2),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _GenderButton(
+                                label: 'Female',
+                                isSelected: selectedGender == GenderOption.female,
+                                onTap: () => ref.read(registerViewModelProvider.notifier).selectGender(GenderOption.female),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _GenderButton(
+                                label: 'Male',
+                                isSelected: selectedGender == GenderOption.male,
+                                onTap: () => ref.read(registerViewModelProvider.notifier).selectGender(GenderOption.male),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 2,
+                              child: _GenderButton(
+                                label: 'Prefer not to say',
+                                isSelected: selectedGender == GenderOption.preferNotToSay,
+                                onTap: () => ref.read(registerViewModelProvider.notifier).selectGender(GenderOption.preferNotToSay),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        _RegisterField(
+                          label: 'Birthday',
+                          placeholder: 'Select your birthday',
+                          controller: _birthdayController,
+                          readOnly: true,
+                          onTap: _selectBirthday,
+                          suffixIcon: const Icon(Icons.calendar_today_outlined, color: Color(0xFF717277), size: 21),
+                        ),
+                        const SizedBox(height: 22),
+                        _RegisterField(
+                          label: 'Enter email address',
+                          placeholder: 'john.smith@example.com',
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.email],
+                          onSubmitted: _dismissKeyboard,
+                        ),
+                        const SizedBox(height: 22),
+                        _RegisterField(
+                          label: 'Create a password',
+                          placeholder: '........',
+                          controller: _passwordController,
+                          obscureText: isPasswordObscured,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.newPassword],
+                          onSubmitted: _dismissKeyboard,
+                          suffixIcon: IconButton(
+                            tooltip: isPasswordObscured ? 'Show password' : 'Hide password',
+                            onPressed: ref.read(registerViewModelProvider.notifier).togglePasswordVisibility,
+                            style: IconButton.styleFrom(overlayColor: Colors.transparent),
+                            icon: Icon(
+                              isPasswordObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: const Color(0xFF717277),
+                            ),
                           ),
-                          icon: Icon(
-                            isPasswordObscured
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: const Color(0xFF717277),
-                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      const SizedBox(height: 36),
-                      OnboardingButton(label: 'Register', onPressed: _register),
-                    ],
+                        const Spacer(),
+                        const SizedBox(height: 36),
+                        OnboardingButton(label: 'Register', onPressed: _register),
+                      ],
                     ),
                   ),
                 ),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GenderButton extends StatelessWidget {
+  const _GenderButton({required this.label, required this.isSelected, required this.onTap});
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.black : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE1E1E1)),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF66676B), fontSize: 15, fontWeight: FontWeight.w500),
           ),
         ),
       ),
@@ -233,12 +284,7 @@ class _RegisterField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF66676B),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 2,
-          ),
+          style: const TextStyle(color: Color(0xFF66676B), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 2),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -260,10 +306,7 @@ class _RegisterField extends StatelessWidget {
             filled: true,
             fillColor: Colors.white,
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 20,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
             border: _border,
             enabledBorder: _border,
             focusedBorder: _border,

@@ -6,19 +6,28 @@ final registerViewModelProvider =
       RegisterViewModel.new,
     );
 
+enum GenderOption { female, male, preferNotToSay }
+
 class RegisterState {
   const RegisterState({
     this.isPasswordObscured = true,
     this.birthday,
+    this.gender,
   });
 
   final bool isPasswordObscured;
   final DateTime? birthday;
+  final GenderOption? gender;
 
-  RegisterState copyWith({bool? isPasswordObscured, DateTime? birthday}) {
+  RegisterState copyWith({
+    bool? isPasswordObscured,
+    DateTime? birthday,
+    GenderOption? gender,
+  }) {
     return RegisterState(
       isPasswordObscured: isPasswordObscured ?? this.isPasswordObscured,
       birthday: birthday ?? this.birthday,
+      gender: gender ?? this.gender,
     );
   }
 }
@@ -39,15 +48,21 @@ class RegisterViewModel extends Notifier<RegisterState> {
     state = state.copyWith(birthday: birthday);
   }
 
+  void selectGender(GenderOption gender) {
+    state = state.copyWith(gender: gender);
+  }
+
   Future<String?> register({
     required String firstName,
     required String lastName,
+    required GenderOption? gender,
     required DateTime? birthday,
     required String email,
     required String password,
   }) async {
     if (firstName.trim().isEmpty) return 'Please enter your first name';
     if (lastName.trim().isEmpty) return 'Please enter your last name';
+    if (gender == null) return 'Please select your gender';
     if (birthday == null) return 'Please select your birthday';
     if (email.trim().isEmpty) return 'Please enter your email address';
     if (!_emailPattern.hasMatch(email.trim())) {
