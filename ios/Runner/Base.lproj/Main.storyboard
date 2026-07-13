@@ -16,11 +16,23 @@
                     <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
                         <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+                        <subviews>
+                            <imageView opaque="NO" clipsSubviews="YES" contentMode="scaleAspectFill" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="NQf-LA-uNc"/>
+                        </subviews>
+                        <color key="backgroundColor" red="0.945" green="0.941" blue="0.827" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="NQf-LA-uNc" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leading" id="1qA-2wS-3eD"/>
+                            <constraint firstAttribute="trailing" secondItem="NQf-LA-uNc" secondAttribute="trailing" id="4rF-5tG-6yH"/>
+                            <constraint firstItem="NQf-LA-uNc" firstAttribute="top" secondItem="8bC-Xf-vdC" secondAttribute="top" id="7uJ-8iK-9oL"/>
+                            <constraint firstAttribute="bottom" secondItem="NQf-LA-uNc" secondAttribute="bottom" id="0pZ-1xC-2vB"/>
+                        </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
         </scene>
     </scenes>
+    <resources>
+        <image name="LaunchImage" width="1179" height="2556"/>
+    </resources>
 </document>
