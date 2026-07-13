@@ -4,7 +4,7 @@ import 'package:tester_kit/l10n/generated/app_localizations.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  static const path = '/';
+  static const path = '/home';
 
   @override
   Widget build(BuildContext context) {
