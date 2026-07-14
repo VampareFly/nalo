@@ -4,6 +4,10 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+dependencies {
+    implementation("com.google.android.gms:play-services-ads-identifier:18.3.0")
+}
+
 android {
     namespace = "come.sanjiang.testerkit"
     compileSdk = flutter.compileSdkVersion

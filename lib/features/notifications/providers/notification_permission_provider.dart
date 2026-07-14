@@ -1,0 +1,6 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tester_kit/features/notifications/services/notification_permission_service.dart';
+
+final notificationPermissionServiceProvider = Provider<NotificationPermissionService>((ref) {
+  return PlatformNotificationPermissionService();
+});
