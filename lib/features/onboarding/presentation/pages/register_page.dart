@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:tester_kit/features/notifications/presentation/pages/notification_permission_page.dart';
+import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
 import 'package:tester_kit/features/onboarding/view_models/register_view_model.dart';
 
@@ -52,7 +52,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       BotToast.showText(text: message, align: Alignment.center);
       return;
     }
-    context.go(NotificationPermissionPage.path);
+    context.go(HomePage.path);
   }
 
   void _dismissKeyboard([String? _]) {
