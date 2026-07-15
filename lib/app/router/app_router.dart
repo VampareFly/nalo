@@ -15,6 +15,7 @@ import 'package:tester_kit/features/profile/presentation/pages/edit_profile_page
 import 'package:tester_kit/features/profile/presentation/pages/help_faq_page.dart';
 import 'package:tester_kit/features/profile/presentation/pages/privacy_data_page.dart';
 import 'package:tester_kit/features/profile/presentation/pages/profile_notifications_page.dart';
+import 'package:tester_kit/features/test_flow/presentation/pages/test_flow_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -24,8 +25,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: LaunchPage.path, builder: (context, state) => const LaunchPage()),
       GoRoute(
         path: HomePage.path,
-        pageBuilder: (context, state) => const NoTransitionPage(
-          child: HomePage(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: HomePage(initialIndex: state.uri.queryParameters['tab'] == 'shop' ? 1 : 0),
         ),
       ),
       GoRoute(path: FullTendPage.path, builder: (context, state) => const FullTendPage()),
@@ -46,6 +47,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: LoginMethodPage.path, builder: (context, state) => const LoginMethodPage()),
       GoRoute(path: LoginPage.path, builder: (context, state) => const LoginPage()),
       GoRoute(path: RegisterPage.path, builder: (context, state) => const RegisterPage()),
+      GoRoute(path: TestFlowPage.path, builder: (context, state) => const TestFlowPage()),
     ],
   );
 });

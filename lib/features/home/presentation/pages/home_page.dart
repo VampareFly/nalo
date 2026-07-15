@@ -12,11 +12,15 @@ import 'package:tester_kit/features/home/presentation/widgets/referral_program_c
 import 'package:tester_kit/features/home/presentation/widgets/test_trend_section.dart';
 import 'package:tester_kit/features/profile/presentation/pages/profile_page.dart';
 import 'package:tester_kit/features/shop/presentation/pages/shop_page.dart';
+import 'package:tester_kit/features/test_flow/presentation/pages/test_flow_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.initialIndex = 0});
 
   static const path = '/home';
+  static const shopPath = '$path?tab=shop';
+
+  final int initialIndex;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -27,8 +31,14 @@ class _HomePageState extends State<HomePage> {
   static const _shopIndex = 1;
   static const _referralCode = 'KNOW-15';
 
-  int _selectedIndex = _homeIndex;
+  late int _selectedIndex;
   bool _isReferralVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex == _shopIndex ? _shopIndex : _homeIndex;
+  }
 
   void _selectTab(int index) {
     setState(() {
@@ -36,9 +46,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _showCreateToast() {
-    BotToast.showText(text: 'Create is coming soon', align: Alignment.center);
-  }
+  void _openTestFlow() => context.push(TestFlowPage.path);
 
   void _openProfile() => context.push(ProfilePage.path);
 
@@ -109,7 +117,7 @@ class _HomePageState extends State<HomePage> {
           homeIndex: _homeIndex,
           shopIndex: _shopIndex,
           onTabSelected: _selectTab,
-          onCreatePressed: _showCreateToast,
+          onCreatePressed: _openTestFlow,
         ),
       ),
     );

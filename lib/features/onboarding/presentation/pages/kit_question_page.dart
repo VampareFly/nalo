@@ -1,6 +1,6 @@
-import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/login_method_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_background.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
@@ -45,10 +45,7 @@ class KitQuestionPage extends StatelessWidget {
                 OnboardingButton(
                   label: 'Not yet — get one now!',
                   isPrimary: false,
-                  onPressed: () {
-                    // TODO: <pf> Replace the toast when kit purchasing is implemented.
-                    BotToast.showText(text: 'Kit purchasing is coming soon', align:Alignment.center);
-                  },
+                  onPressed: () => context.go(HomePage.shopPath),
                 ),
                 const Spacer(flex: 5),
               ],
