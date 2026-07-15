@@ -9,6 +9,12 @@ import 'package:tester_kit/features/onboarding/presentation/pages/get_started_pa
 import 'package:tester_kit/features/onboarding/presentation/pages/kit_question_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/launch_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/register_page.dart';
+import 'package:tester_kit/features/profile/presentation/pages/profile_page.dart';
+import 'package:tester_kit/features/profile/presentation/pages/about_page.dart';
+import 'package:tester_kit/features/profile/presentation/pages/edit_profile_page.dart';
+import 'package:tester_kit/features/profile/presentation/pages/help_faq_page.dart';
+import 'package:tester_kit/features/profile/presentation/pages/privacy_data_page.dart';
+import 'package:tester_kit/features/profile/presentation/pages/profile_notifications_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -23,6 +29,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: FullTendPage.path, builder: (context, state) => const FullTendPage()),
+      GoRoute(path: ProfilePage.path, builder: (context, state) => const ProfilePage()),
+      GoRoute(path: EditProfilePage.path, builder: (context, state) => const EditProfilePage()),
+      GoRoute(path: ProfileNotificationsPage.path, builder: (context, state) => const ProfileNotificationsPage()),
+      GoRoute(path: HelpFaqPage.path, builder: (context, state) => const HelpFaqPage()),
+      GoRoute(path: PrivacyDataPage.path, builder: (context, state) => const PrivacyDataPage()),
+      GoRoute(path: AboutPage.path, builder: (context, state) => const AboutPage()),
       GoRoute(
         path: NotificationPermissionPage.path,
         pageBuilder: (context, state) => const NoTransitionPage(

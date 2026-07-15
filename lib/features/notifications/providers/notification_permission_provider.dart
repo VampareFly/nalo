@@ -4,3 +4,7 @@ import 'package:tester_kit/features/notifications/services/notification_permissi
 final notificationPermissionServiceProvider = Provider<NotificationPermissionService>((ref) {
   return PlatformNotificationPermissionService();
 });
+
+final notificationPermissionStatusProvider = FutureProvider.autoDispose<bool>((ref) {
+  return ref.watch(notificationPermissionServiceProvider).isNotificationPermissionEnabled();
+});

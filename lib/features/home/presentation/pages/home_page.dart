@@ -5,10 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:tester_kit/features/full_tend/presentation/pages/full_tend_page.dart';
 import 'package:tester_kit/features/home/presentation/widgets/home_bottom_tabs.dart';
 import 'package:tester_kit/features/home/presentation/widgets/home_test_report_card.dart';
+import 'package:tester_kit/features/home/presentation/widgets/main_page_header.dart';
 import 'package:tester_kit/features/home/presentation/widgets/medical_disclaimer_footer.dart';
 import 'package:tester_kit/features/home/presentation/widgets/recommended_test_kit_card.dart';
 import 'package:tester_kit/features/home/presentation/widgets/referral_program_card.dart';
 import 'package:tester_kit/features/home/presentation/widgets/test_trend_section.dart';
+import 'package:tester_kit/features/profile/presentation/pages/profile_page.dart';
+import 'package:tester_kit/features/shop/presentation/pages/shop_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,9 +31,6 @@ class _HomePageState extends State<HomePage> {
   bool _isReferralVisible = true;
 
   void _selectTab(int index) {
-    final label = index == _homeIndex ? 'Home' : 'Shop';
-    BotToast.showText(text: '$label is coming soon', align: Alignment.center);
-
     setState(() {
       _selectedIndex = index;
     });
@@ -40,10 +40,7 @@ class _HomePageState extends State<HomePage> {
     BotToast.showText(text: 'Create is coming soon', align: Alignment.center);
   }
 
-  void _showMineToast() {
-    // TODO: <pf> Replace the toast when the mine page is implemented.
-    BotToast.showText(text: 'Mine is coming soon', align: Alignment.center);
-  }
+  void _openProfile() => context.push(ProfilePage.path);
 
   void _showLearnMoreToast() {
     // TODO: <pf> Open the Testosterone kit details after the product page is implemented.
@@ -90,7 +87,7 @@ class _HomePageState extends State<HomePage> {
             index: _selectedIndex,
             children: [
               _HomeTab(
-                onMinePressed: _showMineToast,
+                onMinePressed: _openProfile,
                 onLearnMorePressed: _showLearnMoreToast,
                 onFullTrendPressed: _openFullTend,
                 isReferralVisible: _isReferralVisible,
@@ -100,7 +97,7 @@ class _HomePageState extends State<HomePage> {
                 onShareLinkPressed: _showShareLinkToast,
                 onMessagePressed: _showMessageToast,
               ),
-              const _ShopTab(),
+              ShopPage(onMinePressed: _openProfile),
             ],
           ),
         ),
@@ -151,7 +148,7 @@ class _HomeTab extends StatelessWidget {
           sliver: SliverToBoxAdapter(
             child: Column(
               children: [
-                _HomeHeader(onMinePressed: onMinePressed),
+                MainPageHeader(headline: 'Good morning', onMinePressed: onMinePressed),
                 const SizedBox(height: 34),
                 const HomeTestReportCard(),
                 const SizedBox(height: 18),
@@ -170,7 +167,7 @@ class _HomeTab extends StatelessWidget {
                 ],
                 const SizedBox(height: 38),
                 const MedicalDisclaimerFooter(),
-                const SizedBox(height: 28),
+                const SizedBox(height: 18),
               ],
             ),
           ),
@@ -178,107 +175,5 @@ class _HomeTab extends StatelessWidget {
         const SliverFillRemaining(hasScrollBody: false, child: SizedBox()),
       ],
     );
-  }
-}
-
-class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.onMinePressed});
-
-  final VoidCallback onMinePressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'NBG TEST KIT',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF717174),
-                  fontSize: 10,
-                  height: 1,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 3,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Good morning',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF050505),
-                  fontSize: 24,
-                  height: 1,
-                  fontFamily: 'Times New Roman',
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        _MineButton(onPressed: onMinePressed),
-      ],
-    );
-  }
-}
-
-class _MineButton extends StatelessWidget {
-  const _MineButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: Material(
-              color: Colors.white,
-              shape: const CircleBorder(),
-              child: InkWell(
-                onTap: onPressed,
-                customBorder: const CircleBorder(),
-                child: const Icon(Icons.person_outline, color: Color(0xFF050505), size: 24),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 3,
-            right: 3,
-            child: Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(
-                color: const Color(0xFFA9B5F4),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ShopTab extends StatelessWidget {
-  const _ShopTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Shop'));
   }
 }

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
 import 'package:tester_kit/features/onboarding/view_models/register_view_model.dart';
+import 'package:tester_kit/features/profile/providers/profile_ui_provider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -52,7 +53,22 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       BotToast.showText(text: message, align: Alignment.center);
       return;
     }
+    ref.read(profileUiProvider.notifier).updateProfile(
+      firstName: _firstNameController.text,
+      lastName: _lastNameController.text,
+      gender: _toProfileGender(ref.read(registerViewModelProvider).gender!),
+      birthday: ref.read(registerViewModelProvider).birthday!,
+      email: _emailController.text,
+    );
     context.go(HomePage.path);
+  }
+
+  ProfileGender _toProfileGender(GenderOption gender) {
+    return switch (gender) {
+      GenderOption.female => ProfileGender.female,
+      GenderOption.male => ProfileGender.male,
+      GenderOption.preferNotToSay => ProfileGender.preferNotToSay,
+    };
   }
 
   void _dismissKeyboard([String? _]) {
