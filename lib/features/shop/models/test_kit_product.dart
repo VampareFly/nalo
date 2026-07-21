@@ -9,6 +9,7 @@ class TestKitProduct {
     required this.description,
     required this.price,
     required this.subscriptionPrice,
+    required this.productUrl,
   });
 
   final String id;
@@ -17,4 +18,5 @@ class TestKitProduct {
   final String description;
   final String price;
   final String subscriptionPrice;
+  final String productUrl;
 }

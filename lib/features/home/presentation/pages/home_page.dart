@@ -12,6 +12,7 @@ import 'package:tester_kit/features/home/presentation/widgets/referral_program_c
 import 'package:tester_kit/features/home/presentation/widgets/test_trend_section.dart';
 import 'package:tester_kit/features/profile/presentation/pages/profile_page.dart';
 import 'package:tester_kit/features/shop/presentation/pages/shop_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tester_kit/features/test_flow/presentation/pages/test_flow_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -29,7 +30,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static const _homeIndex = 0;
   static const _shopIndex = 1;
-  static const _referralCode = 'KNOW-15';
+  static const _referralCode = '7XY212AS0W0H';
+  static final _shareLink = Uri.parse(
+    'https://test-store-001-55rykspg.myshopify.com/discount/7XY212AS0W0H?redirect=%2Fcollections%2F%E5%95%86%E5%93%81%E6%A0%87%E9%A2%98-01',
+  );
 
   late int _selectedIndex;
   bool _isReferralVisible = true;
@@ -66,9 +70,9 @@ class _HomePageState extends State<HomePage> {
     BotToast.showText(text: 'Referral code copied', align: Alignment.center);
   }
 
-  void _showShareLinkToast() {
-    // TODO: <pf> Open the system share sheet when referral sharing is implemented.
-    BotToast.showText(text: 'Share link is coming soon', align: Alignment.center);
+  Future<void> _openShareLink() async {
+    final opened = await launchUrl(_shareLink, mode: LaunchMode.externalApplication);
+    if (!opened) BotToast.showText(text: 'Unable to open share link', align: Alignment.center);
   }
 
   void _showMessageToast() {
@@ -102,7 +106,7 @@ class _HomePageState extends State<HomePage> {
                 referralCode: _referralCode,
                 onReferralDismissed: _dismissReferral,
                 onReferralCopyPressed: _copyReferralCode,
-                onShareLinkPressed: _showShareLinkToast,
+                onShareLinkPressed: _openShareLink,
                 onMessagePressed: _showMessageToast,
               ),
               ShopPage(onMinePressed: _openProfile),

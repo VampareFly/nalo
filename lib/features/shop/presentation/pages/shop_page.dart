@@ -9,22 +9,24 @@ import 'package:tester_kit/features/shop/presentation/widgets/monthly_subscripti
 import 'package:tester_kit/features/shop/presentation/widgets/referral_discount_card.dart';
 import 'package:tester_kit/features/shop/presentation/widgets/test_kit_purchase_card.dart';
 import 'package:tester_kit/features/shop/providers/test_kit_products_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ShopPage extends ConsumerWidget {
   const ShopPage({super.key, required this.onMinePressed});
 
-  static const _referralCode = 'KNOW-15';
+  static const _referralCode = '7XY212AS0W0H';
+  static final _shareLink = Uri.parse(
+    'https://test-store-001-55rykspg.myshopify.com/discount/7XY212AS0W0H?redirect=%2Fcollections%2F%E5%95%86%E5%93%81%E6%A0%87%E9%A2%98-01',
+  );
 
   final VoidCallback onMinePressed;
 
-  void _showOrderToast(TestKitProduct product) {
-    // TODO: <pf> Open the selected test kit purchase flow after checkout is implemented.
-    BotToast.showText(text: '${product.name} ordering is coming soon', align: Alignment.center);
-  }
-
-  void _showSubscribeToast() {
-    // TODO: <pf> Open the monthly subscription checkout after subscriptions are implemented.
-    BotToast.showText(text: 'Subscriptions are coming soon', align: Alignment.center);
+  Future<void> _openProduct(TestKitProduct product) async {
+    final didOpen = await launchUrl(Uri.parse(product.productUrl), mode: LaunchMode.externalApplication);
+    if (!didOpen) {
+      BotToast.showText(text: 'Unable to open the shop', align: Alignment.center);
+    }
   }
 
   Future<void> _copyReferralCode() async {
@@ -32,9 +34,9 @@ class ShopPage extends ConsumerWidget {
     BotToast.showText(text: 'Referral code copied', align: Alignment.center);
   }
 
-  void _showShareLinkToast() {
-    // TODO: <pf> Open the system share sheet when referral sharing is implemented.
-    BotToast.showText(text: 'Share link is coming soon', align: Alignment.center);
+  Future<void> _openShareLink() async {
+    final opened = await launchUrl(_shareLink, mode: LaunchMode.externalApplication);
+    if (!opened) BotToast.showText(text: 'Unable to open share link', align: Alignment.center);
   }
 
   void _showMessageToast() {
@@ -45,6 +47,7 @@ class ShopPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(testKitProductsProvider);
+    final testosteroneProduct = products.firstWhere((product) => product.id == 'testosterone');
 
     return CustomScrollView(
       slivers: [
@@ -55,16 +58,16 @@ class ShopPage extends ConsumerWidget {
               MainPageHeader(headline: 'Shop', onMinePressed: onMinePressed),
               const SizedBox(height: 34),
               for (var index = 0; index < products.length; index++) ...[
-                TestKitPurchaseCard(product: products[index], onOrderPressed: () => _showOrderToast(products[index])),
+                TestKitPurchaseCard(product: products[index], onOrderPressed: () => _openProduct(products[index])),
                 if (index < products.length - 1) const SizedBox(height: 18),
               ],
               const SizedBox(height: 18),
-              MonthlySubscriptionOfferCard(onSubscribePressed: _showSubscribeToast),
+              MonthlySubscriptionOfferCard(onSubscribePressed: () => _openProduct(testosteroneProduct)),
               const SizedBox(height: 20),
               ReferralDiscountCard(
                 referralCode: _referralCode,
                 onCopyPressed: _copyReferralCode,
-                onShareLinkPressed: _showShareLinkToast,
+                onShareLinkPressed: _openShareLink,
                 onMessagePressed: _showMessageToast,
               ),
               const SizedBox(height: 38),

@@ -12,12 +12,16 @@ import 'package:tester_kit/features/profile/presentation/pages/help_faq_page.dar
 import 'package:tester_kit/features/profile/presentation/pages/privacy_data_page.dart';
 import 'package:tester_kit/features/profile/presentation/pages/profile_notifications_page.dart';
 import 'package:tester_kit/features/profile/providers/profile_ui_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   static const path = '/profile';
-  static const _referralCode = 'KNOW-15';
+  static const _referralCode = '7XY212AS0W0H';
+  static final _shareLink = Uri.parse(
+    'https://test-store-001-55rykspg.myshopify.com/discount/7XY212AS0W0H?redirect=%2Fcollections%2F%E5%95%86%E5%93%81%E6%A0%87%E9%A2%98-01',
+  );
 
   void _showComingSoon(String feature) {
     // TODO: <pf> Open the corresponding profile destination after it is implemented.
@@ -27,6 +31,11 @@ class ProfilePage extends ConsumerWidget {
   Future<void> _copyReferralCode() async {
     await Clipboard.setData(const ClipboardData(text: _referralCode));
     BotToast.showText(text: 'Referral code copied', align: Alignment.center);
+  }
+
+  Future<void> _openShareLink() async {
+    final opened = await launchUrl(_shareLink, mode: LaunchMode.externalApplication);
+    if (!opened) BotToast.showText(text: 'Unable to open share link', align: Alignment.center);
   }
 
   @override
@@ -94,7 +103,7 @@ class ProfilePage extends ConsumerWidget {
                       referralCode: _referralCode,
                       onDismissed: ref.read(profileUiProvider.notifier).dismissReferral,
                       onCopyPressed: _copyReferralCode,
-                      onShareLinkPressed: () => _showComingSoon('Share link'),
+                      onShareLinkPressed: _openShareLink,
                       onMessagePressed: () => _showComingSoon('Message sharing'),
                     ),
                   ],
