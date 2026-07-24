@@ -1,5 +1,45 @@
 enum TestType { cortisol, testosterone }
 
+sealed class HomeTestCardItem {
+  const HomeTestCardItem();
+
+  String get label;
+}
+
+class HomeTestReportItem extends HomeTestCardItem {
+  const HomeTestReportItem(this.report);
+
+  final HomeTestReport report;
+
+  @override
+  String get label => report.label;
+}
+
+class HomeTestProductItem extends HomeTestCardItem {
+  const HomeTestProductItem(this.product);
+
+  final HomeTestProduct product;
+
+  @override
+  String get label => product.label;
+}
+
+class HomeTestProduct {
+  const HomeTestProduct({
+    required this.type,
+    required this.label,
+    required this.title,
+    required this.description,
+    required this.price,
+  });
+
+  final TestType type;
+  final String label;
+  final String title;
+  final String description;
+  final String price;
+}
+
 class TestStep {
   const TestStep({required this.eyebrow, required this.title, required this.description});
 

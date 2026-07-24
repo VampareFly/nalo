@@ -54,13 +54,29 @@ class _HomeTestReportCardState extends ConsumerState<HomeTestReportCard> with Wi
     await ref.read(notificationPermissionServiceProvider).openAppSettings();
   }
 
+  void _showOrderKitToast() {
+    // TODO: <pf> Open the selected kit product page after product routing is implemented.
+    BotToast.showText(text: 'Kit ordering is coming soon', align: Alignment.center);
+  }
+
+  void _showReportSummaryToast() {
+    // TODO: <pf> Open the completed kit report summary after the report page is implemented.
+    BotToast.showText(text: 'Report summary is coming soon', align: Alignment.center);
+  }
+
   void _showPendingStep(HomeTestReport report, int index) {
     setState(() => _pendingStepIndexes[report.type] = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final reports = ref.watch(homeTestReportsProvider);
+    final items = ref.watch(homeTestCardItemsProvider);
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final productPageIndexes = [
+      for (var index = 0; index < items.length; index++)
+        if (items[index] is HomeTestProductItem) index,
+    ];
 
     return Container(
       height: 510,
@@ -75,32 +91,53 @@ class _HomeTestReportCardState extends ConsumerState<HomeTestReportCard> with Wi
           Expanded(
             child: PageView.builder(
               controller: _pageController,
-              itemCount: reports.length,
+              itemCount: items.length,
               onPageChanged: (index) => setState(() => _selectedReportIndex = index),
               itemBuilder: (context, index) {
-                final report = reports[index];
-                final pendingIndex = _pendingStepIndexes[report.type] ?? 0;
-                return _ReportPage(
-                  report: report,
-                  pendingIndex: pendingIndex,
-                  showRemindButton: _notificationsEnabled == false,
-                  onPendingStepChanged: (stepIndex) => _showPendingStep(report, stepIndex),
-                  onRemindPressed: _openNotificationSettings,
-                );
+                final item = items[index];
+                return switch (item) {
+                  HomeTestReportItem(:final report) => _ReportPage(
+                    report: report,
+                    pendingIndex: _pendingStepIndexes[report.type] ?? 0,
+                    showRemindButton: _notificationsEnabled == false,
+                    onPendingStepChanged: (stepIndex) => _showPendingStep(report, stepIndex),
+                    onRemindPressed: _openNotificationSettings,
+                    onReportSummaryPressed: _showReportSummaryToast,
+                  ),
+                  HomeTestProductItem(:final product) => _ProductOfferPage(
+                    product: product,
+                    onOrderPressed: _showOrderKitToast,
+                    onPreviousPressed: _productPageCallback(productPageIndexes: productPageIndexes, currentPageIndex: index, offset: -1),
+                    onNextPressed: _productPageCallback(productPageIndexes: productPageIndexes, currentPageIndex: index, offset: 1),
+                  ),
+                };
               },
             ),
           ),
           _TypeSelector(
-            reports: reports,
+            items: items,
             selectedIndex: _selectedReportIndex,
-            onSelected: (index) => _pageController.animateToPage(
-              index,
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-            ),
+            onSelected: (index) =>
+                _pageController.animateToPage(index, duration: const Duration(milliseconds: 280), curve: Curves.easeOutCubic),
           ),
         ],
       ),
+    );
+  }
+
+  VoidCallback? _productPageCallback({required List<int> productPageIndexes, required int currentPageIndex, required int offset}) {
+    if (productPageIndexes.length <= 1) return null;
+
+    final productIndex = productPageIndexes.indexOf(currentPageIndex);
+    final targetProductIndex = productIndex + offset;
+    if (productIndex < 0 || targetProductIndex < 0 || targetProductIndex >= productPageIndexes.length) {
+      return null;
+    }
+
+    return () => _pageController.animateToPage(
+      productPageIndexes[targetProductIndex],
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
     );
   }
 }
@@ -112,6 +149,7 @@ class _ReportPage extends StatelessWidget {
     required this.showRemindButton,
     required this.onPendingStepChanged,
     required this.onRemindPressed,
+    required this.onReportSummaryPressed,
   });
 
   final HomeTestReport report;
@@ -119,6 +157,7 @@ class _ReportPage extends StatelessWidget {
   final bool showRemindButton;
   final ValueChanged<int> onPendingStepChanged;
   final VoidCallback onRemindPressed;
+  final VoidCallback onReportSummaryPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +176,10 @@ class _ReportPage extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(report.result, style: const TextStyle(color: Color(0xFF050505), fontSize: 42, height: 0.9, fontWeight: FontWeight.w700)),
+              Text(
+                report.result,
+                style: const TextStyle(color: Color(0xFF050505), fontSize: 42, height: 0.9, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(width: 7),
               Padding(
                 padding: const EdgeInsets.only(bottom: 2),
@@ -164,8 +206,12 @@ class _ReportPage extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text(report.lowRange, style: _rangeLabelStyle)),
-              Expanded(child: Text(report.normalRange, textAlign: TextAlign.center, style: _rangeLabelStyle)),
-              Expanded(child: Text(report.highRange, textAlign: TextAlign.end, style: _rangeLabelStyle)),
+              Expanded(
+                child: Text(report.normalRange, textAlign: TextAlign.center, style: _rangeLabelStyle),
+              ),
+              Expanded(
+                child: Text(report.highRange, textAlign: TextAlign.end, style: _rangeLabelStyle),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -178,6 +224,7 @@ class _ReportPage extends StatelessWidget {
                 showRemindButton: showRemindButton,
                 onPendingStepChanged: onPendingStepChanged,
                 onRemindPressed: onRemindPressed,
+                onReportSummaryPressed: onReportSummaryPressed,
               ),
             ),
           ),
@@ -238,7 +285,10 @@ class _ProgressNode extends StatelessWidget {
       alignment: Alignment.center,
       child: isComplete
           ? const Icon(Icons.check, color: Colors.white, size: 13)
-          : Text('$step', style: const TextStyle(color: Color(0xFF77777A), fontSize: 10, fontWeight: FontWeight.w600)),
+          : Text(
+              '$step',
+              style: const TextStyle(color: Color(0xFF77777A), fontSize: 10, fontWeight: FontWeight.w600),
+            ),
     );
   }
 }
@@ -265,9 +315,18 @@ class _RangeBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: const Row(
                   children: [
-                    Expanded(flex: 1, child: ColoredBox(color: Color(0xFF80C5FF), child: SizedBox(height: 11))),
-                    Expanded(flex: 5, child: ColoredBox(color: Color(0xFF82EBAA), child: SizedBox(height: 11))),
-                    Expanded(flex: 3, child: ColoredBox(color: Color(0xFFFFA3A7), child: SizedBox(height: 11))),
+                    Expanded(
+                      flex: 1,
+                      child: ColoredBox(color: Color(0xFF80C5FF), child: SizedBox(height: 11)),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: ColoredBox(color: Color(0xFF82EBAA), child: SizedBox(height: 11)),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: ColoredBox(color: Color(0xFFFFA3A7), child: SizedBox(height: 11)),
+                    ),
                   ],
                 ),
               ),
@@ -299,6 +358,7 @@ class _PendingStepPanel extends StatelessWidget {
     required this.showRemindButton,
     required this.onPendingStepChanged,
     required this.onRemindPressed,
+    required this.onReportSummaryPressed,
   });
 
   final HomeTestReport report;
@@ -306,12 +366,13 @@ class _PendingStepPanel extends StatelessWidget {
   final bool showRemindButton;
   final ValueChanged<int> onPendingStepChanged;
   final VoidCallback onRemindPressed;
+  final VoidCallback onReportSummaryPressed;
 
   @override
   Widget build(BuildContext context) {
     final pendingSteps = report.pendingSteps;
     if (pendingSteps.isEmpty) {
-      return const _CompletedPanel();
+      return _CompletedPanel(onPressed: onReportSummaryPressed);
     }
 
     final safePendingIndex = pendingIndex.clamp(0, pendingSteps.length - 1).toInt();
@@ -372,33 +433,163 @@ class _PendingStepPanel extends StatelessWidget {
             ),
           ),
         ),
-        if (canGoBack) Positioned(left: -13, top: 0, child: _StepArrow(icon: Icons.chevron_left, onPressed: () => onPendingStepChanged(pendingIndex - 1))),
-        if (canGoForward) Positioned(right: -13, top: 0, child: _StepArrow(icon: Icons.chevron_right, onPressed: () => onPendingStepChanged(pendingIndex + 1))),
+        if (canGoBack)
+          Positioned(
+            left: -13,
+            top: 0,
+            child: _StepArrow(icon: Icons.chevron_left, onPressed: () => onPendingStepChanged(pendingIndex - 1)),
+          ),
+        if (canGoForward)
+          Positioned(
+            right: -13,
+            top: 0,
+            child: _StepArrow(icon: Icons.chevron_right, onPressed: () => onPendingStepChanged(pendingIndex + 1)),
+          ),
       ],
     );
   }
 }
 
 class _CompletedPanel extends StatelessWidget {
-  const _CompletedPanel();
+  const _CompletedPanel({required this.onPressed});
+
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: const Color(0xFFE9E9E9)),
+    return Align(
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: double.infinity,
+        height: 88,
+        child: Material(
+          color: const Color(0xFFA9B9F0),
+          borderRadius: BorderRadius.circular(25),
+          child: InkWell(
+            key: const ValueKey('completed_report_summary'),
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(25),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🎉 Kit complete — report ready',
+                          style: TextStyle(color: Color(0xFF111216), fontSize: 16, height: 1.1, fontWeight: FontWeight.w700),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'View summary of all 3 results',
+                          style: TextStyle(color: Color(0xFF676A72), fontSize: 13, height: 1, letterSpacing: 0.7),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Icon(Icons.chevron_right, color: Color(0xFF7187D8), size: 30),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('REPORT COMPLETE', style: TextStyle(color: Color(0xFF77777A), fontSize: 10, letterSpacing: 1.4)),
-          SizedBox(height: 10),
-          Text('Your full report is ready', style: TextStyle(color: Color(0xFF202023), fontSize: 15, fontWeight: FontWeight.w600)),
-        ],
+    );
+  }
+}
+
+class _ProductOfferPage extends StatelessWidget {
+  const _ProductOfferPage({
+    required this.product,
+    required this.onOrderPressed,
+    required this.onPreviousPressed,
+    required this.onNextPressed,
+  });
+
+  final HomeTestProduct product;
+  final VoidCallback onOrderPressed;
+  final VoidCallback? onPreviousPressed;
+  final VoidCallback? onNextPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 34, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'ALSO AVAILABLE',
+                style: TextStyle(color: Color(0xFF77777A), fontSize: 10, height: 1, fontWeight: FontWeight.w500, letterSpacing: 1.5),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                product.title,
+                style: const TextStyle(
+                  color: Color(0xFF111216),
+                  fontFamily: 'Times New Roman',
+                  fontSize: 25,
+                  height: 1,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(product.description, style: const TextStyle(color: Color(0xFF77777A), fontSize: 14, height: 1.45)),
+              const SizedBox(height: 22),
+              FilledButton(
+                key: const ValueKey('order_kit_button'),
+                onPressed: onOrderPressed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF050505),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                ),
+                child: Text('Order kit — ${product.price} →'),
+              ),
+            ],
+          ),
+        ),
+        if (onPreviousPressed != null)
+          Positioned(
+            left: 10,
+            top: 142,
+            child: _ProductArrow(key: const ValueKey('product_previous'), icon: Icons.chevron_left, onPressed: onPreviousPressed!),
+          ),
+        if (onNextPressed != null)
+          Positioned(
+            right: 10,
+            top: 142,
+            child: _ProductArrow(key: const ValueKey('product_next'), icon: Icons.chevron_right, onPressed: onNextPressed!),
+          ),
+      ],
+    );
+  }
+}
+
+class _ProductArrow extends StatelessWidget {
+  const _ProductArrow({super.key, required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: CircleBorder(side: BorderSide(color: Colors.black.withValues(alpha: 0.1))),
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: SizedBox(width: 30, height: 30, child: Icon(icon, color: const Color(0xFF202023), size: 18)),
       ),
     );
   }
@@ -425,9 +616,9 @@ class _StepArrow extends StatelessWidget {
 }
 
 class _TypeSelector extends StatelessWidget {
-  const _TypeSelector({required this.reports, required this.selectedIndex, required this.onSelected});
+  const _TypeSelector({required this.items, required this.selectedIndex, required this.onSelected});
 
-  final List<HomeTestReport> reports;
+  final List<HomeTestCardItem> items;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
@@ -435,18 +626,28 @@ class _TypeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 48,
-      decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFECECEC)))),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0xFFECECEC))),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _TypeButton(report: reports[0], isSelected: selectedIndex == 0, onPressed: () => onSelected(0)),
-          const SizedBox(width: 8),
-          for (var index = 0; index < reports.length; index++) ...[
-            _PageIndicator(isSelected: selectedIndex == index),
-            if (index < reports.length - 1) const SizedBox(width: 6),
+          if (items.length == 1)
+            _TypeButton(label: items.single.label, isSelected: true, onPressed: () {})
+          else ...[
+            _TypeButton(label: items.first.label, isSelected: selectedIndex == 0, onPressed: () => onSelected(0)),
+            const SizedBox(width: 8),
+            for (var index = 0; index < items.length; index++) ...[
+              _PageIndicator(isSelected: selectedIndex == index),
+              if (index < items.length - 1) const SizedBox(width: 6),
+            ],
+            const SizedBox(width: 8),
+            _TypeButton(
+              label: items.last.label,
+              isSelected: selectedIndex == items.length - 1,
+              onPressed: () => onSelected(items.length - 1),
+            ),
           ],
-          const SizedBox(width: 8),
-          _TypeButton(report: reports[1], isSelected: selectedIndex == 1, onPressed: () => onSelected(1)),
         ],
       ),
     );
@@ -454,9 +655,9 @@ class _TypeSelector extends StatelessWidget {
 }
 
 class _TypeButton extends StatelessWidget {
-  const _TypeButton({required this.report, required this.isSelected, required this.onPressed});
+  const _TypeButton({required this.label, required this.isSelected, required this.onPressed});
 
-  final HomeTestReport report;
+  final String label;
   final bool isSelected;
   final VoidCallback onPressed;
 
@@ -470,7 +671,7 @@ class _TypeButton extends StatelessWidget {
         overlayColor: Colors.transparent,
         textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 0.7),
       ),
-      child: Text(report.label),
+      child: Text(label),
     );
   }
 }
