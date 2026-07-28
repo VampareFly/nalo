@@ -2,14 +2,15 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tester_kit/features/home/presentation/widgets/main_page_header.dart';
 import 'package:tester_kit/features/home/presentation/widgets/medical_disclaimer_footer.dart';
 import 'package:tester_kit/features/shop/models/test_kit_product.dart';
+import 'package:tester_kit/features/shop/presentation/pages/subscription_details_page.dart';
 import 'package:tester_kit/features/shop/presentation/widgets/monthly_subscription_offer_card.dart';
 import 'package:tester_kit/features/shop/presentation/widgets/referral_discount_card.dart';
 import 'package:tester_kit/features/shop/presentation/widgets/test_kit_purchase_card.dart';
 import 'package:tester_kit/features/shop/providers/test_kit_products_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ShopPage extends ConsumerWidget {
@@ -47,7 +48,6 @@ class ShopPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(testKitProductsProvider);
-    final testosteroneProduct = products.firstWhere((product) => product.id == 'testosterone');
 
     return CustomScrollView(
       slivers: [
@@ -62,7 +62,9 @@ class ShopPage extends ConsumerWidget {
                 if (index < products.length - 1) const SizedBox(height: 18),
               ],
               const SizedBox(height: 18),
-              MonthlySubscriptionOfferCard(onSubscribePressed: () => _openProduct(testosteroneProduct)),
+              MonthlySubscriptionOfferCard(
+                onSubscribePressed: () => context.push(SubscriptionDetailsPage.path),
+              ),
               const SizedBox(height: 20),
               ReferralDiscountCard(
                 referralCode: _referralCode,

@@ -15,6 +15,7 @@ import 'package:tester_kit/features/profile/presentation/pages/edit_profile_page
 import 'package:tester_kit/features/profile/presentation/pages/help_faq_page.dart';
 import 'package:tester_kit/features/profile/presentation/pages/privacy_data_page.dart';
 import 'package:tester_kit/features/profile/presentation/pages/profile_notifications_page.dart';
+import 'package:tester_kit/features/shop/presentation/pages/subscription_details_page.dart';
 import 'package:tester_kit/features/test_flow/presentation/pages/test_flow_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -30,6 +31,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: FullTendPage.path, builder: (context, state) => const FullTendPage()),
+      GoRoute(
+        path: SubscriptionDetailsPage.path,
+        builder: (context, state) => const SubscriptionDetailsPage(),
+      ),
       GoRoute(path: ProfilePage.path, builder: (context, state) => const ProfilePage()),
       GoRoute(path: EditProfilePage.path, builder: (context, state) => const EditProfilePage()),
       GoRoute(path: ProfileNotificationsPage.path, builder: (context, state) => const ProfileNotificationsPage()),
