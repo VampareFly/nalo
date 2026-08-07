@@ -1,16 +1,19 @@
+import 'package:amplitude_flutter/events/base_event.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tester_kit/core/analytics/amplitude_provider.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/kit_question_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_background.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
 
-class GetStartedPage extends StatelessWidget {
+class GetStartedPage extends ConsumerWidget {
   const GetStartedPage({super.key});
 
   static const path = '/get-started';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: OnboardingBackground(
         child: SafeArea(
@@ -22,12 +25,7 @@ class GetStartedPage extends StatelessWidget {
                 const Spacer(flex: 7),
                 Text(
                   'NOLA',
-                  style: const TextStyle(
-                    color: Color(0xFF6F7075),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2,
-                  ),
+                  style: const TextStyle(color: Color(0xFF6F7075), fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 2),
                 ),
                 const SizedBox(height: 14),
                 Text.rich(
@@ -35,12 +33,7 @@ class GetStartedPage extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: 'Numbers\n',
-                        style: const TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 48,
-                          fontStyle: FontStyle.italic,
-                          height: 0.95,
-                        ),
+                        style: const TextStyle(fontFamily: 'serif', fontSize: 48, fontStyle: FontStyle.italic, height: 0.95),
                       ),
                       TextSpan(
                         text: 'over vibes.',
@@ -58,7 +51,11 @@ class GetStartedPage extends StatelessWidget {
                 const SizedBox(height: 34),
                 OnboardingButton(
                   label: 'Get started',
-                  onPressed: () => context.push(KitQuestionPage.path),
+                  onPressed: () {
+                    DateTime now = DateTime.now();
+                    ref.read(amplitudeProvider)?.track(BaseEvent('Get Started Clicked test$now))'));
+                    context.push(KitQuestionPage.path);
+                  },
                 ),
               ],
             ),

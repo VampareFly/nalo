@@ -29,4 +29,13 @@ class TesterKitApp extends ConsumerWidget {
       ),
     );
   }
+
+  void greet({required String name}) {
+    test(name: 'hello world');
+    print(name);
+  }
+
+  void test({required String name}) {
+    print(name);
+  }
 }

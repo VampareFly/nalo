@@ -62,6 +62,7 @@ dependencies:
   app_links: ^7.2.1
   firebase_core: ^4.11.0
   firebase_crashlytics: ^5.2.4
+  amplitude_flutter: ^4.6.2
 
 dev_dependencies:
   flutter_test:
