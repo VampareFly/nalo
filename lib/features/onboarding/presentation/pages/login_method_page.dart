@@ -1,18 +1,23 @@
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/login_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/register_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_background.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
+import 'package:tester_kit/features/onboarding/view_models/shopify_auth_view_model.dart';
 
 /// 登录选择页面
-class LoginMethodPage extends StatelessWidget {
+class LoginMethodPage extends ConsumerWidget {
   const LoginMethodPage({super.key});
 
   static const path = '/login-method';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shopifyAuthState = ref.watch(shopifyAuthViewModelProvider);
+
     return Scaffold(
       body: OnboardingBackground(
         child: SafeArea(
@@ -44,6 +49,42 @@ class LoginMethodPage extends StatelessWidget {
                   label: 'Regist',
                   isPrimary: false,
                   onPressed: () => context.push(RegisterPage.path),
+                ),
+                const SizedBox(height: 16),
+                OnboardingButton(
+                  label: shopifyAuthState.isLoading
+                      ? 'Connecting to Shopify...'
+                      : 'Login with Shopify',
+                  isPrimary: false,
+                  onPressed: () async {
+                    if (shopifyAuthState.isBusy) return;
+                    final message = await ref
+                        .read(shopifyAuthViewModelProvider.notifier)
+                        .login();
+                    if (!context.mounted) return;
+                    BotToast.showText(
+                      text: message ?? 'Shopify login successful',
+                      align: Alignment.center,
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                OnboardingButton(
+                  label: shopifyAuthState.isLoggingOut
+                      ? 'Logging out from Shopify...'
+                      : 'Logout from Shopify',
+                  isPrimary: false,
+                  onPressed: () async {
+                    if (shopifyAuthState.isBusy) return;
+                    final message = await ref
+                        .read(shopifyAuthViewModelProvider.notifier)
+                        .logout();
+                    if (!context.mounted) return;
+                    BotToast.showText(
+                      text: message ?? 'Shopify logout successful',
+                      align: Alignment.center,
+                    );
+                  },
                 ),
                 const Spacer(flex: 5),
               ],

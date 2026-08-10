@@ -1,8 +1,9 @@
-import 'package:amplitude_flutter/events/base_event.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tester_kit/core/analytics/amplitude_provider.dart';
+import 'package:tester_kit/core/analytics/analytics.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/kit_question_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_background.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
@@ -52,8 +53,9 @@ class GetStartedPage extends ConsumerWidget {
                 OnboardingButton(
                   label: 'Get started',
                   onPressed: () {
-                    DateTime now = DateTime.now();
-                    ref.read(amplitudeProvider)?.track(BaseEvent('Get Started Clicked test$now))'));
+                    unawaited(
+                      ref.report(AnalyticsEvent.getStartedClicked),
+                    );
                     context.push(KitQuestionPage.path);
                   },
                 ),
