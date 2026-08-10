@@ -7,6 +7,7 @@ import 'package:tester_kit/app/router/app_router.dart';
 import 'package:tester_kit/app/theme/app_theme.dart';
 import 'package:tester_kit/l10n/generated/app_localizations.dart';
 
+/// 应用根 Widget，组装主题、路由、国际化和全局 UI 服务。
 class TesterKitApp extends ConsumerWidget {
   const TesterKitApp({super.key});
 
@@ -19,7 +20,7 @@ class TesterKitApp extends ConsumerWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) => MaterialApp.router(
-        title: 'TesterKit',
+        title: 'Nala',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         routerConfig: router,

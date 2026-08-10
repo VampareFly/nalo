@@ -10,7 +10,7 @@ abstract interface class NotificationPermissionService {
 }
 
 class PlatformNotificationPermissionService implements NotificationPermissionService {
-  static const _channel = MethodChannel('com.sanjiang.testerkit/notification_permission');
+  static const _channel = MethodChannel('com.sanjiang.nala/notification_permission');
 
   @override
   Future<bool> isNotificationPermissionEnabled() async {

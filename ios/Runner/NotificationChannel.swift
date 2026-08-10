@@ -3,7 +3,7 @@ import UIKit
 import UserNotifications
 
 enum NotificationChannel {
-  private static let channelName = "com.sanjiang.testerkit/notification_permission"
+  private static let channelName = "com.sanjiang.nala/notification_permission"
 
   static func register(binaryMessenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(

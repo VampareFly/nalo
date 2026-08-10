@@ -9,8 +9,8 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appName => 'TesterKit';
+  String get appName => 'Nala';
 
   @override
-  String get welcomeMessage => 'TesterKit 已准备就绪';
+  String get welcomeMessage => 'Nala 已准备就绪';
 }

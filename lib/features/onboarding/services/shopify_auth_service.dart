@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 
+/// 负责 Shopify OAuth 登录、令牌交换和退出登录请求。
 class ShopifyAuthService {
   ShopifyAuthService({required Dio dio, FlutterAppAuth? appAuth})
     : _dio = dio,
@@ -16,6 +17,7 @@ class ShopifyAuthService {
   final Dio _dio;
   final FlutterAppAuth _appAuth;
 
+  /// 发起 Shopify OAuth 登录并交换访问令牌。
   Future<ShopifyAuthResult> login() async {
     final authorization = await _appAuth.authorize(
       AuthorizationRequest(
@@ -87,6 +89,7 @@ class ShopifyAuthService {
     );
   }
 
+  /// 使用 ID Token 请求 Shopify 退出登录。
   Future<void> logout({required String idToken}) async {
     final discovery = await _getDiscoveryConfiguration();
     final endSessionEndpoint =
@@ -116,6 +119,7 @@ class ShopifyAuthService {
   }
 }
 
+/// Shopify 登录成功后返回的令牌信息。
 class ShopifyAuthResult {
   const ShopifyAuthResult({
     required this.accessToken,
@@ -128,6 +132,7 @@ class ShopifyAuthResult {
   final DateTime? accessTokenExpirationDateTime;
 }
 
+/// Shopify OAuth 流程中的业务异常。
 class ShopifyAuthException implements Exception {
   const ShopifyAuthException(this.message);
 

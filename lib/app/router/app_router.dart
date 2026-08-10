@@ -18,6 +18,7 @@ import 'package:tester_kit/features/profile/presentation/pages/profile_notificat
 import 'package:tester_kit/features/shop/presentation/pages/subscription_details_page.dart';
 import 'package:tester_kit/features/test_flow/presentation/pages/test_flow_page.dart';
 
+/// 集中维护应用路由和页面跳转配置。
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     // TODO: <pf> Restore LaunchPage.path after onboarding development is complete.

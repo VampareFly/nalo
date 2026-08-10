@@ -101,13 +101,13 @@ abstract class AppLocalizations {
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:
-  /// **'TesterKit'**
+  /// **'Nala'**
   String get appName;
 
   /// No description provided for @welcomeMessage.
   ///
   /// In en, this message translates to:
-  /// **'TesterKit is ready'**
+  /// **'Nala is ready'**
   String get welcomeMessage;
 }
 

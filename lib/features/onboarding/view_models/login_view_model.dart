@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tester_kit/app/config/app_config_provider.dart';
 
+/// 管理普通登录页面的表单状态和登录流程。
 final loginViewModelProvider =
     NotifierProvider.autoDispose<LoginViewModel, LoginState>(
       LoginViewModel.new,
     );
 
+/// 普通登录页面状态。
 class LoginState {
   const LoginState({this.isPasswordObscured = true});
 
@@ -18,18 +20,21 @@ class LoginState {
   }
 }
 
+/// 处理登录表单校验和登录结果。
 class LoginViewModel extends Notifier<LoginState> {
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   @override
   LoginState build() => const LoginState();
 
+  /// 切换密码明文和密文显示状态。
   void togglePasswordVisibility() {
     state = state.copyWith(
       isPasswordObscured: !state.isPasswordObscured,
     );
   }
 
+  /// 校验登录表单并执行登录流程。
   Future<String?> login({
     required String email,
     required String password,

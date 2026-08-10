@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tester_kit/core/network/dio_provider.dart';
 import 'package:tester_kit/features/onboarding/services/shopify_auth_service.dart';
 
+/// 注入 Shopify 认证服务。
 final shopifyAuthServiceProvider = Provider<ShopifyAuthService>(
   (ref) => ShopifyAuthService(dio: ref.watch(dioProvider)),
 );
@@ -12,6 +13,7 @@ final shopifyAuthViewModelProvider =
       ShopifyAuthViewModel.new,
     );
 
+/// Shopify 登录流程的页面状态。
 class ShopifyAuthState {
   const ShopifyAuthState({
     this.isLoading = false,
@@ -31,10 +33,12 @@ class ShopifyAuthState {
   bool get isBusy => isLoading || isLoggingOut;
 }
 
+/// 编排 Shopify 登录和退出登录流程。
 class ShopifyAuthViewModel extends Notifier<ShopifyAuthState> {
   @override
   ShopifyAuthState build() => const ShopifyAuthState();
 
+  /// 登录成功后保存当前会话令牌。
   Future<String?> login() async {
     if (state.isBusy) return null;
     state = const ShopifyAuthState(isLoading: true);
@@ -62,6 +66,7 @@ class ShopifyAuthViewModel extends Notifier<ShopifyAuthState> {
     }
   }
 
+  /// 请求 Shopify 退出登录，失败时恢复原登录状态。
   Future<String?> logout() async {
     final idToken = state.idToken;
     if (idToken == null) return 'No active Shopify session';

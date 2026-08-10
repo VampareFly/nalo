@@ -1,4 +1,4 @@
-package come.sanjiang.testerkit
+package com.sanjiang.nala
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

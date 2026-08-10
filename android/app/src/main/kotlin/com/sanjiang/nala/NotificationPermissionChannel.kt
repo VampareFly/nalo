@@ -1,4 +1,4 @@
-package come.sanjiang.testerkit
+package com.sanjiang.nala
 
 import android.Manifest
 import android.app.NotificationManager
@@ -109,7 +109,7 @@ class NotificationPermissionChannel(private val activity: MainActivity) {
     }
 
     private companion object {
-        const val channelName = "com.sanjiang.testerkit/notification_permission"
+        const val channelName = "com.sanjiang.nala/notification_permission"
         const val methodIsPermissionEnabled = "isNotificationPermissionEnabled"
         const val methodRequestPermission = "requestNotificationPermission"
         const val methodOpenAppSettings = "openAppSettings"
