@@ -20,11 +20,11 @@ import 'package:tester_kit/core/logging/logger_provider.dart';
 
 /// 统一维护发送到 Amplitude 的事件名称。
 enum AnalyticsEvent {
-  getStartedClicked('Get Started Clicked'),
-  buttonClicked('Button Clicked'),
-  loginCompleted('Login Completed'),
-  logoutCompleted('Logout Completed'),
-  accountDeletionRequested('Account Deletion Requested');
+  getStartedClicked('get_started_clicked'),
+  buttonClicked('button_clicked'),
+  loginCompleted('login_completed'),
+  logoutCompleted('logout_completed'),
+  accountDeletionRequested('account_deletion_requested');
 
   const AnalyticsEvent(this.eventName);
 
@@ -43,10 +43,10 @@ enum AnalyticsCommonProperty {
 
 /// 具体事件按需携带的业务属性。
 enum AnalyticsEventProperty {
-  buttonName('page_name'),
-  screenName('login_method'),
-  loginMethod('source'),
-  result('is_successful'),;
+  buttonName('button_name'),
+  screenName('screen_name'),
+  loginMethod('login_method'),
+  result('result');
 
   const AnalyticsEventProperty(this.propertyName);
 

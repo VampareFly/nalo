@@ -6,10 +6,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:tester_kit/app/app.dart';
 import 'package:tester_kit/core/analytics/analytics.dart';
 import 'package:tester_kit/core/analytics/amplitude_config.dart';
+import 'package:tester_kit/core/crash_reporting/crash_reporting_service.dart';
 
 Future<void> main() async {
   /// 确保flutter framework与底层引擎的链接
   WidgetsFlutterBinding.ensureInitialized();
+
+  await CrashReportingService.initialize();
+
   await Hive.initFlutter();
 
   final amplitude = Amplitude(

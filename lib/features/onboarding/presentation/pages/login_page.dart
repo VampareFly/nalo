@@ -2,6 +2,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tester_kit/app/config/app_version_provider.dart';
 import 'package:tester_kit/core/device/device_id_provider.dart';
 import 'package:tester_kit/core/logging/logger_provider.dart';
 import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
@@ -52,6 +53,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final isPasswordObscured = ref.watch(loginViewModelProvider.select((state) => state.isPasswordObscured));
+    final versionLabel = ref.watch(appVersionLabelProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F4F1),
@@ -110,6 +112,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         const Spacer(),
                         const SizedBox(height: 36),
                         OnboardingButton(label: 'Login', onPressed: _login),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: versionLabel.when(
+                            data: (label) => Text(
+                              label,
+                              style: const TextStyle(
+                                color: Color(0xFF999A9E),
+                                fontSize: 11,
+                              ),
+                            ),
+                            loading: SizedBox.shrink,
+                            error: (_, _) => const SizedBox.shrink(),
+                          ),
+                        ),
                       ],
                     ),
                   ),

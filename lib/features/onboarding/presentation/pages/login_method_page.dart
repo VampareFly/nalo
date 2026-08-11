@@ -2,6 +2,8 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tester_kit/app/config/app_version_provider.dart';
+import 'package:tester_kit/core/crash_reporting/crash_reporting_service.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/login_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/pages/register_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_background.dart';
@@ -17,6 +19,14 @@ class LoginMethodPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final shopifyAuthState = ref.watch(shopifyAuthViewModelProvider);
+    final isCrashlyticsTestVersion = ref.watch(
+      appPackageInfoProvider.select(
+        (packageInfo) => packageInfo.maybeWhen(
+          data: (value) => value.version == crashlyticsTestVersion,
+          orElse: () => false,
+        ),
+      ),
+    );
 
     return Scaffold(
       body: OnboardingBackground(
@@ -86,6 +96,14 @@ class LoginMethodPage extends ConsumerWidget {
                     );
                   },
                 ),
+                if (isCrashlyticsTestVersion) ...[
+                  const SizedBox(height: 16),
+                  OnboardingButton(
+                    label: 'Trigger Test Crash',
+                    isPrimary: false,
+                    onPressed: CrashReportingService.triggerTestCrash,
+                  ),
+                ],
                 const Spacer(flex: 5),
               ],
             ),
