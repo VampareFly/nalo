@@ -15,9 +15,12 @@ const crashlyticsTestVersion = '9.9.9';
 class CrashReportingService {
   const CrashReportingService._();
 
-  /// 在应用启动阶段初始化 iOS Crashlytics，并根据构建模式和版本决定是否收集。
+  /// 在应用启动阶段初始化移动端 Crashlytics，并根据构建模式和版本决定是否收集。
   static Future<void> initialize() async {
-    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+    final isSupportedPlatform =
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android;
+    if (!isSupportedPlatform) return;
 
     await Firebase.initializeApp();
 

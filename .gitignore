@@ -3,6 +3,7 @@
 *.log
 *.pyc
 *.swp
+*.orig
 .DS_Store
 .atom/
 .build/
@@ -30,6 +31,8 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+.packages
+pubspec_overrides.yaml
 /build/
 /coverage/
 
@@ -43,3 +46,68 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# iOS / Xcode / CocoaPods
+/ios/**/dgph
+/ios/**/*.mode1v3
+/ios/**/*.mode2v3
+/ios/**/*.moved-aside
+/ios/**/*.pbxuser
+/ios/**/*.perspectivev3
+/ios/**/*sync/
+/ios/**/.vagrant/
+/ios/**/DerivedData/
+/ios/**/*.xcarchive
+/ios/**/*.ipa
+/ios/**/*.dSYM
+/ios/**/*.dSYM.zip
+/ios/**/Icon?
+/ios/**/Pods/
+/ios/**/.symlinks/
+/ios/**/profile
+/ios/**/xcuserdata/
+/ios/**/.generated/
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/ephemeral/
+/ios/Flutter/app.flx
+/ios/Flutter/app.zip
+/ios/Flutter/flutter_assets/
+/ios/Flutter/flutter_export_environment.sh
+/ios/.xcode.env.local
+/ios/ServiceDefinitions.json
+/ios/Runner/GeneratedPluginRegistrant.*
+
+# 保留 Xcode 的默认共享配置。
+!/ios/**/default.mode1v3
+!/ios/**/default.mode2v3
+!/ios/**/default.pbxuser
+!/ios/**/default.perspectivev3
+
+# Firebase 配置属于应用接入配置，需要纳入版本管理。
+!/ios/Runner/GoogleService-Info.plist
+
+# Android / Gradle / NDK
+/android/gradle-wrapper.jar
+/android/.gradle/
+/android/.kotlin/
+/android/captures/
+/android/build/
+/android/app/build/
+/android/gradlew
+/android/gradlew.bat
+/android/local.properties
+/android/**/GeneratedPluginRegistrant.java
+/android/**/.cxx/
+/android/**/.externalNativeBuild/
+/android/**/*.hprof
+
+# Android 签名文件包含私钥，不应纳入版本管理。
+/android/key.properties
+/android/**/*.keystore
+/android/**/*.jks
+
+# Firebase 配置属于应用接入配置，需要纳入版本管理。
+!/android/app/google-services.json
