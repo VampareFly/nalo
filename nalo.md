@@ -1,8 +1,8 @@
-# Nala Flutter 项目说明
+# Nalo Flutter 项目说明
 
 ## 项目定位
 
-这是一个基于 Flutter 的 Nala App，当前主要包含用户引导、登录注册、测试流程、首页报告、商品展示、通知权限和个人资料等模块。
+这是一个基于 Flutter 的 Nalo App，当前主要包含用户引导、登录注册、测试流程、首页报告、商品展示、通知权限和个人资料等模块。
 
 项目使用 Dart 3.12.2，采用 Flutter 官方推荐的响应式 Widget 架构，并使用 Riverpod 管理状态和依赖注入。
 

@@ -20,7 +20,7 @@ class TesterKitApp extends ConsumerWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) => MaterialApp.router(
-        title: 'Nala',
+        title: 'Nalo',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         routerConfig: router,

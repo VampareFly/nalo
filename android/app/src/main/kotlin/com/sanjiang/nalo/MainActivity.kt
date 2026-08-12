@@ -1,4 +1,4 @@
-package com.sanjiang.nala
+package com.sanjiang.nalo
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

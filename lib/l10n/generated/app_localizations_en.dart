@@ -9,8 +9,8 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'Nala';
+  String get appName => 'Nalo';
 
   @override
-  String get welcomeMessage => 'Nala is ready';
+  String get welcomeMessage => 'Nalo is ready';
 }

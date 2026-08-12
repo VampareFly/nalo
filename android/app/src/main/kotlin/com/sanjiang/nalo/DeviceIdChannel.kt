@@ -1,4 +1,4 @@
-package com.sanjiang.nala
+package com.sanjiang.nalo
 
 import android.content.Context
 import android.os.Handler
@@ -10,7 +10,7 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 object DeviceIdChannel {
-    private const val channelName = "com.sanjiang.nala/device_id"
+    private const val channelName = "com.sanjiang.nalo/device_id"
     private const val methodGetDeviceId = "getDeviceId"
     private const val preferencesName = "device_id"
     private const val deviceIdKey = "device_id"
