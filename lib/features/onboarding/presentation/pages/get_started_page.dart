@@ -53,9 +53,7 @@ class GetStartedPage extends ConsumerWidget {
                 OnboardingButton(
                   label: 'Get started',
                   onPressed: () {
-                    unawaited(
-                      ref.report(AnalyticsEvent.getStartedClicked),
-                    );
+                    unawaited(ref.report(AnalyticsEvent.getStartedClicked));
                     context.push(KitQuestionPage.path);
                   },
                 ),

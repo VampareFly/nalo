@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tester_kit/app/config/app_version_provider.dart';
-import 'package:tester_kit/core/device/device_id_provider.dart';
-import 'package:tester_kit/core/logging/logger_provider.dart';
 import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
 import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
 import 'package:tester_kit/features/onboarding/view_models/login_view_model.dart';
@@ -35,15 +33,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _login() async {
     _dismissKeyboard();
-    final message = await ref.read(loginViewModelProvider.notifier).login(email: _emailController.text, password: _passwordController.text);
-
-    // TODO: <pf> 测试deviceId
-    final deviceId = await ref.read(deviceIdServiceProvider).getDeviceId();
-    ref.read(loggerProvider).d('ppf::: Device ID: $deviceId');
+    final message = await ref
+        .read(loginViewModelProvider.notifier)
+        .login(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
 
     if (!mounted) return;
     if (message != null) {
-      // TODO: <pf> Replace the toast when login error handling is implemented.
       BotToast.showText(text: message, align: Alignment.center);
       return;
     }
@@ -52,7 +50,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isPasswordObscured = ref.watch(loginViewModelProvider.select((state) => state.isPasswordObscured));
+    final isPasswordObscured = ref.watch(
+      loginViewModelProvider.select((state) => state.isPasswordObscured),
+    );
+    final isLoading = ref.watch(
+      loginViewModelProvider.select((state) => state.isLoading),
+    );
     final versionLabel = ref.watch(appVersionLabelProvider);
 
     return Scaffold(
@@ -66,19 +69,30 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               return SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 40, 20, 28),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 68),
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 68,
+                  ),
                   child: IntrinsicHeight(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Welcome back.',
-                          style: TextStyle(fontFamily: 'serif', fontSize: 40, fontStyle: FontStyle.italic, height: 1.1),
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 40,
+                            fontStyle: FontStyle.italic,
+                            height: 1.1,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         const Text(
                           'Sign in to continue your Nola journey.',
-                          style: TextStyle(color: Color(0xFF717277), fontSize: 17, height: 1.45),
+                          style: TextStyle(
+                            color: Color(0xFF717277),
+                            fontSize: 17,
+                            height: 1.45,
+                          ),
                         ),
                         const SizedBox(height: 34),
                         _LoginField(
@@ -100,18 +114,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           autofillHints: const [AutofillHints.password],
                           onSubmitted: _dismissKeyboard,
                           suffixIcon: IconButton(
-                            tooltip: isPasswordObscured ? 'Show password' : 'Hide password',
-                            onPressed: ref.read(loginViewModelProvider.notifier).togglePasswordVisibility,
-                            style: IconButton.styleFrom(overlayColor: Colors.transparent),
+                            tooltip: isPasswordObscured
+                                ? 'Show password'
+                                : 'Hide password',
+                            onPressed: ref
+                                .read(loginViewModelProvider.notifier)
+                                .togglePasswordVisibility,
+                            style: IconButton.styleFrom(
+                              overlayColor: Colors.transparent,
+                            ),
                             icon: Icon(
-                              isPasswordObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              isPasswordObscured
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
                               color: const Color(0xFF717277),
                             ),
                           ),
                         ),
                         const Spacer(),
                         const SizedBox(height: 36),
-                        OnboardingButton(label: 'Login', onPressed: _login),
+                        OnboardingButton(
+                          label: isLoading ? 'Logging in...' : 'Login',
+                          onPressed: isLoading ? null : _login,
+                        ),
                         const SizedBox(height: 12),
                         Align(
                           alignment: Alignment.centerRight,
@@ -170,7 +195,12 @@ class _LoginField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF66676B), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 2),
+          style: const TextStyle(
+            color: Color(0xFF66676B),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 2,
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -189,7 +219,10 @@ class _LoginField extends StatelessWidget {
             filled: true,
             fillColor: Colors.white,
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 20,
+            ),
             border: _border,
             enabledBorder: _border,
             focusedBorder: _border,

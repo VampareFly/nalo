@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Onboarding 流程统一使用的主次操作按钮。
 class OnboardingButton extends StatelessWidget {
   const OnboardingButton({
     required this.label,
@@ -9,7 +10,7 @@ class OnboardingButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool isPrimary;
 
   @override

@@ -69,18 +69,13 @@ enum AnalyticsUserProperty {
 /// 业务层使用的统一分析接口，避免直接依赖 Amplitude SDK。
 abstract interface class AnalyticsService {
   /// 上报事件，并自动附加环境和设备公共属性。
-  Future<void> report(
-    AnalyticsEvent event, {
-    Map<AnalyticsEventProperty, Object> properties = const {},
-  });
+  Future<void> report(AnalyticsEvent event, {Map<AnalyticsEventProperty, Object> properties = const {}});
 
   /// 登录成功后绑定后端稳定的用户 ID。
   Future<void> identifyUser(String userId);
 
   /// 更新当前已登录用户的持久属性。
-  Future<void> setUserProperties(
-    Map<AnalyticsUserProperty, Object> properties,
-  );
+  Future<void> setUserProperties(Map<AnalyticsUserProperty, Object> properties);
 
   /// 退登或注销成功后清除 Amplitude 身份并进入匿名状态。
   Future<void> resetIdentity();
@@ -88,40 +83,23 @@ abstract interface class AnalyticsService {
 
 /// 使用 Amplitude SDK 实现统一分析能力。
 class AmplitudeAnalyticsService implements AnalyticsService {
-  const AmplitudeAnalyticsService(
-    this._amplitude,
-    this._deviceIdService,
-    this._logger,
-  );
+  const AmplitudeAnalyticsService(this._amplitude, this._deviceIdService, this._logger);
 
   final Amplitude _amplitude;
   final DeviceIdService _deviceIdService;
   final Logger _logger;
 
   @override
-  Future<void> report(
-    AnalyticsEvent event, {
-    Map<AnalyticsEventProperty, Object> properties = const {},
-  }) async {
+  Future<void> report(AnalyticsEvent event, {Map<AnalyticsEventProperty, Object> properties = const {}}) async {
     try {
       final eventProperties = <String, Object>{
-        for (final property in properties.entries)
-          property.key.propertyName: property.value,
+        for (final property in properties.entries) property.key.propertyName: property.value,
         ...await _commonProperties(),
       };
 
-      await _amplitude.track(
-        BaseEvent(
-          event.eventName,
-          eventProperties: eventProperties,
-        ),
-      );
+      await _amplitude.track(BaseEvent(event.eventName, eventProperties: eventProperties));
     } catch (error, stackTrace) {
-      _logger.w(
-        'Failed to report analytics event: ${event.eventName}',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      _logger.w('Failed to report analytics event: ${event.eventName}', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -135,18 +113,14 @@ class AmplitudeAnalyticsService implements AnalyticsService {
     try {
       await _amplitude.setUserId(userId);
       final deviceId = await _deviceIdService.getDeviceId();
-      await setUserProperties({
-        AnalyticsUserProperty.lastDeviceId: deviceId,
-      });
+      await setUserProperties({AnalyticsUserProperty.lastDeviceId: deviceId});
     } catch (error, stackTrace) {
       _logFailure('identify analytics user', error, stackTrace);
     }
   }
 
   @override
-  Future<void> setUserProperties(
-    Map<AnalyticsUserProperty, Object> properties,
-  ) async {
+  Future<void> setUserProperties(Map<AnalyticsUserProperty, Object> properties) async {
     if (properties.isEmpty) return;
 
     try {
@@ -171,23 +145,13 @@ class AmplitudeAnalyticsService implements AnalyticsService {
 
   Future<Map<String, Object>> _commonProperties() async {
     return {
-      AnalyticsCommonProperty.appEnvironment.propertyName:
-          currentEnvironment.name,
-      AnalyticsCommonProperty.deviceId.propertyName:
-          await _deviceIdService.getDeviceId(),
+      AnalyticsCommonProperty.appEnvironment.propertyName: currentEnvironment.name,
+      AnalyticsCommonProperty.deviceId.propertyName: await _deviceIdService.getDeviceId(),
     };
   }
 
-  void _logFailure(
-    String operation,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    _logger.w(
-      'Failed to $operation',
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void _logFailure(String operation, Object error, StackTrace stackTrace) {
+    _logger.w('Failed to $operation', error: error, stackTrace: stackTrace);
   }
 }
 
@@ -198,20 +162,13 @@ final amplitudeProvider = Provider<Amplitude>((ref) {
 
 /// 提供统一的业务埋点服务。
 final analyticsProvider = Provider<AnalyticsService>((ref) {
-  return AmplitudeAnalyticsService(
-    ref.watch(amplitudeProvider),
-    ref.watch(deviceIdServiceProvider),
-    ref.watch(loggerProvider),
-  );
+  return AmplitudeAnalyticsService(ref.watch(amplitudeProvider), ref.watch(deviceIdServiceProvider), ref.watch(loggerProvider));
 });
 
 /// 为 WidgetRef 提供简洁的事件上报入口。
 extension AnalyticsWidgetRef on WidgetRef {
   /// 上报事件，页面无需直接读取 AnalyticsService。
-  Future<void> report(
-    AnalyticsEvent event, {
-    Map<AnalyticsEventProperty, Object> properties = const {},
-  }) {
+  Future<void> report(AnalyticsEvent event, {Map<AnalyticsEventProperty, Object> properties = const {}}) {
     return read(analyticsProvider).report(event, properties: properties);
   }
 
@@ -221,9 +178,7 @@ extension AnalyticsWidgetRef on WidgetRef {
   }
 
   /// 更新当前已登录用户的属性。
-  Future<void> setAnalyticsUserProperties(
-    Map<AnalyticsUserProperty, Object> properties,
-  ) {
+  Future<void> setAnalyticsUserProperties(Map<AnalyticsUserProperty, Object> properties) {
     return read(analyticsProvider).setUserProperties(properties);
   }
 
