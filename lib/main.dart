@@ -3,10 +3,10 @@ import 'package:amplitude_flutter/configuration.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:tester_kit/app/app.dart';
-import 'package:tester_kit/core/analytics/analytics.dart';
-import 'package:tester_kit/core/analytics/amplitude_config.dart';
-import 'package:tester_kit/core/crash_reporting/crash_reporting_service.dart';
+import 'package:nalo/app/app.dart';
+import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/analytics/amplitude_config.dart';
+import 'package:nalo/core/crash_reporting/crash_reporting_service.dart';
 
 Future<void> main() async {
   /// 确保flutter framework与底层引擎的链接
@@ -24,7 +24,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [amplitudeProvider.overrideWithValue(amplitude)],
-      child: const TesterKitApp(),
+      child: const NaloApp(),
     ),
   );
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/home/models/test_trend.dart';
-import 'package:tester_kit/features/home/providers/test_trends_provider.dart';
+import 'package:nalo/features/home/models/test_trend.dart';
+import 'package:nalo/features/home/providers/test_trends_provider.dart';
 
 class TestTrendSection extends ConsumerStatefulWidget {
   const TestTrendSection({super.key, required this.onFullPressed});

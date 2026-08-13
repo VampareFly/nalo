@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/home/models/home_test_report.dart';
-import 'package:tester_kit/features/home/providers/home_test_reports_provider.dart';
-import 'package:tester_kit/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/home/models/home_test_report.dart';
+import 'package:nalo/features/home/providers/home_test_reports_provider.dart';
+import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 
 class HomeTestReportCard extends ConsumerStatefulWidget {
   const HomeTestReportCard({super.key});

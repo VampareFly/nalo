@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/home/models/test_trend.dart';
+import 'package:nalo/features/home/models/test_trend.dart';
 
 final testTrendsProvider = Provider<List<TestTrend>>((ref) {
   return const [

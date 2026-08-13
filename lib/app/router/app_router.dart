@@ -1,30 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tester_kit/features/full_tend/presentation/pages/full_tend_page.dart';
-import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
-import 'package:tester_kit/features/notifications/presentation/pages/notification_permission_page.dart';
-import 'package:tester_kit/features/onboarding/presentation/pages/login_method_page.dart';
-import 'package:tester_kit/features/onboarding/presentation/pages/login_page.dart';
-import 'package:tester_kit/features/onboarding/presentation/pages/get_started_page.dart';
-import 'package:tester_kit/features/onboarding/presentation/pages/kit_question_page.dart';
-import 'package:tester_kit/features/onboarding/presentation/pages/launch_page.dart';
-import 'package:tester_kit/features/onboarding/presentation/pages/register_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/profile_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/about_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/edit_profile_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/help_faq_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/privacy_data_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/profile_notifications_page.dart';
-import 'package:tester_kit/features/shop/presentation/pages/subscription_details_page.dart';
-import 'package:tester_kit/features/test_flow/presentation/pages/test_flow_page.dart';
+import 'package:nalo/features/full_tend/presentation/pages/full_tend_page.dart';
+import 'package:nalo/features/home/presentation/pages/home_page.dart';
+import 'package:nalo/features/notifications/presentation/pages/notification_permission_page.dart';
+import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
+import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
+import 'package:nalo/features/onboarding/presentation/pages/auth_gate_page.dart';
+import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
+import 'package:nalo/features/profile/presentation/pages/profile_page.dart';
+import 'package:nalo/features/profile/presentation/pages/about_page.dart';
+import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
+import 'package:nalo/features/profile/presentation/pages/help_faq_page.dart';
+import 'package:nalo/features/profile/presentation/pages/privacy_data_page.dart';
+import 'package:nalo/features/profile/presentation/pages/profile_notifications_page.dart';
+import 'package:nalo/features/shop/presentation/pages/subscription_details_page.dart';
+import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 
 /// 集中维护应用路由和页面跳转配置。
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    // TODO: <pf> Restore LaunchPage.path after onboarding development is complete.
-    initialLocation: GetStartedPage.path,
+    initialLocation: AuthGatePage.path,
     routes: [
-      GoRoute(path: LaunchPage.path, builder: (context, state) => const LaunchPage()),
+      GoRoute(path: AuthGatePage.path, builder: (context, state) => const AuthGatePage()),
       GoRoute(
         path: HomePage.path,
         pageBuilder: (context, state) => NoTransitionPage(
@@ -48,11 +45,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           child: NotificationPermissionPage(),
         ),
       ),
-      GoRoute(path: GetStartedPage.path, builder: (context, state) => const GetStartedPage()),
-      GoRoute(path: KitQuestionPage.path, builder: (context, state) => const KitQuestionPage()),
-      GoRoute(path: LoginMethodPage.path, builder: (context, state) => const LoginMethodPage()),
-      GoRoute(path: LoginPage.path, builder: (context, state) => const LoginPage()),
-      GoRoute(path: RegisterPage.path, builder: (context, state) => const RegisterPage()),
+      GoRoute(path: AuthEntryPage.path, builder: (context, state) => const AuthEntryPage()),
+      GoRoute(
+        path: AccountProfilePage.path,
+        builder: (context, state) => AccountProfilePage(
+          email: state.uri.queryParameters['email'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: OnboardingWelcomePage.path,
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: OnboardingWelcomePage(
+            fullName: state.uri.queryParameters['name'] ?? '',
+          ),
+        ),
+      ),
       GoRoute(path: TestFlowPage.path, builder: (context, state) => const TestFlowPage()),
     ],
   );

@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/shop/models/test_kit_product.dart';
+import 'package:nalo/features/shop/models/test_kit_product.dart';
 
 final testKitProductsProvider = Provider<List<TestKitProduct>>((ref) {
   // TODO: <pf> Replace Shopify preview URLs with stable storefront product URLs before release.

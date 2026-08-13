@@ -2,8 +2,8 @@
 // 冷启动读取本地 Token：过期则清理，一天内到期则静默尝试刷新。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/auth/auth_repository.dart';
-import 'package:tester_kit/features/auth/auth_token.dart';
+import 'package:nalo/features/auth/auth_repository.dart';
+import 'package:nalo/features/auth/auth_token.dart';
 
 /// 应用认证会话所处阶段。
 enum AuthSessionStatus { authenticated, unauthenticated, sessionExpired }

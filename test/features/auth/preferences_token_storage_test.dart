@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tester_kit/features/auth/auth_token.dart';
-import 'package:tester_kit/features/auth/token_storage.dart';
+import 'package:nalo/features/auth/auth_token.dart';
+import 'package:nalo/features/auth/token_storage.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

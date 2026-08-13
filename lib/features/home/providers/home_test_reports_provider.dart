@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/home/models/home_test_report.dart';
+import 'package:nalo/features/home/models/home_test_report.dart';
 
 enum HomeTestCardDemoScenario {
   // 两种都没有报告，展示两个商品

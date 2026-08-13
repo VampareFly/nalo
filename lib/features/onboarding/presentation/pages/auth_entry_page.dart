@@ -1,0 +1,279 @@
+// 新登录注册入口页，按照 Figma 展示正式服务端认证入口。
+// 页面同时保留客户端直连 Shopify 的临时测试按钮，待服务端联调完成后删除。
+
+import 'package:bot_toast/bot_toast.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nalo/features/home/presentation/pages/home_page.dart';
+import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
+import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
+import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
+import 'package:nalo/features/onboarding/presentation/widgets/nalo_brand.dart';
+import 'package:nalo/features/onboarding/services/shopify_backend_auth_service.dart';
+import 'package:nalo/features/onboarding/view_models/auth_entry_view_model.dart';
+import 'package:nalo/features/onboarding/view_models/shopify_auth_view_model.dart';
+
+/// Figma 登录注册流程的统一入口页面。
+class AuthEntryPage extends ConsumerWidget {
+  const AuthEntryPage({super.key});
+
+  static const path = '/auth';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(authEntryViewModelProvider);
+    final testState = ref.watch(shopifyAuthViewModelProvider);
+
+    Future<void> authorize(ShopifyAuthIntent intent) async {
+      final result = await ref
+          .read(authEntryViewModelProvider.notifier)
+          .authorize(intent);
+      if (!context.mounted || result == null) return;
+      switch (result.destination) {
+        case OnboardingAuthDestination.accountProfile:
+          context.push(AccountProfilePage.location(result.email ?? ''));
+          return;
+        case OnboardingAuthDestination.welcome:
+          context.go(OnboardingWelcomePage.location(result.fullName ?? ''));
+          return;
+        case OnboardingAuthDestination.home:
+          context.go(HomePage.path);
+          return;
+      }
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF008BC7),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+          child: Column(
+            children: [
+              const SizedBox(height: 4),
+              const NaloBrand(),
+              const SizedBox(height: 12),
+              const Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: 'Less guessing. '),
+                    TextSpan(
+                      text: 'More learning.',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              const SizedBox(height: 40),
+              _AuthCard(
+                title: 'Login or Sign up',
+                subtitle: 'Use your Shopify account to continue.',
+                child: _PillButton(
+                  label: state.isLoading
+                      ? 'Connecting...'
+                      : 'Continue with Shopify',
+                  foregroundColor: const Color(0xFF1A2433),
+                  backgroundColor: Colors.white,
+                  icon: SvgPicture.asset(
+                    'assets/icons/shopify.svg',
+                    width: 20,
+                    height: 20,
+                  ),
+                  onPressed: state.isLoading
+                      ? null
+                      : () => authorize(ShopifyAuthIntent.loginOrSignUp),
+                ),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () {
+                  // TODO: <pf> Kit 购买流程完成后跳转到正式购买入口。
+                  BotToast.showText(
+                    text: 'Kit purchasing is coming soon',
+                    align: Alignment.center,
+                  );
+                },
+                splashFactory: NoSplash.splashFactory,
+                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'I need a kit',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Browse our cortisol & testosterone test kits.',
+                              style: TextStyle(
+                                color: Colors.white60,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      CircleAvatar(
+                        backgroundColor: Colors.white12,
+                        child: Icon(Icons.arrow_forward, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // TODO: <pf> 服务端 Shopify 认证稳定后删除客户端直连测试按钮。
+              _PillButton(
+                label: testState.isLoading
+                    ? 'Testing Shopify login...'
+                    : 'Test direct Shopify login',
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: 0.16),
+                onPressed: testState.isBusy
+                    ? null
+                    : () async {
+                        final message = await ref
+                            .read(shopifyAuthViewModelProvider.notifier)
+                            .login();
+                        if (!context.mounted) return;
+                        BotToast.showText(
+                          text: message ?? 'Direct Shopify login successful',
+                          align: Alignment.center,
+                        );
+                      },
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: state.isLoading
+                    ? null
+                    : () => authorize(ShopifyAuthIntent.signIn),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white70,
+                  overlayColor: Colors.transparent,
+                  splashFactory: NoSplash.splashFactory,
+                ),
+                child: const Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'Already have an account? '),
+                      TextSpan(
+                        text: 'Sign in',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthCard extends StatelessWidget {
+  const _AuthCard({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.label,
+    required this.foregroundColor,
+    required this.backgroundColor,
+    required this.onPressed,
+    this.icon,
+  });
+
+  final String label;
+  final Color foregroundColor;
+  final Color backgroundColor;
+  final VoidCallback? onPressed;
+  final Widget? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: icon ?? const SizedBox.shrink(),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          disabledBackgroundColor: backgroundColor.withValues(alpha: 0.7),
+          disabledForegroundColor: foregroundColor.withValues(alpha: 0.7),
+          overlayColor: Colors.transparent,
+          splashFactory: NoSplash.splashFactory,
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          shape: const StadiumBorder(),
+        ),
+      ),
+    );
+  }
+}

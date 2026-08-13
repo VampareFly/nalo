@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tester_kit/features/home/presentation/widgets/main_page_header.dart';
-import 'package:tester_kit/features/home/presentation/widgets/medical_disclaimer_footer.dart';
-import 'package:tester_kit/features/shop/models/test_kit_product.dart';
-import 'package:tester_kit/features/shop/presentation/pages/subscription_details_page.dart';
-import 'package:tester_kit/features/shop/presentation/widgets/monthly_subscription_offer_card.dart';
-import 'package:tester_kit/features/shop/presentation/widgets/referral_discount_card.dart';
-import 'package:tester_kit/features/shop/presentation/widgets/test_kit_purchase_card.dart';
-import 'package:tester_kit/features/shop/providers/test_kit_products_provider.dart';
+import 'package:nalo/features/home/presentation/widgets/main_page_header.dart';
+import 'package:nalo/features/home/presentation/widgets/medical_disclaimer_footer.dart';
+import 'package:nalo/features/shop/models/test_kit_product.dart';
+import 'package:nalo/features/shop/presentation/pages/subscription_details_page.dart';
+import 'package:nalo/features/shop/presentation/widgets/monthly_subscription_offer_card.dart';
+import 'package:nalo/features/shop/presentation/widgets/referral_discount_card.dart';
+import 'package:nalo/features/shop/presentation/widgets/test_kit_purchase_card.dart';
+import 'package:nalo/features/shop/providers/test_kit_products_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ShopPage extends ConsumerWidget {

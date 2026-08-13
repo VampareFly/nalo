@@ -2,8 +2,8 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tester_kit/features/home/presentation/widgets/medical_disclaimer_footer.dart';
-import 'package:tester_kit/features/shop/providers/test_kit_products_provider.dart';
+import 'package:nalo/features/home/presentation/widgets/medical_disclaimer_footer.dart';
+import 'package:nalo/features/shop/providers/test_kit_products_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SubscriptionDetailsPage extends ConsumerWidget {

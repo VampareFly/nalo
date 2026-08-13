@@ -55,7 +55,7 @@ class ShopifyAuthService {
       },
       options: Options(
         contentType: Headers.formUrlEncodedContentType,
-        headers: const {'User-Agent': 'TesterKit/1.0'},
+        headers: const {'User-Agent': 'Nalo/1.0'},
       ),
     );
 
@@ -103,7 +103,7 @@ class ShopifyAuthService {
     await _dio.get<void>(
       endSessionEndpoint,
       queryParameters: {'id_token_hint': idToken},
-      options: Options(headers: const {'User-Agent': 'TesterKit/1.0'}),
+      options: Options(headers: const {'User-Agent': 'Nalo/1.0'}),
     );
   }
 

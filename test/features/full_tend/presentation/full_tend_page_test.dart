@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tester_kit/features/full_tend/models/full_tend_month.dart';
-import 'package:tester_kit/features/full_tend/presentation/pages/full_tend_page.dart';
-import 'package:tester_kit/features/full_tend/providers/full_tend_provider.dart';
+import 'package:nalo/features/full_tend/models/full_tend_month.dart';
+import 'package:nalo/features/full_tend/presentation/pages/full_tend_page.dart';
+import 'package:nalo/features/full_tend/providers/full_tend_provider.dart';
 
 void main() {
   FullTendReading reading(int day, int hour) => FullTendReading(

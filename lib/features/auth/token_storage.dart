@@ -3,8 +3,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tester_kit/core/storage/shared_preferences_provider.dart';
-import 'package:tester_kit/features/auth/auth_token.dart';
+import 'package:nalo/core/storage/shared_preferences_provider.dart';
+import 'package:nalo/features/auth/auth_token.dart';
 
 /// 隔离认证 Token 的本地存储实现。
 abstract interface class TokenStorage {

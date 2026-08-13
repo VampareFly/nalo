@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/notifications/providers/notification_permission_provider.dart';
-import 'package:tester_kit/features/profile/presentation/widgets/profile_subpage_widgets.dart';
-import 'package:tester_kit/features/profile/providers/profile_ui_provider.dart';
+import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/profile/presentation/widgets/profile_subpage_widgets.dart';
+import 'package:nalo/features/profile/providers/profile_ui_provider.dart';
 
 class ProfileNotificationsPage extends ConsumerWidget {
   const ProfileNotificationsPage({super.key});

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:tester_kit/features/profile/presentation/widgets/profile_subpage_widgets.dart';
-import 'package:tester_kit/features/profile/providers/profile_ui_provider.dart';
+import 'package:nalo/features/profile/presentation/widgets/profile_subpage_widgets.dart';
+import 'package:nalo/features/profile/providers/profile_ui_provider.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});

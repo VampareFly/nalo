@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tester_kit/features/auth/auth_token.dart';
+import 'package:nalo/features/auth/auth_token.dart';
 
 void main() {
   test('maps expires_in as a Unix-seconds timestamp', () {

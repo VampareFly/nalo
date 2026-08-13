@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:tester_kit/features/test_flow/providers/test_flow_provider.dart';
+import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
 
 class TestFlowPage extends ConsumerStatefulWidget {
   const TestFlowPage({super.key});

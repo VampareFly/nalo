@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tester_kit/features/home/models/home_test_report.dart';
-import 'package:tester_kit/features/home/presentation/widgets/home_test_report_card.dart';
-import 'package:tester_kit/features/home/providers/home_test_reports_provider.dart';
-import 'package:tester_kit/features/notifications/providers/notification_permission_provider.dart';
-import 'package:tester_kit/features/notifications/services/notification_permission_service.dart';
+import 'package:nalo/features/home/models/home_test_report.dart';
+import 'package:nalo/features/home/presentation/widgets/home_test_report_card.dart';
+import 'package:nalo/features/home/providers/home_test_reports_provider.dart';
+import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/notifications/services/notification_permission_service.dart';
 
 void main() {
   testWidgets('a single product does not show product navigation arrows', (tester) async {

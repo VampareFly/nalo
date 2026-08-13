@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tester_kit/features/full_tend/models/full_tend_month.dart';
+import 'package:nalo/features/full_tend/models/full_tend_month.dart';
 
 void main() {
   FullTendReading reading(int day, int hour, {double value = 6}) => FullTendReading(

@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/features/full_tend/models/full_tend_month.dart';
+import 'package:nalo/features/full_tend/models/full_tend_month.dart';
 
 final fullTendMonthsProvider = Provider<List<FullTendMonth>>((ref) {
   return [

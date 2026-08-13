@@ -13,10 +13,10 @@ import 'package:amplitude_flutter/events/base_event.dart';
 import 'package:amplitude_flutter/events/identify.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
-import 'package:tester_kit/app/config/app_environment.dart';
-import 'package:tester_kit/core/device/device_id_provider.dart';
-import 'package:tester_kit/core/device/device_id_service.dart';
-import 'package:tester_kit/core/logging/logger_provider.dart';
+import 'package:nalo/app/config/app_environment.dart';
+import 'package:nalo/core/device/device_id_provider.dart';
+import 'package:nalo/core/device/device_id_service.dart';
+import 'package:nalo/core/logging/logger_provider.dart';
 
 /// 统一维护发送到 Amplitude 的事件名称。
 enum AnalyticsEvent {

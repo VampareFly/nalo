@@ -5,10 +5,10 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
-import 'package:tester_kit/features/full_tend/models/full_tend_month.dart';
-import 'package:tester_kit/features/full_tend/providers/full_tend_provider.dart';
-import 'package:tester_kit/features/home/presentation/widgets/medical_disclaimer_footer.dart';
-import 'package:tester_kit/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/full_tend/models/full_tend_month.dart';
+import 'package:nalo/features/full_tend/providers/full_tend_provider.dart';
+import 'package:nalo/features/home/presentation/widgets/medical_disclaimer_footer.dart';
+import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 
 class FullTendPage extends ConsumerStatefulWidget {
   const FullTendPage({super.key});

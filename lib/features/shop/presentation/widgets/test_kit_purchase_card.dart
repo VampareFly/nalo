@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tester_kit/features/shop/models/test_kit_product.dart';
+import 'package:nalo/features/shop/models/test_kit_product.dart';
 
 class TestKitPurchaseCard extends StatelessWidget {
   const TestKitPurchaseCard({super.key, required this.product, required this.onOrderPressed});

@@ -1,6 +1,6 @@
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
-import 'package:tester_kit/features/profile/presentation/widgets/profile_subpage_widgets.dart';
+import 'package:nalo/features/profile/presentation/widgets/profile_subpage_widgets.dart';
 
 class PrivacyDataPage extends StatelessWidget {
   const PrivacyDataPage({super.key});

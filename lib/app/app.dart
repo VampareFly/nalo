@@ -3,21 +3,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:tester_kit/app/router/app_router.dart';
-import 'package:tester_kit/app/theme/app_theme.dart';
-import 'package:tester_kit/core/network/api_providers.dart';
-import 'package:tester_kit/features/auth/auth_session_provider.dart';
-import 'package:tester_kit/features/onboarding/presentation/pages/login_page.dart';
-import 'package:tester_kit/l10n/generated/app_localizations.dart';
+import 'package:nalo/app/router/app_router.dart';
+import 'package:nalo/app/theme/app_theme.dart';
+import 'package:nalo/core/network/api_providers.dart';
+import 'package:nalo/features/auth/auth_session_provider.dart';
+import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
+import 'package:nalo/l10n/generated/app_localizations.dart';
 
 /// 应用根 Widget，组装主题、路由、国际化和全局 UI 服务。
-class TesterKitApp extends ConsumerWidget {
-  const TesterKitApp({super.key});
+class NaloApp extends ConsumerStatefulWidget {
+  const NaloApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NaloApp> createState() => _NaloAppState();
+}
+
+/// 监听应用生命周期，并维护全局 Session 与通知权限状态。
+class _NaloAppState extends ConsumerState<NaloApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(appNotificationPermissionProvider.notifier).refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     ref.watch(authSessionProvider);
+    ref.watch(appNotificationPermissionProvider);
     ref.listen(sessionExpirationStreamProvider, (_, next) {
       if (next.hasValue) {
         ref.read(authSessionProvider.notifier).markExpired();
@@ -33,7 +61,7 @@ class TesterKitApp extends ConsumerWidget {
             text: 'Your session has expired. Please log in again.',
             align: Alignment.center,
           );
-          router.go(LoginPage.path);
+          router.go(AuthEntryPage.path);
         });
       }
     });

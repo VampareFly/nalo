@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tester_kit/features/home/presentation/widgets/medical_disclaimer_footer.dart';
-import 'package:tester_kit/features/profile/presentation/widgets/profile_subpage_widgets.dart';
+import 'package:nalo/features/home/presentation/widgets/medical_disclaimer_footer.dart';
+import 'package:nalo/features/profile/presentation/widgets/profile_subpage_widgets.dart';
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});

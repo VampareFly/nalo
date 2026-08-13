@@ -10,13 +10,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:tester_kit/app/config/app_environment.dart';
-import 'package:tester_kit/app/config/app_version_provider.dart';
-import 'package:tester_kit/core/device/device_id_provider.dart';
-import 'package:tester_kit/core/device/device_id_service.dart';
-import 'package:tester_kit/core/logging/logger_provider.dart';
-import 'package:tester_kit/core/network/api_client.dart';
-import 'package:tester_kit/features/auth/token_storage.dart';
+import 'package:nalo/app/config/app_environment.dart';
+import 'package:nalo/app/config/app_version_provider.dart';
+import 'package:nalo/core/device/device_id_provider.dart';
+import 'package:nalo/core/device/device_id_service.dart';
+import 'package:nalo/core/logging/logger_provider.dart';
+import 'package:nalo/core/network/api_client.dart';
+import 'package:nalo/features/auth/token_storage.dart';
 
 /// 一次请求需要注入的应用和设备信息。
 class RequestContext {

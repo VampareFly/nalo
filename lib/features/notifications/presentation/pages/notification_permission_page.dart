@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tester_kit/features/home/presentation/pages/home_page.dart';
-import 'package:tester_kit/features/notifications/providers/notification_permission_provider.dart';
-import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_background.dart';
-import 'package:tester_kit/features/onboarding/presentation/widgets/onboarding_button.dart';
+import 'package:nalo/features/home/presentation/pages/home_page.dart';
+import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/onboarding/presentation/widgets/onboarding_background.dart';
+import 'package:nalo/features/onboarding/presentation/widgets/onboarding_button.dart';
 
 class NotificationPermissionPage extends ConsumerWidget {
   const NotificationPermissionPage({super.key});

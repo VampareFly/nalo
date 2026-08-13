@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tester_kit/features/home/models/home_test_report.dart';
-import 'package:tester_kit/features/home/providers/home_test_reports_provider.dart';
+import 'package:nalo/features/home/models/home_test_report.dart';
+import 'package:nalo/features/home/providers/home_test_reports_provider.dart';
 
 void main() {
   const cortisolProduct = HomeTestProduct(

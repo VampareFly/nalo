@@ -20,7 +20,7 @@ lib/main.dart
 2. 初始化 Hive。
 3. 初始化 Amplitude，并根据当前环境选择 API Key。
 4. 通过 Riverpod ProviderScope 注入全局依赖。
-5. 启动 `TesterKitApp`。
+5. 启动 `NaloApp`。
 
 Amplitude 在应用生命周期中只初始化一次。
 
@@ -44,7 +44,7 @@ lib/
 │   ├── full_tend/               完整趋势
 │   ├── home/                    首页和测试报告
 │   ├── notifications/           通知权限
-│   ├── onboarding/              引导、登录、注册
+│   ├── onboarding/              Shopify 登录注册、资料补充和欢迎流程
 │   ├── profile/                 用户资料
 │   ├── shop/                    商品和测试套装
 │   └── test_flow/               测试流程状态
@@ -88,10 +88,22 @@ lib/app/router/app_router.dart
 页面通过静态 `path` 定义路径，例如：
 
 ```dart
-static const path = '/get-started';
+static const path = '/auth';
 ```
 
 页面跳转统一使用项目现有的 GoRouter 方式。
+
+当前登录注册流程以 Shopify 认证为统一入口：
+
+```text
+AuthEntryPage
+→ Nalo 服务端 Shopify 认证
+→ AccountProfilePage（新用户）
+→ OnboardingWelcomePage
+→ HomePage
+```
+
+服务端协议联调期间，新入口页保留客户端直连 Shopify 的测试按钮。该按钮不参与正式 Session 和账号创建，后续需要删除。
 
 ## 环境配置
 

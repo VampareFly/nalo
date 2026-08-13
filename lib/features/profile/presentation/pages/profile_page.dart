@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tester_kit/features/home/presentation/widgets/medical_disclaimer_footer.dart';
-import 'package:tester_kit/features/home/presentation/widgets/referral_program_card.dart';
-import 'package:tester_kit/features/notifications/providers/notification_permission_provider.dart';
-import 'package:tester_kit/features/profile/presentation/pages/about_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/edit_profile_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/help_faq_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/privacy_data_page.dart';
-import 'package:tester_kit/features/profile/presentation/pages/profile_notifications_page.dart';
-import 'package:tester_kit/features/profile/providers/profile_ui_provider.dart';
+import 'package:nalo/features/home/presentation/widgets/medical_disclaimer_footer.dart';
+import 'package:nalo/features/home/presentation/widgets/referral_program_card.dart';
+import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/profile/presentation/pages/about_page.dart';
+import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
+import 'package:nalo/features/profile/presentation/pages/help_faq_page.dart';
+import 'package:nalo/features/profile/presentation/pages/privacy_data_page.dart';
+import 'package:nalo/features/profile/presentation/pages/profile_notifications_page.dart';
+import 'package:nalo/features/profile/providers/profile_ui_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends ConsumerWidget {

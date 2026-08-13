@@ -1,7 +1,7 @@
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tester_kit/core/network/dio_provider.dart';
-import 'package:tester_kit/features/onboarding/services/shopify_auth_service.dart';
+import 'package:nalo/core/network/dio_provider.dart';
+import 'package:nalo/features/onboarding/services/shopify_auth_service.dart';
 
 /// 注入 Shopify 认证服务。
 final shopifyAuthServiceProvider = Provider<ShopifyAuthService>(

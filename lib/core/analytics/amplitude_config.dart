@@ -1,4 +1,4 @@
-import 'package:tester_kit/app/config/app_environment.dart';
+import 'package:nalo/app/config/app_environment.dart';
 
 /// 根据当前应用环境提供对应的 Amplitude API Key。
 class AmplitudeConfig {

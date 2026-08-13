@@ -1,7 +1,7 @@
 // 认证接口与客户端共用的 Token 模型及后端字段映射。
 // Service 解析 DTO，Repository 将其转换为统一的 AuthToken。
 
-import 'package:tester_kit/core/network/api_client.dart';
+import 'package:nalo/core/network/api_client.dart';
 
 /// 客户端使用的完整认证凭证及过期时间。
 class AuthToken {
