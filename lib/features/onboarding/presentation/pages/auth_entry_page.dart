@@ -333,8 +333,8 @@ class _PillButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
-          disabledBackgroundColor: backgroundColor.withValues(alpha: 0.7),
-          disabledForegroundColor: foregroundColor.withValues(alpha: 0.7),
+          disabledBackgroundColor: backgroundColor,
+          disabledForegroundColor: foregroundColor,
           overlayColor: Colors.transparent,
           splashFactory: NoSplash.splashFactory,
           textStyle: const TextStyle(fontWeight: FontWeight.w800),

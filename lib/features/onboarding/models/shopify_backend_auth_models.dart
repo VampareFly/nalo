@@ -119,4 +119,12 @@ class AppUserInfo {
       gender: json['gender'] is int ? json['gender'] as int : null,
     );
   }
+
+  /// 转换为本地分流快照，字段名与服务端 User 保持一致。
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'email': email,
+    'full_name': fullName,
+    'is_profile_completed': isProfileCompleted ? 1 : 0,
+  };
 }

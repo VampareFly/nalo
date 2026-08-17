@@ -3,6 +3,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/network/api_providers.dart';
+import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/auth/token_storage.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/services/shopify_auth_service.dart';
@@ -15,15 +16,18 @@ class ShopifyBackendAuthRepository {
     required ShopifyBackendAuthService backendService,
     required ShopifyAuthService shopifyService,
     required TokenStorage tokenStorage,
+    required CurrentUserStorage currentUserStorage,
     required WelcomeCompletionRepository welcomeCompletionRepository,
   }) : _backendService = backendService,
        _shopifyService = shopifyService,
        _tokenStorage = tokenStorage,
+       _currentUserStorage = currentUserStorage,
        _welcomeCompletionRepository = welcomeCompletionRepository;
 
   final ShopifyBackendAuthService _backendService;
   final ShopifyAuthService _shopifyService;
   final TokenStorage _tokenStorage;
+  final CurrentUserStorage _currentUserStorage;
   final WelcomeCompletionRepository _welcomeCompletionRepository;
 
   /// 按 prepare → AppAuth → exchange 完成一次登录并使用响应用户分流。
@@ -43,6 +47,11 @@ class ShopifyBackendAuthRepository {
     );
     final token = exchange.token.toModel();
     await _tokenStorage.save(token);
+    try {
+      await _currentUserStorage.save(exchange.user);
+    } catch (_) {
+      // TODO: <pf> 明确用户快照写入失败时的产品处理方式。
+    }
 
     try {
       final user = exchange.user;
@@ -68,7 +77,7 @@ class ShopifyBackendAuthRepository {
         fullName: user.fullName,
       );
     } catch (_) {
-      await _tokenStorage.clear();
+      await Future.wait([_tokenStorage.clear(), _currentUserStorage.clear()]);
       rethrow;
     }
   }
@@ -82,6 +91,7 @@ final shopifyBackendAuthRepositoryProvider =
         backendService: ShopifyBackendAuthService(apiClient),
         shopifyService: ref.watch(shopifyAuthServiceProvider),
         tokenStorage: await ref.watch(tokenStorageProvider.future),
+        currentUserStorage: await ref.watch(currentUserStorageProvider.future),
         welcomeCompletionRepository: await ref.watch(
           welcomeCompletionRepositoryProvider.future,
         ),

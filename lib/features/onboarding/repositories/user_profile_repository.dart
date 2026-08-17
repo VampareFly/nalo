@@ -2,14 +2,16 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/network/api_providers.dart';
+import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/onboarding/services/user_profile_service.dart';
 
 /// 提供用户资料查询和更新能力。
 class UserProfileRepository {
-  const UserProfileRepository(this._service);
+  const UserProfileRepository(this._service, this._currentUserStorage);
 
   final UserProfileService _service;
+  final CurrentUserStorage _currentUserStorage;
 
   /// 获取当前登录用户资料。
   Future<AppUserInfo> getInfo() => _service.getInfo();
@@ -20,11 +22,17 @@ class UserProfileRepository {
     required DateTime birthDay,
     required int gender,
   }) async {
-    return _service.update(
+    final user = await _service.update(
       fullName: fullName,
       birthDay: birthDay,
       gender: gender,
     );
+    try {
+      await _currentUserStorage.save(user);
+    } catch (_) {
+      // TODO: <pf> 明确用户快照写入失败时的产品处理方式。
+    }
+    return user;
   }
 }
 
@@ -33,5 +41,8 @@ final userProfileRepositoryProvider = FutureProvider<UserProfileRepository>((
   ref,
 ) async {
   final apiClient = await ref.watch(businessApiClientProvider.future);
-  return UserProfileRepository(UserProfileService(apiClient));
+  return UserProfileRepository(
+    UserProfileService(apiClient),
+    await ref.watch(currentUserStorageProvider.future),
+  );
 });

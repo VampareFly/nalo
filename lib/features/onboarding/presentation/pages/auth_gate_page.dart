@@ -1,15 +1,15 @@
-// 应用冷启动认证门，根据 Session、用户资料和本地 Welcome 状态分流。
-// Token 生命周期由 AuthSessionNotifier 管理，本页面只决定目标页面。
+// 应用冷启动认证门，根据 Session、本地用户快照和 Welcome 状态分流。
+// Token 生命周期由 AuthSessionNotifier 管理，启动分流不请求 user/info。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
+import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
-import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
 import 'package:nalo/features/onboarding/repositories/welcome_completion_repository.dart';
 
 class _AuthGateDestination {
@@ -26,8 +26,11 @@ final _authGateDestinationProvider = FutureProvider<_AuthGateDestination?>((
   if (session.status == AuthSessionStatus.unauthenticated) {
     return const _AuthGateDestination(AuthEntryPage.path);
   }
-  final repository = await ref.watch(userProfileRepositoryProvider.future);
-  final user = await repository.getInfo();
+  final userStorage = await ref.watch(currentUserStorageProvider.future);
+  final user = await userStorage.read();
+  if (user == null) {
+    return const _AuthGateDestination(AuthEntryPage.path);
+  }
   final welcomeRepository = await ref.watch(
     welcomeCompletionRepositoryProvider.future,
   );
