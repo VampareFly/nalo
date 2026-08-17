@@ -1,7 +1,8 @@
 // 管理应用级认证会话与冷启动 Token 恢复。
-// 冷启动读取本地 Token：过期则清理，一天内到期则静默尝试刷新。
+// 冷启动读取本地 Token：已过期直接失效，未过期且不足一天时静默刷新。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/auth/auth_repository.dart';
 import 'package:nalo/features/auth/auth_token.dart';
 
@@ -10,10 +11,15 @@ enum AuthSessionStatus { authenticated, unauthenticated, sessionExpired }
 
 /// 应用级认证会话状态。
 class AuthSessionState {
-  const AuthSessionState({required this.status, this.token});
+  const AuthSessionState({
+    required this.status,
+    this.token,
+    this.expirationMessage,
+  });
 
   final AuthSessionStatus status;
   final AuthToken? token;
+  final String? expirationMessage;
 }
 
 /// 提供冷启动恢复和会话清理能力。
@@ -37,17 +43,27 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     }
 
     final now = DateTime.now().toUtc();
-    if (!token.expiresAt.toUtc().isAfter(now)) {
+    final expiresAt = token.expiresAt.toUtc();
+    if (!expiresAt.isAfter(now)) {
       await repository.clearSession();
-      return const AuthSessionState(status: AuthSessionStatus.sessionExpired);
+      return const AuthSessionState(
+        status: AuthSessionStatus.sessionExpired,
+        expirationMessage: 'Your login has expired. Please log in again.',
+      );
     }
 
-    if (token.expiresAt.toUtc().difference(now) <= _refreshThreshold) {
+    if (expiresAt.difference(now) < _refreshThreshold) {
       try {
         final refreshedToken = await repository.refresh(token);
         return AuthSessionState(
           status: AuthSessionStatus.authenticated,
           token: refreshedToken,
+        );
+      } on SessionExpiredException catch (error) {
+        await repository.clearSession();
+        return AuthSessionState(
+          status: AuthSessionStatus.sessionExpired,
+          expirationMessage: error.message,
         );
       } catch (_) {
         return AuthSessionState(
@@ -71,22 +87,31 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
   }
 
   /// 服务端判定 Token 过期后统一切换为未登录会话。
-  Future<void> markExpired() async {
+  Future<void> markExpired(String message) async {
     final currentStatus = state.value?.status;
-    if (currentStatus == AuthSessionStatus.sessionExpired) return;
+    if (currentStatus == AuthSessionStatus.sessionExpired ||
+        currentStatus == AuthSessionStatus.unauthenticated) {
+      return;
+    }
     final repository = await ref.read(authRepositoryProvider.future);
     await repository.clearSession();
-    state = const AsyncData(
-      AuthSessionState(status: AuthSessionStatus.sessionExpired),
+    state = AsyncData(
+      AuthSessionState(
+        status: AuthSessionStatus.sessionExpired,
+        expirationMessage: message,
+      ),
     );
   }
 
   /// 主动退出并清理本地认证数据。
   Future<void> logout() async {
     final repository = await ref.read(authRepositoryProvider.future);
-    await repository.clearSession();
-    state = const AsyncData(
-      AuthSessionState(status: AuthSessionStatus.unauthenticated),
-    );
+    try {
+      await repository.logout();
+    } finally {
+      state = const AsyncData(
+        AuthSessionState(status: AuthSessionStatus.unauthenticated),
+      );
+    }
   }
 }

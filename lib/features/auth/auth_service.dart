@@ -15,7 +15,7 @@ class AuthService {
   /// 使用 Refresh Token 获取一组新 Token。
   Future<AuthTokenDto> refresh({required String refreshToken}) async {
     final token = await _apiClient.post<AuthTokenDto>(
-      '/api/v1/auth/refresh',
+      '/api/v1/app/auth/refresh',
       data: {'refresh_token': refreshToken},
       decoder: _decodeToken,
       requiresAuth: false,
@@ -26,6 +26,11 @@ class AuthService {
       );
     }
     return token;
+  }
+
+  /// 通知服务端注销当前 App Session。
+  Future<void> logout() async {
+    await _apiClient.post<void>('/api/v1/app/auth/logout');
   }
 
   AuthTokenDto _decodeToken(Object? data) {

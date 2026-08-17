@@ -11,7 +11,8 @@ final testKitProductsProvider = Provider<List<TestKitProduct>>((ref) {
       description: '3-strip pack · ng/mL · Stress & energy insights',
       price: r'$15',
       subscriptionPrice: r'$13.50 with sub',
-      productUrl: 'https://2a79p6eko31a130p-69330108529.shopifypreview.com/products_preview?preview_key=e589a4f3928c0fe609048fa2f5963e4c',
+      productUrl:
+          'https://test-store-001-55rykspg.myshopify.com/products/test001-%E5%95%86%E5%93%81-%E6%A0%87%E9%A2%98?app_token=test_ppf_123',
     ),
     TestKitProduct(
       id: 'testosterone',
@@ -20,7 +21,8 @@ final testKitProductsProvider = Provider<List<TestKitProduct>>((ref) {
       description: '3-strip pack · ng/dL · Energy & drive insights',
       price: r'$18',
       subscriptionPrice: r'$16.20 with sub',
-      productUrl: 'https://u72lx5stzy1eb9j2-69330108529.shopifypreview.com/products_preview?preview_key=fa06256ff40c577b38a0b4862e3faae7',
+      productUrl:
+          'https://test-store-001-55rykspg.myshopify.com/products/test001-%E5%95%86%E5%93%81-%E6%A0%87%E9%A2%98?app_token=test_ppf_123',
     ),
   ];
 });

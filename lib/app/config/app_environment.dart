@@ -4,9 +4,10 @@ enum AppEnvironment { test, production }
 /// 返回当前环境对应的自有业务 API 地址。
 extension AppEnvironmentApiConfig on AppEnvironment {
   String get apiBaseUrl {
-    // TODO: <pf> 后端部署地址确定后，替换自有业务 API 的 baseUrl。
     return switch (this) {
-      AppEnvironment.test => 'https://api.example.com',
+      AppEnvironment.test =>
+        'http://k8s-sjcommer-sjcommer-9d491285b3-160955637.us-east-1.elb.amazonaws.com',
+      // TODO: <pf> 生产环境部署地址确定后替换占位 Base URL。
       AppEnvironment.production => 'https://api.example.com',
     };
   }

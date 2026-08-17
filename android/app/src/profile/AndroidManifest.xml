@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- // TODO: <pf> 测试服务切换 HTTPS 后删除明文网络放行。 -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

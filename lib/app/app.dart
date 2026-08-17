@@ -20,8 +20,9 @@ class NaloApp extends ConsumerStatefulWidget {
 }
 
 /// 监听应用生命周期，并维护全局 Session 与通知权限状态。
-class _NaloAppState extends ConsumerState<NaloApp>
-    with WidgetsBindingObserver {
+class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
+  bool _isSessionExpiredDialogVisible = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,7 +49,7 @@ class _NaloAppState extends ConsumerState<NaloApp>
     ref.watch(appNotificationPermissionProvider);
     ref.listen(sessionExpirationStreamProvider, (_, next) {
       if (next.hasValue) {
-        ref.read(authSessionProvider.notifier).markExpired();
+        ref.read(authSessionProvider.notifier).markExpired(next.requireValue);
       }
     });
     ref.listen(authSessionProvider, (previous, next) {
@@ -57,11 +58,10 @@ class _NaloAppState extends ConsumerState<NaloApp>
       if (nextStatus == AuthSessionStatus.sessionExpired &&
           previousStatus != AuthSessionStatus.sessionExpired) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          BotToast.showText(
-            text: 'Your session has expired. Please log in again.',
-            align: Alignment.center,
+          _showSessionExpiredDialog(
+            next.value?.expirationMessage ??
+                'Your login has expired. Please log in again.',
           );
-          router.go(AuthEntryPage.path);
         });
       }
     });
@@ -80,6 +80,42 @@ class _NaloAppState extends ConsumerState<NaloApp>
         builder: EasyLoading.init(builder: BotToastInit()),
       ),
     );
+  }
+
+  Future<void> _showSessionExpiredDialog(String message) async {
+    if (_isSessionExpiredDialogVisible) return;
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showSessionExpiredDialog(message);
+      });
+      return;
+    }
+    final content = message.trim().isEmpty
+        ? 'Your login has expired. Please log in again.'
+        : message;
+    _isSessionExpiredDialogVisible = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Login expired'),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                ref.read(appRouterProvider).go(AuthEntryPage.path);
+              },
+              child: const Text('Log in again'),
+            ),
+          ],
+        ),
+      ),
+    );
+    _isSessionExpiredDialogVisible = false;
   }
 
   void greet({required String name}) {

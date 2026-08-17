@@ -31,6 +31,15 @@ class AuthRepository {
 
   /// 清理当前认证会话。
   Future<void> clearSession() => _tokenStorage.clear();
+
+  /// 请求服务端退出，并保证最终清理本地 Token。
+  Future<void> logout() async {
+    try {
+      await _service.logout();
+    } finally {
+      await _tokenStorage.clear();
+    }
+  }
 }
 
 /// 注入认证 Repository。

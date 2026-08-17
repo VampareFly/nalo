@@ -1,5 +1,5 @@
-// 新登录注册入口页，按照 Figma 展示正式服务端认证入口。
-// 页面同时保留客户端直连 Shopify 的临时测试按钮，待服务端联调完成后删除。
+// 新登录注册入口页，展示正式服务端认证入口及客户端直连测试按钮。
+// 正式入口由 ViewModel 编排，客户端直连仅用于过渡期联调。
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
@@ -25,32 +25,57 @@ class AuthEntryPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(authEntryViewModelProvider);
     final testState = ref.watch(shopifyAuthViewModelProvider);
+    final isAnyAuthenticationBusy = state.isLoading || testState.isBusy;
 
     Future<void> authorize(ShopifyAuthIntent intent) async {
       final result = await ref
           .read(authEntryViewModelProvider.notifier)
           .authorize(intent);
-      if (!context.mounted || result == null) return;
+      if (!context.mounted) return;
+      if (result == null) {
+        final message = ref.read(authEntryViewModelProvider).errorMessage;
+        if (message != null) {
+          BotToast.showText(text: message, align: Alignment.center);
+        }
+        return;
+      }
       switch (result.destination) {
         case OnboardingAuthDestination.accountProfile:
-          context.push(AccountProfilePage.location(result.email ?? ''));
+          context.go(
+            AccountProfilePage.location(
+              result.email ?? '',
+              result.userId,
+              result.completionDestination,
+            ),
+          );
           return;
         case OnboardingAuthDestination.welcome:
-          context.go(OnboardingWelcomePage.location(result.fullName ?? ''));
+          context.go(
+            OnboardingWelcomePage.location(
+              result.fullName ?? '',
+              result.userId,
+              result.completionDestination,
+            ),
+          );
           return;
         case OnboardingAuthDestination.home:
           context.go(HomePage.path);
+          return;
+        case OnboardingAuthDestination.shop:
+          context.go('${HomePage.path}?tab=shop');
           return;
       }
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFF008BC7),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
-          child: Column(
-            children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+              child: Column(
+                children: [
               const SizedBox(height: 4),
               const NaloBrand(),
               const SizedBox(height: 12),
@@ -71,9 +96,7 @@ class AuthEntryPage extends ConsumerWidget {
                 title: 'Login or Sign up',
                 subtitle: 'Use your Shopify account to continue.',
                 child: _PillButton(
-                  label: state.isLoading
-                      ? 'Connecting...'
-                      : 'Continue with Shopify',
+                  label: 'Continue with Shopify',
                   foregroundColor: const Color(0xFF1A2433),
                   backgroundColor: Colors.white,
                   icon: SvgPicture.asset(
@@ -81,20 +104,16 @@ class AuthEntryPage extends ConsumerWidget {
                     width: 20,
                     height: 20,
                   ),
-                  onPressed: state.isLoading
+                  onPressed: isAnyAuthenticationBusy
                       ? null
                       : () => authorize(ShopifyAuthIntent.loginOrSignUp),
                 ),
               ),
               const SizedBox(height: 16),
               InkWell(
-                onTap: () {
-                  // TODO: <pf> Kit 购买流程完成后跳转到正式购买入口。
-                  BotToast.showText(
-                    text: 'Kit purchasing is coming soon',
-                    align: Alignment.center,
-                  );
-                },
+                onTap: isAnyAuthenticationBusy
+                    ? null
+                    : () => authorize(ShopifyAuthIntent.kitPurchase),
                 splashFactory: NoSplash.splashFactory,
                 overlayColor: const WidgetStatePropertyAll(Colors.transparent),
                 borderRadius: BorderRadius.circular(24),
@@ -146,7 +165,7 @@ class AuthEntryPage extends ConsumerWidget {
                     : 'Test direct Shopify login',
                 foregroundColor: Colors.white,
                 backgroundColor: Colors.white.withValues(alpha: 0.16),
-                onPressed: testState.isBusy
+                onPressed: isAnyAuthenticationBusy
                     ? null
                     : () async {
                         final message = await ref
@@ -159,9 +178,30 @@ class AuthEntryPage extends ConsumerWidget {
                         );
                       },
               ),
+              const SizedBox(height: 12),
+              // TODO: <pf> 客户端直连测试删除时一并删除此退出入口。
+              _PillButton(
+                label: testState.isLoggingOut
+                    ? 'Logging out from Shopify...'
+                    : 'Logout from Shopify',
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withValues(alpha: 0.16),
+                onPressed: isAnyAuthenticationBusy
+                    ? null
+                    : () async {
+                        final message = await ref
+                            .read(shopifyAuthViewModelProvider.notifier)
+                            .logout();
+                        if (!context.mounted) return;
+                        BotToast.showText(
+                          text: message ?? 'Shopify logout successful',
+                          align: Alignment.center,
+                        );
+                      },
+              ),
               const Spacer(),
               TextButton(
-                onPressed: state.isLoading
+                onPressed: isAnyAuthenticationBusy
                     ? null
                     : () => authorize(ShopifyAuthIntent.signIn),
                 style: TextButton.styleFrom(
@@ -186,9 +226,36 @@ class AuthEntryPage extends ConsumerWidget {
                   ),
                 ),
               ),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
+          if (state.isLoading) const _GlobalLoadingOverlay(),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlobalLoadingOverlay extends StatelessWidget {
+  const _GlobalLoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Positioned.fill(
+      child: Stack(
+        children: [
+          ModalBarrier(dismissible: false, color: Color(0x52000000)),
+          Center(
+            child: SizedBox.square(
+              dimension: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

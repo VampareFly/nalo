@@ -1,40 +1,36 @@
+// 封装 Shopify Mobile/Public Client 的授权、客户端换令牌和服务端参数交接。
+// AppAuth 负责 PKCE 与 App Callback，Dio 仅用于现有直连测试的令牌请求。
+
 import 'package:dio/dio.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/network/dio_provider.dart';
 
-/// 负责 Shopify OAuth 登录、令牌交换和退出登录请求。
+/// 负责 Shopify OAuth 授权、令牌交换和退出登录请求。
 class ShopifyAuthService {
   ShopifyAuthService({required Dio dio, FlutterAppAuth? appAuth})
     : _dio = dio,
       _appAuth = appAuth ?? const FlutterAppAuth();
 
-  static const _clientId = 'c05885f3-1a5a-474a-85fa-11b0a311dc00';
-  static const _redirectUrl = 'shop.69330108529.testerkit://oauth/callback';
+  static const _clientId = '0ebf6c9c-5e1c-463b-b374-754a98a97f36';
+  // TODO: <pf> 客户端直连 Shopify 测试入口删除时一并删除固定回调地址。
+  static const _directTestRedirectUrl =
+      'shop.69330108529.testerkit://oauth/callback';
   static const _discoveryUrl =
       'https://test-store-001-55rykspg.myshopify.com/'
       '.well-known/openid-configuration';
-  static const _scopes = <String>['openid', 'email', 'customer-account-api:full'];
+  static const _scopes = <String>[
+    'openid',
+    'email',
+    'customer-account-api:full',
+  ];
 
   final Dio _dio;
   final FlutterAppAuth _appAuth;
 
   /// 发起 Shopify OAuth 登录并交换访问令牌。
   Future<ShopifyAuthResult> login() async {
-    final authorization = await _appAuth.authorize(
-      AuthorizationRequest(
-        _clientId,
-        _redirectUrl,
-        discoveryUrl: _discoveryUrl,
-        scopes: _scopes,
-      ),
-    );
-
-    final authorizationCode = authorization.authorizationCode;
-    final codeVerifier = authorization.codeVerifier;
-    if (authorizationCode == null || codeVerifier == null) {
-      throw const ShopifyAuthException(
-        'Shopify authorization completed without the required code',
-      );
-    }
+    final authorization = await authorizeForBackend();
 
     final discovery = await _getDiscoveryConfiguration();
     final tokenEndpoint = discovery['token_endpoint'] as String?;
@@ -49,9 +45,9 @@ class ShopifyAuthService {
       data: {
         'grant_type': 'authorization_code',
         'client_id': _clientId,
-        'redirect_uri': _redirectUrl,
-        'code': authorizationCode,
-        'code_verifier': codeVerifier,
+        'redirect_uri': _directTestRedirectUrl,
+        'code': authorization.authorizationCode,
+        'code_verifier': authorization.codeVerifier,
       },
       options: Options(
         contentType: Headers.formUrlEncodedContentType,
@@ -89,11 +85,67 @@ class ShopifyAuthService {
     );
   }
 
+  /// 完成 Shopify 授权并返回交给服务端换取令牌所需的参数。
+  Future<ShopifyAuthorizationResult> authorizeForBackend({
+    String? clientId,
+    String? shopId,
+    String? redirectUri,
+    String? scope,
+  }) async {
+    final usesBackendPreparation =
+        clientId != null &&
+        shopId != null &&
+        redirectUri != null &&
+        scope != null;
+    final authorizationEndpoint = Uri(
+      scheme: 'https',
+      host: 'shopify.com',
+      pathSegments: ['authentication', shopId ?? '', 'oauth', 'authorize'],
+    ).toString();
+    final tokenEndpoint = Uri(
+      scheme: 'https',
+      host: 'shopify.com',
+      pathSegments: ['authentication', shopId ?? '', 'oauth', 'token'],
+    ).toString();
+    final serviceConfiguration = usesBackendPreparation
+        ? AuthorizationServiceConfiguration(
+            authorizationEndpoint: authorizationEndpoint,
+            tokenEndpoint: tokenEndpoint,
+          )
+        : null;
+    final authorization = await _appAuth.authorize(
+      AuthorizationRequest(
+        clientId ?? _clientId,
+        redirectUri ?? _directTestRedirectUrl,
+        discoveryUrl: usesBackendPreparation ? null : _discoveryUrl,
+        serviceConfiguration: serviceConfiguration,
+        scopes: scope == null
+            ? _scopes
+            : scope
+                  .split(RegExp(r'\s+'))
+                  .where((item) => item.isNotEmpty)
+                  .toList(),
+      ),
+    );
+
+    final authorizationCode = authorization.authorizationCode;
+    final codeVerifier = authorization.codeVerifier;
+    if (authorizationCode == null || codeVerifier == null) {
+      throw const ShopifyAuthException(
+        'Shopify authorization completed without the required code',
+      );
+    }
+
+    return ShopifyAuthorizationResult(
+      authorizationCode: authorizationCode,
+      codeVerifier: codeVerifier,
+    );
+  }
+
   /// 使用 ID Token 请求 Shopify 退出登录。
   Future<void> logout({required String idToken}) async {
     final discovery = await _getDiscoveryConfiguration();
-    final endSessionEndpoint =
-        discovery['end_session_endpoint'] as String?;
+    final endSessionEndpoint = discovery['end_session_endpoint'] as String?;
     if (endSessionEndpoint == null || endSessionEndpoint.isEmpty) {
       throw const ShopifyAuthException(
         'Shopify authentication configuration is missing the logout endpoint',
@@ -117,6 +169,22 @@ class ShopifyAuthService {
     }
     return data;
   }
+}
+
+/// 注入项目复用的 Shopify AppAuth Service。
+final shopifyAuthServiceProvider = Provider<ShopifyAuthService>(
+  (ref) => ShopifyAuthService(dio: ref.watch(dioProvider)),
+);
+
+/// App 完成 Shopify 授权后需要提交给服务端的 OAuth 参数。
+class ShopifyAuthorizationResult {
+  const ShopifyAuthorizationResult({
+    required this.authorizationCode,
+    required this.codeVerifier,
+  });
+
+  final String authorizationCode;
+  final String codeVerifier;
 }
 
 /// Shopify 登录成功后返回的令牌信息。

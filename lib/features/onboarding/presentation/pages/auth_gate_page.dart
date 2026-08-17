@@ -1,12 +1,44 @@
-// 应用冷启动认证门，根据本地 App Session 决定进入认证入口或首页。
-// 资料和欢迎流程的服务端状态确定后，在此补充分流节点。
+// 应用冷启动认证门，根据 Session、用户资料和本地 Welcome 状态分流。
+// Token 生命周期由 AuthSessionNotifier 管理，本页面只决定目标页面。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
+import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
+import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
+import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
+import 'package:nalo/features/onboarding/repositories/welcome_completion_repository.dart';
+
+class _AuthGateDestination {
+  const _AuthGateDestination(this.location);
+
+  final String location;
+}
+
+final _authGateDestinationProvider = FutureProvider<_AuthGateDestination?>((
+  ref,
+) async {
+  final session = await ref.watch(authSessionProvider.future);
+  if (session.status == AuthSessionStatus.sessionExpired) return null;
+  if (session.status == AuthSessionStatus.unauthenticated) {
+    return const _AuthGateDestination(AuthEntryPage.path);
+  }
+  final repository = await ref.watch(userProfileRepositoryProvider.future);
+  final user = await repository.getInfo();
+  final welcomeRepository = await ref.watch(
+    welcomeCompletionRepositoryProvider.future,
+  );
+  return _AuthGateDestination(
+    !user.isProfileCompleted
+        ? AccountProfilePage.location(user.email ?? '', user.id)
+        : welcomeRepository.isCompleted(user.id)
+        ? HomePage.path
+        : OnboardingWelcomePage.location(user.fullName ?? '', user.id),
+  );
+});
 
 /// 监听认证 Session，并在冷启动后执行一次无动画分流。
 class AuthGatePage extends ConsumerWidget {
@@ -16,21 +48,24 @@ class AuthGatePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authSessionProvider);
-    session.whenData((value) {
+    final destination = ref.watch(_authGateDestinationProvider);
+    destination.whenData((value) {
+      if (value == null) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        // TODO: <pf> 服务端返回资料和欢迎完成状态后补充分流。
-        context.go(
-          value.status == AuthSessionStatus.authenticated
-              ? HomePage.path
-              : AuthEntryPage.path,
-        );
+        context.go(value.location);
       });
     });
-    return const Scaffold(
-      backgroundColor: Color(0xFFEDE8E0),
-      body: SizedBox.expand(),
+    return Scaffold(
+      backgroundColor: const Color(0xFFEDE8E0),
+      body: destination.hasError
+          ? Center(
+              child: FilledButton(
+                onPressed: () => ref.invalidate(_authGateDestinationProvider),
+                child: const Text('Try again'),
+              ),
+            )
+          : const SizedBox.expand(),
     );
   }
 }

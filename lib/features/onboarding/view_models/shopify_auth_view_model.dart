@@ -1,13 +1,11 @@
+// 管理过渡期 Shopify 客户端直连登录和退出状态。
+// 正式服务端认证由 AuthEntryViewModel 独立管理。
+
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nalo/core/network/dio_provider.dart';
 import 'package:nalo/features/onboarding/services/shopify_auth_service.dart';
 
-/// 注入 Shopify 认证服务。
-final shopifyAuthServiceProvider = Provider<ShopifyAuthService>(
-  (ref) => ShopifyAuthService(dio: ref.watch(dioProvider)),
-);
-
+/// 提供 Shopify 测试认证流程的状态与操作入口。
 final shopifyAuthViewModelProvider =
     NotifierProvider.autoDispose<ShopifyAuthViewModel, ShopifyAuthState>(
       ShopifyAuthViewModel.new,
@@ -33,7 +31,7 @@ class ShopifyAuthState {
   bool get isBusy => isLoading || isLoggingOut;
 }
 
-/// 编排 Shopify 登录和退出登录流程。
+/// 编排 Shopify 客户端直连登录和退出流程。
 class ShopifyAuthViewModel extends Notifier<ShopifyAuthState> {
   @override
   ShopifyAuthState build() => const ShopifyAuthState();
@@ -81,9 +79,7 @@ class ShopifyAuthViewModel extends Notifier<ShopifyAuthState> {
     );
 
     try {
-      await ref
-          .read(shopifyAuthServiceProvider)
-          .logout(idToken: idToken);
+      await ref.read(shopifyAuthServiceProvider).logout(idToken: idToken);
       state = const ShopifyAuthState();
       return null;
     } on ShopifyAuthException catch (error) {

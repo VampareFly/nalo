@@ -55,10 +55,10 @@ class ApiResponse<T> {
     T Function(Object? data)? decoder,
   ]) {
     final code = json['code'];
-    final message = json['message'];
+    final message = json['msg'];
     if (code is! int || message is! String) {
       throw const ResponseFormatException(
-        'The API response is missing a valid code or message.',
+        'The API response is missing a valid code or msg.',
       );
     }
     final rawData = json['data'];
@@ -74,12 +74,12 @@ class ApiResponse<T> {
 class ApiClient {
   const ApiClient({
     required Dio dio,
-    required Future<void> Function() onSessionExpired,
+    required Future<void> Function(String message) onSessionExpired,
   }) : _dio = dio,
        _onSessionExpired = onSessionExpired;
 
   final Dio _dio;
-  final Future<void> Function() _onSessionExpired;
+  final Future<void> Function(String message) _onSessionExpired;
 
   /// 发送 GET 请求并解析统一响应。
   Future<T?> get<T>(
@@ -166,8 +166,8 @@ class ApiClient {
         if (rawData == null || decoder == null) return null;
         return decoder(rawData);
       }
-      if (envelope.code == 1000001) {
-        await _onSessionExpired();
+      if (_sessionExpiredCodes.contains(envelope.code)) {
+        await _onSessionExpired(envelope.message);
         throw SessionExpiredException(envelope.message);
       }
       throw ApiException(
@@ -179,6 +179,15 @@ class ApiClient {
       throw _mapDioException(error);
     }
   }
+
+  static const _sessionExpiredCodes = {
+    1000001,
+    1000002,
+    1000010,
+    1000011,
+    1000013,
+    1000016,
+  };
 
   NetworkException _mapDioException(DioException error) {
     final type = switch (error.type) {
@@ -206,12 +215,16 @@ class NetworkLogInterceptor extends Interceptor {
     'password',
     'access_token',
     'refresh_token',
+    'code',
+    'code_verifier',
+    'state',
+    'auth_attempt_id',
   };
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     _logger.d(
-      '${options.method} ${options.uri}\n'
+      '${options.method} ${_safeUri(options)}\n'
       'headers=${_sanitize(options.headers)} data=${_sanitize(options.data)}',
     );
     handler.next(options);
@@ -223,7 +236,7 @@ class NetworkLogInterceptor extends Interceptor {
     ResponseInterceptorHandler handler,
   ) {
     _logger.d(
-      '${response.statusCode} ${response.requestOptions.uri}\n'
+      '${response.statusCode} ${_safeUri(response.requestOptions)}\n'
       'data=${_sanitize(response.data)}',
     );
     handler.next(response);
@@ -232,7 +245,7 @@ class NetworkLogInterceptor extends Interceptor {
   @override
   void onError(DioException error, ErrorInterceptorHandler handler) {
     _logger.w(
-      '${error.requestOptions.method} ${error.requestOptions.uri}: '
+      '${error.requestOptions.method} ${_safeUri(error.requestOptions)}: '
       '${error.message}',
     );
     handler.next(error);
@@ -250,5 +263,15 @@ class NetworkLogInterceptor extends Interceptor {
     }
     if (value is Iterable) return value.map(_sanitize).toList(growable: false);
     return value;
+  }
+
+  Uri _safeUri(RequestOptions options) {
+    final parameters = options.queryParameters.map((key, value) {
+      return MapEntry(
+        key,
+        _sensitiveKeys.contains(key.toLowerCase()) ? '***' : value,
+      );
+    });
+    return options.uri.replace(queryParameters: parameters);
   }
 }

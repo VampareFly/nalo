@@ -1,0 +1,89 @@
+// 编排 Nalo prepare、Shopify AppAuth、exchange、Token 保存和用户分流。
+// ViewModel 只消费最终分流结果，不接触 OAuth 参数或网络 DTO。
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/network/api_providers.dart';
+import 'package:nalo/features/auth/token_storage.dart';
+import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
+import 'package:nalo/features/onboarding/services/shopify_auth_service.dart';
+import 'package:nalo/features/onboarding/services/shopify_backend_auth_service.dart';
+import 'package:nalo/features/onboarding/repositories/welcome_completion_repository.dart';
+
+/// 完成 Shopify 服务端认证并生成页面分流结果。
+class ShopifyBackendAuthRepository {
+  const ShopifyBackendAuthRepository({
+    required ShopifyBackendAuthService backendService,
+    required ShopifyAuthService shopifyService,
+    required TokenStorage tokenStorage,
+    required WelcomeCompletionRepository welcomeCompletionRepository,
+  }) : _backendService = backendService,
+       _shopifyService = shopifyService,
+       _tokenStorage = tokenStorage,
+       _welcomeCompletionRepository = welcomeCompletionRepository;
+
+  final ShopifyBackendAuthService _backendService;
+  final ShopifyAuthService _shopifyService;
+  final TokenStorage _tokenStorage;
+  final WelcomeCompletionRepository _welcomeCompletionRepository;
+
+  /// 按 prepare → AppAuth → exchange 完成一次登录并使用响应用户分流。
+  Future<OnboardingAuthResult> authorize(ShopifyAuthIntent intent) async {
+    // TODO: <pf> 服务端确认登录与注册 intent 参数后传入 prepare。
+    final preparation = await _backendService.prepare();
+    final authorization = await _shopifyService.authorizeForBackend(
+      clientId: preparation.clientId,
+      shopId: preparation.shopId,
+      redirectUri: preparation.redirectUri,
+      scope: preparation.scope,
+    );
+    final exchange = await _backendService.exchange(
+      code: authorization.authorizationCode,
+      codeVerifier: authorization.codeVerifier,
+      authAttemptId: preparation.authAttemptId,
+    );
+    final token = exchange.token.toModel();
+    await _tokenStorage.save(token);
+
+    try {
+      final user = exchange.user;
+      final hasCompletedWelcome = _welcomeCompletionRepository.isCompleted(
+        user.id,
+      );
+      final completionDestination = intent == ShopifyAuthIntent.kitPurchase
+          ? OnboardingCompletionDestination.shop
+          : OnboardingCompletionDestination.home;
+      final destination = !user.isProfileCompleted
+          ? OnboardingAuthDestination.accountProfile
+          : !hasCompletedWelcome
+          ? OnboardingAuthDestination.welcome
+          : completionDestination == OnboardingCompletionDestination.shop
+          ? OnboardingAuthDestination.shop
+          : OnboardingAuthDestination.home;
+      return OnboardingAuthResult(
+        destination: destination,
+        completionDestination: completionDestination,
+        token: token,
+        userId: user.id,
+        email: user.email,
+        fullName: user.fullName,
+      );
+    } catch (_) {
+      await _tokenStorage.clear();
+      rethrow;
+    }
+  }
+}
+
+/// 注入正式 Shopify 服务端认证 Repository。
+final shopifyBackendAuthRepositoryProvider =
+    FutureProvider<ShopifyBackendAuthRepository>((ref) async {
+      final apiClient = await ref.watch(businessApiClientProvider.future);
+      return ShopifyBackendAuthRepository(
+        backendService: ShopifyBackendAuthService(apiClient),
+        shopifyService: ref.watch(shopifyAuthServiceProvider),
+        tokenStorage: await ref.watch(tokenStorageProvider.future),
+        welcomeCompletionRepository: await ref.watch(
+          welcomeCompletionRepositoryProvider.future,
+        ),
+      );
+    });

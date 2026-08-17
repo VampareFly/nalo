@@ -1,5 +1,5 @@
 // 组装自有业务 API 的 Dio、公共 Header 和应用级会话过期事件。
-// 每次请求动态读取 Token 与运行信息；Shopify OAuth 不经过本文件。
+// 每次请求动态读取 Token、应用、设备及系统信息；Shopify OAuth 不经过本文件。
 
 import 'dart:async';
 import 'dart:math';
@@ -30,12 +30,25 @@ class RequestContext {
     required this.timezone,
   });
 
+  /// `X-App-Version`：来自 `PackageInfo.version`，对应 pubspec 中版本号的 `x.y.z` 部分。
   final String appVersion;
+
+  /// `X-App-Build`：来自 `PackageInfo.buildNumber`，对应 pubspec 中版本号的 `+build` 部分。
   final String appBuild;
+
+  /// `X-Platform`：来自 Flutter 当前运行平台，iOS/Android 分别传 `ios`/`android`。
   final String platform;
+
+  /// `X-Device-ID`：由 `DeviceIdService` 读取或首次生成的本地设备标识。
   final String deviceId;
+
+  /// `X-Request-ID`：客户端为每次请求独立生成的 UUID v4，用于日志链路追踪。
   final String requestId;
+
+  /// `X-Language`：来自系统 Locale，格式为 `languageCode-countryCode`，如 `zh-CN`。
   final String language;
+
+  /// `X-Timezone`：来自系统时区标识，如 `Asia/Shanghai`。
   final String timezone;
 }
 
@@ -93,10 +106,9 @@ class RequestContextLoader {
 /// 为自有业务 API 请求动态注入公共 Header。
 class RequestContextInterceptor extends Interceptor {
   RequestContextInterceptor({
-    required RequestContextLoader contextLoader,
-    required TokenStorage tokenStorage,
-  }) : _contextLoader = contextLoader,
-       _tokenStorage = tokenStorage;
+    required this._contextLoader,
+    required this._tokenStorage,
+  });
 
   final RequestContextLoader _contextLoader;
   final TokenStorage _tokenStorage;
@@ -108,6 +120,7 @@ class RequestContextInterceptor extends Interceptor {
   ) async {
     try {
       final context = await _contextLoader.load();
+      // 将 RequestContext 中注明的应用、设备和系统信息映射为服务端约定的 Header。
       options.headers.addAll({
         'X-App-Version': context.appVersion,
         'X-App-Build': context.appBuild,
@@ -117,6 +130,7 @@ class RequestContextInterceptor extends Interceptor {
         'X-Language': context.language,
         'X-Timezone': context.timezone,
       });
+      // 除显式标记 requiresAuth=false 的公开接口外，从 TokenStorage 读取 Access Token。
       if (options.extra['requiresAuth'] != false) {
         final token = await _tokenStorage.read();
         if (token != null) {
@@ -139,13 +153,13 @@ class RequestContextInterceptor extends Interceptor {
 
 /// 广播服务端判定 Access Token 过期的全局事件。
 class SessionExpirationNotifier {
-  final _controller = StreamController<void>.broadcast();
+  final _controller = StreamController<String>.broadcast();
 
   /// 会话过期事件流，供应用根部统一处理。
-  Stream<void> get stream => _controller.stream;
+  Stream<String> get stream => _controller.stream;
 
   /// 通知一次会话过期事件。
-  void notify() => _controller.add(null);
+  void notify(String message) => _controller.add(message);
 
   /// 释放事件流资源。
   Future<void> dispose() => _controller.close();
@@ -161,7 +175,7 @@ final sessionExpirationNotifierProvider = Provider<SessionExpirationNotifier>((
 });
 
 /// 将会话过期事件转换为 Riverpod 异步流。
-final sessionExpirationStreamProvider = StreamProvider<void>((ref) {
+final sessionExpirationStreamProvider = StreamProvider<String>((ref) {
   return ref.watch(sessionExpirationNotifierProvider).stream;
 });
 
@@ -172,7 +186,9 @@ final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
   final expirationNotifier = ref.watch(sessionExpirationNotifierProvider);
   final dio = Dio(
     BaseOptions(
+      // Host 由该 baseUrl 自动生成；User-Agent 由 Dart HTTP 底层自动生成。
       baseUrl: currentEnvironment.apiBaseUrl,
+      // 统一将 Content-Type 设为 application/json。
       contentType: Headers.jsonContentType,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
@@ -192,9 +208,9 @@ final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
   ref.onDispose(dio.close);
   return ApiClient(
     dio: dio,
-    onSessionExpired: () async {
+    onSessionExpired: (message) async {
       await tokenStorage.clear();
-      expirationNotifier.notify();
+      expirationNotifier.notify(message);
     },
   );
 });

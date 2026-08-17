@@ -1,6 +1,8 @@
 // 管理注册资料、提交校验和年龄边界。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/network/api_client.dart';
+import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
 
 /// Figma 注册资料页支持的生理性别。
 enum BiologicalSex { female, male }
@@ -9,6 +11,7 @@ enum BiologicalSex { female, male }
 enum AccountProfileSubmitResult {
   missingFields,
   under18,
+  submissionFailed,
   completed,
 }
 
@@ -21,6 +24,7 @@ class AccountProfileState {
     this.biologicalSex,
     this.showMissingFieldsError = false,
     this.isSubmitting = false,
+    this.submissionError,
   });
 
   final String email;
@@ -29,6 +33,7 @@ class AccountProfileState {
   final BiologicalSex? biologicalSex;
   final bool showMissingFieldsError;
   final bool isSubmitting;
+  final String? submissionError;
 
   int? get age {
     final birthday = dateOfBirth;
@@ -51,6 +56,8 @@ class AccountProfileState {
     BiologicalSex? biologicalSex,
     bool? showMissingFieldsError,
     bool? isSubmitting,
+    String? submissionError,
+    bool clearSubmissionError = false,
   }) {
     return AccountProfileState(
       email: email ?? this.email,
@@ -60,6 +67,9 @@ class AccountProfileState {
       showMissingFieldsError:
           showMissingFieldsError ?? this.showMissingFieldsError,
       isSubmitting: isSubmitting ?? this.isSubmitting,
+      submissionError: clearSubmissionError
+          ? null
+          : submissionError ?? this.submissionError,
     );
   }
 }
@@ -75,6 +85,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
     state = state.copyWith(
       email: email,
       showMissingFieldsError: _shouldKeepMissingFieldsError(email: email),
+      clearSubmissionError: true,
     );
   }
 
@@ -83,6 +94,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
     state = state.copyWith(
       fullName: value,
       showMissingFieldsError: _shouldKeepMissingFieldsError(fullName: value),
+      clearSubmissionError: true,
     );
   }
 
@@ -93,9 +105,9 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       fullName: state.fullName,
       dateOfBirth: value,
       biologicalSex: state.biologicalSex,
-      showMissingFieldsError: _shouldKeepMissingFieldsError(
-        dateOfBirth: value,
-      ),
+      showMissingFieldsError: _shouldKeepMissingFieldsError(dateOfBirth: value),
+      isSubmitting: state.isSubmitting,
+      submissionError: null,
     );
   }
 
@@ -106,6 +118,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       showMissingFieldsError: _shouldKeepMissingFieldsError(
         biologicalSex: value,
       ),
+      clearSubmissionError: true,
     );
   }
 
@@ -134,10 +147,35 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
     state = state.copyWith(showMissingFieldsError: false);
     if ((state.age ?? 0) < 18) return AccountProfileSubmitResult.under18;
     if (state.isSubmitting) return AccountProfileSubmitResult.missingFields;
-    state = state.copyWith(isSubmitting: true);
-    // TODO: <pf> 服务端接口确认后提交授权会话、资料和高龄确认状态。
-    state = state.copyWith(isSubmitting: false);
-    return AccountProfileSubmitResult.completed;
+    state = state.copyWith(isSubmitting: true, clearSubmissionError: true);
+    try {
+      final repository = await ref.read(userProfileRepositoryProvider.future);
+      await repository.update(
+        fullName: state.fullName,
+        birthDay: state.dateOfBirth!,
+        gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
+      );
+      state = state.copyWith(isSubmitting: false);
+      return AccountProfileSubmitResult.completed;
+    } on ApiException catch (error) {
+      state = state.copyWith(
+        isSubmitting: false,
+        submissionError: error.message,
+      );
+      return AccountProfileSubmitResult.submissionFailed;
+    } on NetworkException catch (error) {
+      state = state.copyWith(
+        isSubmitting: false,
+        submissionError: error.message,
+      );
+      return AccountProfileSubmitResult.submissionFailed;
+    } catch (_) {
+      state = state.copyWith(
+        isSubmitting: false,
+        submissionError: 'Unable to update your profile. Please try again.',
+      );
+      return AccountProfileSubmitResult.submissionFailed;
+    }
   }
 }
 

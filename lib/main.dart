@@ -28,10 +28,3 @@ Future<void> main() async {
     ),
   );
 }
-@HiveType(typeId: 0) // typeId must be unique for each class
-class Test001 extends HiveObject {
-  String? name;
-  int? age;
-
-  Test001({this.name, this.age});
-}

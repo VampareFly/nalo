@@ -32,42 +32,46 @@ class AuthTokenDto {
     required this.accessToken,
     required this.refreshToken,
     required this.expiresIn,
+    required this.expiresAt,
   });
 
   final String accessToken;
   final String refreshToken;
   final int expiresIn;
+  final int expiresAt;
 
   /// 从服务端 data 对象创建 DTO。
   factory AuthTokenDto.fromJson(Map<String, dynamic> json) {
     final accessToken = json['access_token'];
     final refreshToken = json['refresh_token'];
     final expiresIn = json['expires_in'];
+    final expiresAt = json['expires_at'];
     if (accessToken is! String ||
         accessToken.isEmpty ||
         refreshToken is! String ||
         refreshToken.isEmpty ||
-        expiresIn is! int) {
+        expiresIn is! int ||
+        expiresAt is! int) {
       throw const ResponseFormatException('The token response is invalid.');
     }
     return AuthTokenDto(
       accessToken: accessToken,
       refreshToken: refreshToken,
       expiresIn: expiresIn,
+      expiresAt: expiresAt,
     );
   }
 
   /// 转换为客户端统一使用的 Token 模型。
   AuthToken toModel() {
-    // TODO: <pf> 后端 Token 过期字段确定后，调整过期时间解析规则。
-    final expiresAt = DateTime.fromMillisecondsSinceEpoch(
-      expiresIn * 1000,
+    final expiration = DateTime.fromMillisecondsSinceEpoch(
+      expiresAt * 1000,
       isUtc: true,
     );
     return AuthToken(
       accessToken: accessToken,
       refreshToken: refreshToken,
-      expiresAt: expiresAt,
+      expiresAt: expiration,
     );
   }
 }
