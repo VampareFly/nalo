@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:nalo/features/full_tend/presentation/pages/full_tend_page.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
+import 'package:nalo/features/home/presentation/pages/test_history_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_gate_page.dart';
@@ -39,8 +39,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: FullTendPage.path,
-        builder: (context, state) => const FullTendPage(),
+        path: TestHistoryPage.path,
+        builder: (context, state) => const TestHistoryPage(),
       ),
       GoRoute(
         path: SubscriptionDetailsPage.path,

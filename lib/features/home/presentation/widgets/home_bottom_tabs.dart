@@ -1,5 +1,10 @@
-import 'package:flutter/material.dart';
+// 渲染主页面固定底部导航。
+// Home/Shop 切换持久 Tab，中间 Scan 仅派发检测入口事件。
 
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+/// 首页容器使用的 Home、Scan、Shop 底部导航。
 class HomeBottomTabs extends StatelessWidget {
   const HomeBottomTabs({
     super.key,
@@ -10,8 +15,8 @@ class HomeBottomTabs extends StatelessWidget {
     required this.onCreatePressed,
   });
 
-  static const _homeIcon = 'assets/icons/home_tab_icon.png';
-  static const _shopIcon = 'assets/icons/shop_tab_icon.png';
+  static const _blue = Color(0xFF008BC7);
+  static const _inactive = Color(0xFF9FA89E);
 
   final int selectedIndex;
   final int homeIndex;
@@ -21,123 +26,106 @@ class HomeBottomTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 98,
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        alignment: Alignment.topCenter,
-        children: [
-          Positioned.fill(
-            top: 12,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(43),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.22), blurRadius: 24, offset: const Offset(0, 13))],
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0x1A1A2433))),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 80,
+          child: Row(
+            children: [
+              Expanded(
+                child: _TabItem(
+                  asset: 'assets/icons/home_tab.svg',
+                  label: 'Home',
+                  color: selectedIndex == homeIndex ? _blue : _inactive,
+                  onTap: () => onTabSelected(homeIndex),
+                ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _BottomTabItem(
-                      iconAsset: _homeIcon,
-                      label: 'Home',
-                      isSelected: selectedIndex == homeIndex,
-                      onTap: () => onTabSelected(homeIndex),
-                    ),
-                  ),
-                  const SizedBox(width: 88),
-                  Expanded(
-                    child: _BottomTabItem(
-                      iconAsset: _shopIcon,
-                      label: 'Shop',
-                      isSelected: selectedIndex == shopIndex,
-                      onTap: () => onTabSelected(shopIndex),
-                    ),
-                  ),
-                ],
+              Expanded(child: _ScanItem(onTap: onCreatePressed)),
+              Expanded(
+                child: _TabItem(
+                  asset: 'assets/icons/shop_tab.svg',
+                  label: 'Shop',
+                  color: selectedIndex == shopIndex ? _blue : _inactive,
+                  onTap: () => onTabSelected(shopIndex),
+                ),
               ),
-            ),
+            ],
           ),
-          Positioned(top: 0, child: _CreateButton(onPressed: onCreatePressed)),
+        ),
+      ),
+    );
+  }
+}
+
+class _TabItem extends StatelessWidget {
+  const _TabItem({required this.asset, required this.label, required this.color, required this.onTap});
+  final String asset;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SvgPicture.asset(asset, width: 22, height: 22, colorFilter: ColorFilter.mode(color, BlendMode.srcIn)),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
   }
 }
 
-class _BottomTabItem extends StatelessWidget {
-  const _BottomTabItem({required this.iconAsset, required this.label, required this.isSelected, required this.onTap});
-
-  final String iconAsset;
-  final String label;
-  final bool isSelected;
+class _ScanItem extends StatelessWidget {
+  const _ScanItem({required this.onTap});
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? const Color(0xFF050505) : const Color(0xFF6E6E6E);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      child: Material(
-        color: isSelected ? const Color(0xFFF4F5FC) : Colors.transparent,
-        borderRadius: BorderRadius.circular(27),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(27),
-          child: SizedBox.expand(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(iconAsset, width: 20, height: 20, color: color),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: color, fontSize: 16, height: 1, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CreateButton extends StatelessWidget {
-  const _CreateButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 80,
-        height: 80,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Container(
-            width: 63,
-            height: 63,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F2F5),
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 10, offset: const Offset(0, 2))],
-            ),
-            alignment: Alignment.center,
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Transform.translate(
+            offset: const Offset(0, -12),
             child: Container(
-              width: 62,
-              height: 62,
-              decoration: const BoxDecoration(color: Color(0xFF050505), shape: BoxShape.circle),
-              child: const Icon(Icons.add, color: Colors.white, size: 32),
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: HomeBottomTabs._blue,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Color(0x33008BC7), blurRadius: 14, offset: Offset(0, 6))],
+              ),
+              alignment: Alignment.center,
+              child: SvgPicture.asset(
+                'assets/icons/scan_tab.svg',
+                width: 26,
+                height: 26,
+                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+              ),
             ),
           ),
-        ),
+          Transform.translate(
+            offset: Offset(0, -9),
+            child: Text(
+              'Scan',
+              style: TextStyle(color: HomeBottomTabs._blue, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
