@@ -25,6 +25,9 @@ class NetworkException implements Exception {
 
   final NetworkExceptionType type;
   final String message;
+
+  @override
+  String toString() => 'NetworkException(type: $type, message: $message)';
 }
 
 /// 服务端响应结构不符合约定时的异常。
@@ -32,6 +35,9 @@ class ResponseFormatException implements Exception {
   const ResponseFormatException(this.message);
 
   final String message;
+
+  @override
+  String toString() => 'ResponseFormatException($message)';
 }
 
 /// Access Token 已失效且需要重新登录时的异常。
@@ -39,6 +45,9 @@ class SessionExpiredException implements Exception {
   const SessionExpiredException([this.message = 'Please log in again']);
 
   final String message;
+
+  @override
+  String toString() => 'SessionExpiredException($message)';
 }
 
 /// 自有业务 API 的统一响应包。
@@ -198,9 +207,17 @@ class ApiClient {
       DioExceptionType.cancel => NetworkExceptionType.cancelled,
       _ => NetworkExceptionType.unknown,
     };
+    final cause = error.error;
+    final details = error.message?.trim();
+    final causeDetails = cause?.toString().trim();
+    final message = details != null && details.isNotEmpty
+        ? details
+        : causeDetails != null && causeDetails.isNotEmpty
+        ? causeDetails
+        : 'Network request failed.';
     return NetworkException(
       type: type,
-      message: error.message ?? 'Network request failed.',
+      message: message,
     );
   }
 }
@@ -223,10 +240,12 @@ class NetworkLogInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    _logger.d(
-      '${options.method} ${_safeUri(options)}\n'
-      'headers=${_sanitize(options.headers)} data=${_sanitize(options.data)}',
-    );
+    _writeSafely(() {
+      _logger.d(
+        '${options.method} ${_safeUri(options)}\n'
+        'headers=${_sanitize(options.headers)} data=${_sanitize(options.data)}',
+      );
+    });
     handler.next(options);
   }
 
@@ -235,20 +254,34 @@ class NetworkLogInterceptor extends Interceptor {
     Response<dynamic> response,
     ResponseInterceptorHandler handler,
   ) {
-    _logger.d(
-      '${response.statusCode} ${_safeUri(response.requestOptions)}\n'
-      'data=${_sanitize(response.data)}',
-    );
+    _writeSafely(() {
+      _logger.d(
+        '${response.statusCode} ${_safeUri(response.requestOptions)}\n'
+        'data=${_sanitize(response.data)}',
+      );
+    });
     handler.next(response);
   }
 
   @override
   void onError(DioException error, ErrorInterceptorHandler handler) {
-    _logger.w(
-      '${error.requestOptions.method} ${_safeUri(error.requestOptions)}: '
-      '${error.message}',
-    );
+    _writeSafely(() {
+      final cause = error.error;
+      _logger.w(
+        '${error.requestOptions.method} ${_safeUri(error.requestOptions)}: '
+        '${error.message ?? cause ?? 'Unknown Dio error'}',
+      );
+    });
     handler.next(error);
+  }
+
+  // 日志是可降级能力，任何日志异常都不得改变 Dio 请求流程。
+  void _writeSafely(void Function() write) {
+    try {
+      write();
+    } catch (_) {
+      // 不能在此使用另一个 Logger，否则会形成递归失败链。
+    }
   }
 
   Object? _sanitize(Object? value) {
@@ -267,11 +300,20 @@ class NetworkLogInterceptor extends Interceptor {
 
   Uri _safeUri(RequestOptions options) {
     final parameters = options.queryParameters.map((key, value) {
-      return MapEntry(
-        key,
-        _sensitiveKeys.contains(key.toLowerCase()) ? '***' : value,
-      );
+      if (_sensitiveKeys.contains(key.toLowerCase())) {
+        return MapEntry<String, dynamic>(key, '***');
+      }
+      if (value is Iterable) {
+        return MapEntry<String, dynamic>(
+          key,
+          value.map((item) => item.toString()).toList(growable: false),
+        );
+      }
+      return MapEntry<String, dynamic>(key, value?.toString() ?? '');
     });
-    return options.uri.replace(queryParameters: parameters);
+    final baseUri = Uri.parse(options.baseUrl).resolve(options.path);
+    return baseUri.replace(
+      queryParameters: parameters.isEmpty ? null : parameters,
+    );
   }
 }

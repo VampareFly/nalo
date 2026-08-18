@@ -14,7 +14,6 @@ import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart'
 import 'package:nalo/features/profile/presentation/pages/help_faq_page.dart';
 import 'package:nalo/features/profile/presentation/pages/privacy_data_page.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_notifications_page.dart';
-import 'package:nalo/features/shop/presentation/pages/subscription_details_page.dart';
 import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 
 /// 提供全局弹窗和根导航共用的 Navigator Key。
@@ -41,10 +40,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: TestHistoryPage.path,
         builder: (context, state) => const TestHistoryPage(),
-      ),
-      GoRoute(
-        path: SubscriptionDetailsPage.path,
-        builder: (context, state) => const SubscriptionDetailsPage(),
       ),
       GoRoute(
         path: ProfilePage.path,

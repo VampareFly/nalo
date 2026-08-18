@@ -7,6 +7,7 @@ import 'package:nalo/app/app.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/analytics/amplitude_config.dart';
 import 'package:nalo/core/crash_reporting/crash_reporting_service.dart';
+import 'package:nalo/core/network/provider_retry_policy.dart';
 
 Future<void> main() async {
   /// 确保flutter framework与底层引擎的链接
@@ -23,6 +24,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
+      retry: appProviderRetry,
       overrides: [amplitudeProvider.overrideWithValue(amplitude)],
       child: const NaloApp(),
     ),

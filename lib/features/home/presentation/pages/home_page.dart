@@ -30,12 +30,14 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   static const _homeIndex = 0;
   static const _shopIndex = 1;
   late int _selectedIndex;
+  late bool _hasOpenedShop;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialIndex == _shopIndex ? _shopIndex : _homeIndex;
+    _hasOpenedShop = _selectedIndex == _shopIndex;
   }
 
   @override
@@ -51,7 +53,12 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     }
   }
 
-  void _selectTab(int index) => setState(() => _selectedIndex = index);
+  void _selectTab(int index) {
+    setState(() {
+      _selectedIndex = index;
+      if (index == _shopIndex) _hasOpenedShop = true;
+    });
+  }
 
   void _openTestFlow() => context.push(TestFlowPage.path);
 
@@ -77,7 +84,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
             onHistoryPressed: _openTestHistory,
             onReferralPressed: _showReferralPlaceholder,
           ),
-          SafeArea(child: ShopPage(onMinePressed: _openProfile)),
+          _hasOpenedShop
+              ? ShopPage(onMinePressed: _openProfile)
+              : const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: HomeBottomTabs(

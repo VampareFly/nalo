@@ -9,6 +9,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:nalo/app/config/app_environment.dart';
 import 'package:nalo/app/config/app_version_provider.dart';
@@ -108,10 +109,12 @@ class RequestContextInterceptor extends Interceptor {
   RequestContextInterceptor({
     required this._contextLoader,
     required this._tokenStorage,
+    required this._logger,
   });
 
   final RequestContextLoader _contextLoader;
   final TokenStorage _tokenStorage;
+  final Logger _logger;
 
   @override
   Future<void> onRequest(
@@ -139,6 +142,12 @@ class RequestContextInterceptor extends Interceptor {
       }
       handler.next(options);
     } catch (error, stackTrace) {
+      _logger.e(
+        'Request context injection failed for '
+        '${options.method} ${options.uri.path}.',
+        error: error,
+        stackTrace: stackTrace,
+      );
       handler.reject(
         DioException(
           requestOptions: options,
@@ -184,6 +193,7 @@ final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
   final tokenStorage = await ref.watch(tokenStorageProvider.future);
   final packageInfo = await ref.watch(appPackageInfoProvider.future);
   final expirationNotifier = ref.watch(sessionExpirationNotifierProvider);
+  final logger = ref.watch(loggerProvider);
   final dio = Dio(
     BaseOptions(
       // Host 由该 baseUrl 自动生成；User-Agent 由 Dart HTTP 底层自动生成。
@@ -196,14 +206,16 @@ final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
     ),
   );
   dio.interceptors.addAll([
+    // 日志放在动态 Header 之前，确保请求上下文初始化失败也可追踪。
+    NetworkLogInterceptor(logger),
     RequestContextInterceptor(
       contextLoader: RequestContextLoader(
         packageInfo: packageInfo,
         deviceIdService: ref.watch(deviceIdServiceProvider),
       ),
       tokenStorage: tokenStorage,
+      logger: logger,
     ),
-    NetworkLogInterceptor(ref.watch(loggerProvider)),
   ]);
   ref.onDispose(dio.close);
   return ApiClient(

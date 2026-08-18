@@ -1,0 +1,84 @@
+// 展示新版 Shop 底部的精简 Referral 入口。
+// 分享数据接口尚未提供，当前只将点击事件交给页面。
+
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+/// 展示好友优惠信息及分享入口。
+class ShopReferralCard extends StatelessWidget {
+  const ShopReferralCard({super.key, required this.onSharePressed});
+
+  final VoidCallback onSharePressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDDA7C),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: SvgPicture.asset(
+              'assets/icons/home_referral.svg',
+              width: 20,
+              height: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '10% off for you and a friend',
+                  style: TextStyle(
+                    color: Color(0xFF1A2433),
+                    fontSize: 14,
+                    height: 20 / 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Share your referral link and save together.',
+                  style: TextStyle(
+                    color: Color(0xB31A2433),
+                    fontSize: 12,
+                    height: 16 / 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: onSharePressed,
+                  child: const Text(
+                    'Share referral link',
+                    style: TextStyle(
+                      color: Color(0xFF1A2433),
+                      fontSize: 12,
+                      height: 16 / 12,
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
