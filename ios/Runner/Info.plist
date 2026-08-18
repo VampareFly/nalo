@@ -6,18 +6,6 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<!-- // TODO: <pf> 测试服务切换 HTTPS 后删除该域名例外。 -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>k8s-sjcommer-sjcommer-9d491285b3-160955637.us-east-1.elb.amazonaws.com</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
 	<key>CFBundleDisplayName</key>
 	<string>Nalo</string>
 	<key>CFBundleURLTypes</key>

@@ -5,10 +5,8 @@ enum AppEnvironment { test, production }
 extension AppEnvironmentApiConfig on AppEnvironment {
   String get apiBaseUrl {
     return switch (this) {
-      AppEnvironment.test =>
-        'http://k8s-sjcommer-sjcommer-9d491285b3-160955637.us-east-1.elb.amazonaws.com',
-      // TODO: <pf> 生产环境部署地址确定后替换占位 Base URL。
-      AppEnvironment.production => 'https://api.example.com',
+      AppEnvironment.test => 'https://api-test.naloresults.com',
+      AppEnvironment.production => 'https://api.naloresults.com',
     };
   }
 }

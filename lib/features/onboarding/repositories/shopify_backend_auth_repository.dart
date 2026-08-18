@@ -13,16 +13,12 @@ import 'package:nalo/features/onboarding/repositories/welcome_completion_reposit
 /// 完成 Shopify 服务端认证并生成页面分流结果。
 class ShopifyBackendAuthRepository {
   const ShopifyBackendAuthRepository({
-    required ShopifyBackendAuthService backendService,
-    required ShopifyAuthService shopifyService,
-    required TokenStorage tokenStorage,
-    required CurrentUserStorage currentUserStorage,
-    required WelcomeCompletionRepository welcomeCompletionRepository,
-  }) : _backendService = backendService,
-       _shopifyService = shopifyService,
-       _tokenStorage = tokenStorage,
-       _currentUserStorage = currentUserStorage,
-       _welcomeCompletionRepository = welcomeCompletionRepository;
+    required this._backendService,
+    required this._shopifyService,
+    required this._tokenStorage,
+    required this._currentUserStorage,
+    required this._welcomeCompletionRepository,
+  });
 
   final ShopifyBackendAuthService _backendService;
   final ShopifyAuthService _shopifyService;

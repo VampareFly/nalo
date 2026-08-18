@@ -96,11 +96,12 @@ class _ScanItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
         children: [
-          Transform.translate(
-            offset: const Offset(0, -12),
+          Positioned(
+            top: -16,
             child: Container(
               width: 64,
               height: 64,
@@ -118,8 +119,8 @@ class _ScanItem extends StatelessWidget {
               ),
             ),
           ),
-          Transform.translate(
-            offset: Offset(0, -9),
+          const Positioned(
+            bottom: 9,
             child: Text(
               'Scan',
               style: TextStyle(color: HomeBottomTabs._blue, fontSize: 12, fontWeight: FontWeight.w600),

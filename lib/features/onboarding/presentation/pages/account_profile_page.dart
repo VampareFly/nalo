@@ -262,7 +262,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                 ),
                 const SizedBox(height: 16),
                 _FieldLabel(
-                  label: 'Full name',
+                  label: 'Name',
                   child: TextField(
                     controller: _nameController,
                     focusNode: _nameFocusNode,
