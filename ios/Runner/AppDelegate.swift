@@ -19,5 +19,8 @@ import UIKit
         DeviceIdChannel.register(
             binaryMessenger: engineBridge.applicationRegistrar.messenger()
         )
+        TrackingTransparencyChannel.register(
+            binaryMessenger: engineBridge.applicationRegistrar.messenger()
+        )
     }
 }

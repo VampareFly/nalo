@@ -1,3 +1,6 @@
+// 展示用户资料、设置入口和账号操作。
+// 退出和注销由 ProfileAccountViewModel 编排，页面只负责确认、反馈和导航。
+
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,14 +9,17 @@ import 'package:go_router/go_router.dart';
 import 'package:nalo/features/home/presentation/widgets/medical_disclaimer_footer.dart';
 import 'package:nalo/features/home/presentation/widgets/referral_program_card.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/profile/presentation/pages/about_page.dart';
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:nalo/features/profile/presentation/pages/help_faq_page.dart';
 import 'package:nalo/features/profile/presentation/pages/privacy_data_page.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_notifications_page.dart';
 import 'package:nalo/features/profile/providers/profile_ui_provider.dart';
+import 'package:nalo/features/profile/view_models/profile_account_view_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// Nalo 个人中心页面。
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
@@ -38,19 +44,71 @@ class ProfilePage extends ConsumerWidget {
     if (!opened) BotToast.showText(text: 'Unable to open share link', align: Alignment.center);
   }
 
+  Future<void> _logout(BuildContext context, WidgetRef ref) async {
+    final didLogout = await ref
+        .read(profileAccountViewModelProvider.notifier)
+        .logout();
+    if (!context.mounted || !didLogout) return;
+    context.go(AuthEntryPage.path);
+  }
+
+  Future<void> _deactivate(BuildContext context, WidgetRef ref) async {
+    final didConfirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This will permanently deactivate your Nalo account and sign you out. '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFC62828),
+            ),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (didConfirm != true || !context.mounted) return;
+
+    final didDeactivate = await ref
+        .read(profileAccountViewModelProvider.notifier)
+        .deactivate();
+    if (!context.mounted) return;
+    if (didDeactivate) {
+      context.go(AuthEntryPage.path);
+      return;
+    }
+    final message = ref.read(profileAccountViewModelProvider).errorMessage;
+    if (message != null) {
+      BotToast.showText(text: message, align: Alignment.center);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final uiState = ref.watch(profileUiProvider);
+    final accountState = ref.watch(profileAccountViewModelProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5F2),
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 44),
-              sliver: SliverList.list(
-                children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 44),
+                  sliver: SliverList.list(
+                    children: [
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
@@ -107,13 +165,82 @@ class ProfilePage extends ConsumerWidget {
                       onMessagePressed: () => _showComingSoon('Message sharing'),
                     ),
                   ],
+                  const SizedBox(height: 28),
+                  _AccountActionButton(
+                    label: 'Log out',
+                    onPressed: () => _logout(context, ref),
+                  ),
+                  const SizedBox(height: 12),
+                  _AccountActionButton(
+                    label: 'Delete account',
+                    foregroundColor: const Color(0xFFC62828),
+                    borderColor: const Color(0xFFE6B8B8),
+                    onPressed: () => _deactivate(context, ref),
+                  ),
                   const SizedBox(height: 38),
                   const MedicalDisclaimerFooter(),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+          if (accountState.isLoading) const _ProfileLoadingOverlay(),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountActionButton extends StatelessWidget {
+  const _AccountActionButton({
+    required this.label,
+    required this.onPressed,
+    this.foregroundColor = const Color(0xFF111113),
+    this.borderColor = const Color(0xFFD8D8DA),
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final Color foregroundColor;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: foregroundColor,
+          side: BorderSide(color: borderColor),
+          overlayColor: Colors.transparent,
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
+        child: Text(label),
+      ),
+    );
+  }
+}
+
+class _ProfileLoadingOverlay extends StatelessWidget {
+  const _ProfileLoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Positioned.fill(
+      child: Stack(
+        children: [
+          ModalBarrier(dismissible: false, color: Color(0x52000000)),
+          Center(
+            child: SizedBox.square(
+              dimension: 36,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+          ),
+        ],
       ),
     );
   }

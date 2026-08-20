@@ -1,10 +1,13 @@
 // 新用户 Shopify 授权后的资料补充页。
-// 页面负责输入与反馈，校验、年龄边界和提交状态由 ViewModel 管理。
+// 页面上报按钮与弹窗行为；校验、年龄边界和请求结果由 ViewModel 管理。
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
@@ -48,6 +51,10 @@ class AccountProfilePage extends ConsumerStatefulWidget {
 }
 
 class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
+  static const _under18Title = 'Under 18';
+  static const _under18Description =
+      'Nalo is designed for adults 18 and over. Please check with a healthcare provider before testing.';
+
   final _nameController = TextEditingController();
   final _nameFocusNode = FocusNode();
 
@@ -99,6 +106,22 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
+    final state = ref.read(accountProfileViewModelProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.createAccountClick,
+        properties: createAccountAnalyticsProperties(
+          email: state.email,
+          name: state.fullName,
+          birth: state.dateOfBirth,
+          gender: switch (state.biologicalSex) {
+            BiologicalSex.female => AnalyticsGender.female,
+            BiologicalSex.male => AnalyticsGender.male,
+            null => null,
+          },
+        ),
+      ),
+    );
     final result = await ref
         .read(accountProfileViewModelProvider.notifier)
         .submit();
@@ -123,7 +146,15 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
     }
   }
 
-  Future<void> _showUnderageDialog() {
+  Future<void> _showUnderageDialog() async {
+    await ref.report(
+      AnalyticsEvent.under18AlertView,
+      properties: const {
+        AnalyticsEventProperty.title: _under18Title,
+        AnalyticsEventProperty.description: _under18Description,
+      },
+    );
+    if (!mounted) return;
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -144,12 +175,12 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Under 18',
+              _under18Title,
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Nalo is designed for adults 18 and over. Please check with a healthcare provider before testing.',
+              _under18Description,
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF9FA89E), height: 1.45),
             ),
@@ -157,7 +188,10 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  unawaited(ref.report(AnalyticsEvent.under18AlertGoBackClick));
+                  Navigator.of(context).pop();
+                },
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF008BC7),
                   minimumSize: const Size.fromHeight(48),

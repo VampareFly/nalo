@@ -24,6 +24,8 @@ lib/main.dart
 
 Amplitude 在应用生命周期中只初始化一次。
 
+Amplitude SDK 日志在 Debug 构建中使用 `LogLevel.debug`，便于从开发控制台观察事件入队和上传；Profile/Release 构建保持 `LogLevel.warn`。`minIdLength` 设置为 `1`，用于支持服务端的短数字用户 ID。
+
 ## 目录结构
 
 ```text
@@ -148,26 +150,56 @@ Widget / ViewModel → AnalyticsService → Amplitude SDK
 - `AnalyticsEventProperty`：具体事件按需传入的属性。
 - `AnalyticsUserProperty`：用户画像属性。
 
+登录注册埋点设计、字段和值域以以下文档为准：
+
+```text
+docs/requirements/2026-08-20-登录注册埋点设计.md
+```
+
+页面、业务层和 SDK 的职责分别为：
+
+```text
+Widget 上报点击事件
+ViewModel 上报请求结果
+AnalyticsNavigatorObserver 上报页面曝光
+AnalyticsService 补充公共属性并调用 Amplitude SDK
+```
+
 每次事件上报自动添加：
 
 ```text
-app_environment
-device_id
+notification_enabled
+platform
+app_version
+os_version
+user_id
+kc_id
 ```
 
-设备 ID 从现有 `DeviceIdService` 获取，设备 ID 存储在钥匙串中。
+测试和生产数据通过不同 Amplitude API Key 隔离，不额外上报 `app_environment`。`kc_id` 从现有 `DeviceIdService` 获取，并持久化在钥匙串中。
 
 Widget 中可以使用：
 
 ```dart
-ref.report(AnalyticsEvent.getStartedClicked);
+ref.report(
+  AnalyticsEvent.loginClick,
+  properties: {
+    AnalyticsEventProperty.method:
+        AnalyticsLoginClickMethod.continueWithShopify.value,
+  },
+);
 ```
 
 ViewModel 或 Notifier 中使用：
 
 ```dart
 ref.read(analyticsProvider).report(
-  AnalyticsEvent.loginCompleted,
+  AnalyticsEvent.loginRequestResult,
+  properties: {
+    AnalyticsEventProperty.loginMethod: AnalyticsLoginMethod.shopify.value,
+    AnalyticsEventProperty.isSuccess: 1,
+    AnalyticsEventProperty.failReason: '',
+  },
 );
 ```
 
@@ -177,11 +209,14 @@ ref.read(analyticsProvider).report(
 
 ```text
 登录成功：identifyUser → 设置用户属性 → 上报登录事件
-退出登录：上报退出事件 → 业务退出成功 → resetIdentity
+退出登录：业务会话清理 → resetIdentity
+Token 失效：业务会话清理 → resetIdentity
 注销账号：上报注销请求 → 后端注销成功 → resetIdentity
 ```
 
 Amplitude 的 `resetIdentity` 会清空 Amplitude `userId` 并生成新的 Amplitude `deviceId`，但不会删除钥匙串中的自有设备 ID。
+
+iOS 在登录入口页展示后请求 ATT：授权时将真实 IDFA 写入用户属性 `x-idfa`，拒绝或受限时写入全 0 IDFA；Android 不设置该属性。通知权限状态确定或变化后会同步用户属性 `notification_permission`。
 
 ## 设备 ID
 

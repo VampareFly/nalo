@@ -1,10 +1,13 @@
-// 管理应用级认证会话与冷启动 Token 恢复。
-// 冷启动读取本地 Token：已过期直接失效，未过期且不足一天时静默刷新。
+// 管理应用级认证会话、冷启动 Token 恢复和分析身份清理。
+// Token 失效、主动退出或账号注销后清理业务会话并重置 Amplitude 身份。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/auth/auth_repository.dart';
 import 'package:nalo/features/auth/auth_token.dart';
+import 'package:nalo/features/auth/current_user_storage.dart';
+import 'package:nalo/features/onboarding/repositories/welcome_completion_repository.dart';
 
 /// 应用认证会话所处阶段。
 enum AuthSessionStatus { authenticated, unauthenticated, sessionExpired }
@@ -46,6 +49,7 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     final expiresAt = token.expiresAt.toUtc();
     if (!expiresAt.isAfter(now)) {
       await repository.clearSession();
+      await ref.read(analyticsProvider).resetIdentity();
       return const AuthSessionState(
         status: AuthSessionStatus.sessionExpired,
         expirationMessage: 'Your login has expired. Please log in again.',
@@ -61,6 +65,7 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
         );
       } on SessionExpiredException catch (error) {
         await repository.clearSession();
+        await ref.read(analyticsProvider).resetIdentity();
         return AuthSessionState(
           status: AuthSessionStatus.sessionExpired,
           expirationMessage: error.message,
@@ -95,6 +100,7 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     }
     final repository = await ref.read(authRepositoryProvider.future);
     await repository.clearSession();
+    await ref.read(analyticsProvider).resetIdentity();
     state = AsyncData(
       AuthSessionState(
         status: AuthSessionStatus.sessionExpired,
@@ -103,11 +109,39 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     );
   }
 
-  /// 主动退出并清理本地认证数据。
+  /// 主动退出并清理本地认证数据及 Amplitude 身份。
   Future<void> logout() async {
     final repository = await ref.read(authRepositoryProvider.future);
     try {
       await repository.logout();
+    } catch (_) {
+      // 用户已明确退出，服务端失败不应阻止本地会话结束。
+    } finally {
+      await ref.read(analyticsProvider).resetIdentity();
+      state = const AsyncData(
+        AuthSessionState(status: AuthSessionStatus.unauthenticated),
+      );
+    }
+  }
+
+  /// 注销成功后清理该用户 Welcome 状态并结束当前会话。
+  Future<void> deactivate() async {
+    final userStorage = await ref.read(currentUserStorageProvider.future);
+    final currentUser = await userStorage.read();
+    final repository = await ref.read(authRepositoryProvider.future);
+    await repository.deactivate();
+    if (currentUser != null) {
+      try {
+        final welcomeRepository = await ref.read(
+          welcomeCompletionRepositoryProvider.future,
+        );
+        await welcomeRepository.clear(currentUser.id);
+      } catch (_) {
+        // TODO: <pf> 增加本地用户状态清理失败的统一重试机制。
+      }
+    }
+    try {
+      await ref.read(analyticsProvider).resetIdentity();
     } finally {
       state = const AsyncData(
         AuthSessionState(status: AuthSessionStatus.unauthenticated),

@@ -1,5 +1,7 @@
 import 'package:amplitude_flutter/amplitude.dart';
 import 'package:amplitude_flutter/configuration.dart';
+import 'package:amplitude_flutter/constants.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -18,7 +20,11 @@ Future<void> main() async {
   await Hive.initFlutter();
 
   final amplitude = Amplitude(
-    Configuration(apiKey: AmplitudeConfig.apiKey),
+    Configuration(
+      apiKey: AmplitudeConfig.apiKey,
+      minIdLength: 1,
+      logLevel: kDebugMode ? LogLevel.debug : LogLevel.warn,
+    ),
   );
   await amplitude.isBuilt;
 

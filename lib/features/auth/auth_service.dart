@@ -1,6 +1,7 @@
+// 封装自有后端的 Token 刷新、退出和账号注销接口。
+// Service 只负责请求协议和 DTO 解析，本地会话清理由 Repository 处理。
+
 import 'package:nalo/core/network/api_client.dart';
-// 封装自有后端的 Token 刷新接口。
-// Service 只负责请求字段和 DTO 解析，持久化由 AuthRepository 处理。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/network/api_providers.dart';
@@ -31,6 +32,11 @@ class AuthService {
   /// 通知服务端注销当前 App Session。
   Future<void> logout() async {
     await _apiClient.post<void>('/api/v1/app/auth/logout');
+  }
+
+  /// 永久注销当前登录账号。
+  Future<void> deactivate() async {
+    await _apiClient.post<void>('/api/v1/app/auth/deactivate');
   }
 
   AuthTokenDto _decodeToken(Object? data) {

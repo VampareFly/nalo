@@ -1,5 +1,5 @@
-// 编排刷新和本地 Token 持久化。
-// ViewModel 和会话 Provider 只依赖 Repository，不直接操作网络或存储。
+// 编排 Token 刷新、账号操作和本地会话持久化。
+// 会话 Provider 只依赖 Repository，不直接操作网络或存储。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/features/auth/auth_service.dart';
@@ -45,6 +45,12 @@ class AuthRepository {
     } finally {
       await clearSession();
     }
+  }
+
+  /// 服务端注销成功后清除本地 Token 和当前用户快照。
+  Future<void> deactivate() async {
+    await _service.deactivate();
+    await clearSession();
   }
 }
 

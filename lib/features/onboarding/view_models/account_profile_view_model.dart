@@ -1,6 +1,7 @@
-// 管理注册资料、提交校验和年龄边界。
+// 管理注册资料、提交校验和年龄边界，并上报资料请求结果。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
 
@@ -148,34 +149,100 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
     if ((state.age ?? 0) < 18) return AccountProfileSubmitResult.under18;
     if (state.isSubmitting) return AccountProfileSubmitResult.missingFields;
     state = state.copyWith(isSubmitting: true, clearSubmissionError: true);
+    final submittedProfile = state;
     try {
       final repository = await ref.read(userProfileRepositoryProvider.future);
       await repository.update(
         fullName: state.fullName,
         birthDay: state.dateOfBirth!,
-        gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
+        gender: state.biologicalSex == BiologicalSex.female ? 1 : 2,
       );
+      await _reportRequestResult(submittedProfile, isSuccess: true);
       state = state.copyWith(isSubmitting: false);
       return AccountProfileSubmitResult.completed;
     } on ApiException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: '${error.code}: ${error.message}',
+      );
       state = state.copyWith(
         isSubmitting: false,
         submissionError: error.message,
       );
       return AccountProfileSubmitResult.submissionFailed;
     } on NetworkException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: '${error.type.name}: ${error.message}',
+      );
+      state = state.copyWith(
+        isSubmitting: false,
+        submissionError: error.message,
+      );
+      return AccountProfileSubmitResult.submissionFailed;
+    } on SessionExpiredException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: 'session_expired: ${error.message}',
+      );
+      state = state.copyWith(
+        isSubmitting: false,
+        submissionError: error.message,
+      );
+      return AccountProfileSubmitResult.submissionFailed;
+    } on ResponseFormatException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: 'response_format_error: ${error.message}',
+      );
       state = state.copyWith(
         isSubmitting: false,
         submissionError: error.message,
       );
       return AccountProfileSubmitResult.submissionFailed;
     } catch (_) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: 'unknown_error: Unable to update user profile',
+      );
       state = state.copyWith(
         isSubmitting: false,
         submissionError: 'Unable to update your profile. Please try again.',
       );
       return AccountProfileSubmitResult.submissionFailed;
     }
+  }
+
+  Future<void> _reportRequestResult(
+    AccountProfileState profile, {
+    required bool isSuccess,
+    String failReason = '',
+  }) {
+    final gender = switch (profile.biologicalSex) {
+      BiologicalSex.female => AnalyticsGender.female,
+      BiologicalSex.male => AnalyticsGender.male,
+      null => null,
+    };
+    return ref
+        .read(analyticsProvider)
+        .report(
+          AnalyticsEvent.createAccountRequestResult,
+          properties: {
+            ...createAccountAnalyticsProperties(
+              email: profile.email,
+              name: profile.fullName,
+              birth: profile.dateOfBirth,
+              gender: gender,
+            ),
+            AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
+            AnalyticsEventProperty.failReason: failReason,
+          },
+        );
   }
 }
 

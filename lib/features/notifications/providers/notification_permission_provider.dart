@@ -1,12 +1,16 @@
+// 管理通知权限请求与刷新，并同步 Amplitude 通知权限用户属性。
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/storage/shared_preferences_provider.dart';
 import 'package:nalo/features/notifications/repositories/notification_permission_repository.dart';
 import 'package:nalo/features/notifications/services/notification_permission_service.dart';
 
 /// 注入系统通知权限 Service。
-final notificationPermissionServiceProvider = Provider<NotificationPermissionService>((ref) {
-  return PlatformNotificationPermissionService();
-});
+final notificationPermissionServiceProvider =
+    Provider<NotificationPermissionService>((ref) {
+      return PlatformNotificationPermissionService();
+    });
 
 /// 注入通知权限首次请求配置 Repository。
 final notificationPermissionRepositoryProvider =
@@ -16,8 +20,12 @@ final notificationPermissionRepositoryProvider =
     });
 
 /// 提供页面按需读取的通知权限状态。
-final notificationPermissionStatusProvider = FutureProvider.autoDispose<bool>((ref) {
-  return ref.watch(notificationPermissionServiceProvider).isNotificationPermissionEnabled();
+final notificationPermissionStatusProvider = FutureProvider.autoDispose<bool>((
+  ref,
+) {
+  return ref
+      .watch(notificationPermissionServiceProvider)
+      .isNotificationPermissionEnabled();
 });
 
 /// 应用级通知权限状态。
@@ -55,6 +63,7 @@ class AppNotificationPermissionNotifier
         await repository.markInitialRequestCompleted();
       }
     }
+    await _updateAnalyticsUserProperty(isEnabled);
     return AppNotificationPermissionState(isEnabled: isEnabled);
   }
 
@@ -74,15 +83,23 @@ class AppNotificationPermissionNotifier
           .read(notificationPermissionServiceProvider)
           .isNotificationPermissionEnabled();
       state = AsyncData(AppNotificationPermissionState(isEnabled: isEnabled));
+      await _updateAnalyticsUserProperty(isEnabled);
       ref.invalidate(notificationPermissionStatusProvider);
     } catch (_) {
       // 回前台刷新失败时保留原状态，避免权限检查阻断页面。
     }
   }
+
+  Future<void> _updateAnalyticsUserProperty(bool isEnabled) {
+    return ref.read(analyticsProvider).setUserProperties({
+      AnalyticsUserProperty.notificationPermission: isEnabled ? '1' : '0',
+    });
+  }
 }
 
 /// 提供整个应用共享的通知权限生命周期状态。
-final appNotificationPermissionProvider = AsyncNotifierProvider<
-  AppNotificationPermissionNotifier,
-  AppNotificationPermissionState
->(AppNotificationPermissionNotifier.new);
+final appNotificationPermissionProvider =
+    AsyncNotifierProvider<
+      AppNotificationPermissionNotifier,
+      AppNotificationPermissionState
+    >(AppNotificationPermissionNotifier.new);

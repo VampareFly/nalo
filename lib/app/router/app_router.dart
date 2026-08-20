@@ -1,6 +1,9 @@
+// 集中维护应用路由，并通过 NavigatorObserver 上报登录注册页面曝光。
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/home/presentation/pages/test_history_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
@@ -23,6 +26,7 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
+    observers: [ref.watch(analyticsNavigatorObserverProvider)],
     initialLocation: AuthGatePage.path,
     routes: [
       GoRoute(
@@ -66,10 +70,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AboutPage(),
       ),
       GoRoute(
+        name: AnalyticsPageName.loginSignIn.value,
         path: AuthEntryPage.path,
-        builder: (context, state) => const AuthEntryPage(),
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: AuthEntryPage(),
+        ),
       ),
       GoRoute(
+        name: AnalyticsPageName.createAccount.value,
         path: AccountProfilePage.path,
         builder: (context, state) => AccountProfilePage(
           email: state.uri.queryParameters['email'] ?? '',
@@ -81,6 +89,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        name: AnalyticsPageName.welcome.value,
         path: OnboardingWelcomePage.path,
         pageBuilder: (context, state) => NoTransitionPage(
           child: OnboardingWelcomePage(

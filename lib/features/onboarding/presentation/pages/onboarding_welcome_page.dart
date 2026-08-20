@@ -1,11 +1,12 @@
 // 账号创建后的欢迎页，承接通知权限并按用户保存完成状态。
-// 用户点击主按钮且本地标记保存成功后，页面才结束引导并进入首页。
+// 页面上报通知与开始点击；本地标记保存成功后才结束引导并进入首页。
 
 import 'dart:async';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
@@ -52,6 +53,14 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
 
   Future<void> _completeWelcome() async {
     if (_isCompleting) return;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.startJourney,
+        properties: {
+          AnalyticsEventProperty.pageName: AnalyticsPageName.welcome.value,
+        },
+      ),
+    );
     if (widget.userId <= 0) {
       BotToast.showText(text: 'Unable to identify the current user.');
       return;
@@ -170,6 +179,15 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
                             ),
                             TextButton(
                               onPressed: () {
+                                unawaited(
+                                  ref.report(
+                                    AnalyticsEvent.notificationEnableClick,
+                                    properties: {
+                                      AnalyticsEventProperty.pageName:
+                                          AnalyticsPageName.welcome.value,
+                                    },
+                                  ),
+                                );
                                 unawaited(
                                   ref
                                       .read(

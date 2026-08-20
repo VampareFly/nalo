@@ -28,6 +28,14 @@ class WelcomeCompletionRepository {
     }
   }
 
+  /// 账号注销成功后删除该用户的 Welcome 完成标记。
+  Future<void> clear(int userId) async {
+    final didRemove = await _preferences.remove(_key(userId));
+    if (!didRemove && _preferences.containsKey(_key(userId))) {
+      throw StateError('Unable to clear the Welcome completion state.');
+    }
+  }
+
   String _key(int userId) => 'onboarding_welcome_completed_$userId';
 }
 
