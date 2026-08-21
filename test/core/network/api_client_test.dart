@@ -6,7 +6,7 @@ void main() {
     test('parses a successful envelope', () {
       final response = ApiResponse<Map<String, dynamic>>.fromJson({
         'code': 0,
-        'message': 'success',
+        'msg': 'success',
         'data': {'id': 1},
       }, (data) => data! as Map<String, dynamic>);
 
@@ -16,7 +16,7 @@ void main() {
 
     test('rejects an invalid envelope', () {
       expect(
-        () => ApiResponse<Object?>.fromJson({'message': 'success'}),
+        () => ApiResponse<Object?>.fromJson({'msg': 'success'}),
         throwsA(isA<ResponseFormatException>()),
       );
     });
