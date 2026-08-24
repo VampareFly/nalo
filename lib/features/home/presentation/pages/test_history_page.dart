@@ -1,11 +1,11 @@
-// 展示用户完整检测历史，并支持按检测类型筛选和按月份分组。
-// 页面暂时复用首页聚合 Provider；服务端历史接口确定后切换到独立 Repository。
+// 展示用户完整检测历史，支持服务端筛选、按月份分组与滚动分页。
+// 页面进入时由 ViewModel 请求第一页，行项目当前仅展示、不响应点击。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:nalo/features/home/models/home_dashboard_data.dart';
-import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
+import 'package:nalo/features/home/models/test_history_models.dart';
+import 'package:nalo/features/home/view_models/test_history_view_model.dart';
 
 const _historyBlue = Color(0xFF008BC7);
 const _historyInk = Color(0xFF1A2433);
@@ -22,14 +22,35 @@ class TestHistoryPage extends ConsumerStatefulWidget {
   ConsumerState<TestHistoryPage> createState() => _TestHistoryPageState();
 }
 
-enum _HistoryFilter { all, cortisol, testosterone }
-
 class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
-  _HistoryFilter _filter = _HistoryFilter.all;
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_loadMoreWhenNeeded);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(testHistoryViewModelProvider.notifier).loadInitial();
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_loadMoreWhenNeeded)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _loadMoreWhenNeeded() {
+    if (_scrollController.position.extentAfter < 240) {
+      ref.read(testHistoryViewModelProvider.notifier).loadMore();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final dashboard = ref.watch(homeDashboardProvider);
+    final state = ref.watch(testHistoryViewModelProvider);
     return Scaffold(
       backgroundColor: _historyBackground,
       body: SafeArea(
@@ -37,18 +58,20 @@ class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
           children: [
             const _HistoryAppBar(),
             Expanded(
-              child: dashboard.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: _historyBlue)),
-                error: (_, _) => Center(
-                  child: TextButton(
-                    onPressed: () => ref.invalidate(homeDashboardProvider),
-                    child: const Text('Try again'),
-                  ),
-                ),
-                data: (data) => _HistoryBody(
-                  data: data,
-                  selectedFilter: _filter,
-                  onFilterChanged: (filter) => setState(() => _filter = filter),
+              child: RefreshIndicator(
+                color: _historyBlue,
+                onRefresh: () => ref
+                    .read(testHistoryViewModelProvider.notifier)
+                    .refresh(),
+                child: ListView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                  children: [
+                    _FilterRow(state: state),
+                    const SizedBox(height: 12),
+                    _HistoryContent(state: state),
+                  ],
                 ),
               ),
             ),
@@ -87,66 +110,112 @@ class _HistoryAppBar extends StatelessWidget {
   }
 }
 
-class _HistoryBody extends StatelessWidget {
-  const _HistoryBody({required this.data, required this.selectedFilter, required this.onFilterChanged});
+class _FilterRow extends ConsumerWidget {
+  const _FilterRow({required this.state});
 
-  final HomeDashboardData data;
-  final _HistoryFilter selectedFilter;
-  final ValueChanged<_HistoryFilter> onFilterChanged;
+  final TestHistoryState state;
 
   @override
-  Widget build(BuildContext context) {
-    final allResults = [...data.testosteroneResults, ...data.cortisolResults];
-    final filtered = switch (selectedFilter) {
-      _HistoryFilter.all => allResults,
-      _HistoryFilter.cortisol => data.cortisolResults,
-      _HistoryFilter.testosterone => data.testosteroneResults,
-    };
-    final grouped = <String, List<HomeRecentResult>>{};
-    for (final result in filtered) {
-      grouped.putIfAbsent(result.monthLabel, () => []).add(result);
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(child: _FilterButton(label: 'All', count: allResults.length, selected: selectedFilter == _HistoryFilter.all, onTap: () => onFilterChanged(_HistoryFilter.all))),
-            const SizedBox(width: 8),
-            Expanded(child: _FilterButton(label: 'Cortisol', count: data.cortisolResults.length, selected: selectedFilter == _HistoryFilter.cortisol, onTap: () => onFilterChanged(_HistoryFilter.cortisol))),
-            const SizedBox(width: 8),
-            Expanded(child: _FilterButton(label: 'Testosterone', count: data.testosteroneResults.length, selected: selectedFilter == _HistoryFilter.testosterone, onTap: () => onFilterChanged(_HistoryFilter.testosterone))),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(_resultSummary(filtered.length), style: const TextStyle(color: _historyMuted, fontSize: 12)),
-        const SizedBox(height: 18),
-        for (final entry in grouped.entries) ...[
-          _MonthHeader(label: entry.key, count: entry.value.length),
-          const SizedBox(height: 12),
-          for (var index = 0; index < entry.value.length; index++) ...[
-            _HistoryResultRow(result: entry.value[index]),
-            if (index < entry.value.length - 1) const SizedBox(height: 8),
-          ],
-          const SizedBox(height: 24),
+        for (var index = 0; index < TestHistoryFilter.values.length; index++) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(
+            child: _FilterButton(
+              label: TestHistoryFilter.values[index].label,
+              count: state.counts.forFilter(TestHistoryFilter.values[index]),
+              selected: state.filter == TestHistoryFilter.values[index],
+              onTap: () => ref.read(testHistoryViewModelProvider.notifier).selectFilter(TestHistoryFilter.values[index]),
+            ),
+          ),
         ],
       ],
     );
   }
+}
 
-  String _resultSummary(int count) {
-    final type = switch (selectedFilter) {
-      _HistoryFilter.all => '',
-      _HistoryFilter.cortisol => ' · Cortisol',
-      _HistoryFilter.testosterone => ' · Testosterone',
-    };
-    return '$count ${count == 1 ? 'result' : 'results'}$type';
+class _HistoryContent extends ConsumerWidget {
+  const _HistoryContent({required this.state});
+
+  final TestHistoryState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (state.isInitialLoading) {
+      return const SizedBox(height: 260, child: Center(child: CircularProgressIndicator(color: _historyBlue)));
+    }
+    if (state.initialError != null) {
+      return _MessageState(
+        title: 'Unable to load test history',
+        actionLabel: 'Try again',
+        onAction: () => ref.read(testHistoryViewModelProvider.notifier).loadInitial(),
+      );
+    }
+
+    final count = state.counts.forFilter(state.filter);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(_resultSummary(count, state.filter), style: const TextStyle(color: _historyMuted, fontSize: 12)),
+        const SizedBox(height: 18),
+        if (state.isEmpty)
+          const _MessageState(title: 'No test results yet.')
+        else
+          for (final group in state.groups) ...[
+            _MonthHeader(label: group.monthLabel, count: group.items.length),
+            const SizedBox(height: 12),
+            for (var index = 0; index < group.items.length; index++) ...[
+              _HistoryResultRow(result: group.items[index]),
+              if (index < group.items.length - 1) const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 24),
+          ],
+        if (state.isLoadingMore)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(child: SizedBox.square(dimension: 22, child: CircularProgressIndicator(color: _historyBlue, strokeWidth: 2))),
+          ),
+        if (state.loadMoreError)
+          Center(
+            child: TextButton(
+              onPressed: () => ref.read(testHistoryViewModelProvider.notifier).loadMore(),
+              child: const Text('Try loading more'),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MessageState extends StatelessWidget {
+  const _MessageState({required this.title, this.actionLabel, this.onAction});
+
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 260,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title, textAlign: TextAlign.center, style: const TextStyle(color: _historyMuted, fontSize: 14)),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 8),
+            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+          ],
+        ],
+      ),
+    );
   }
 }
 
 class _FilterButton extends StatelessWidget {
   const _FilterButton({required this.label, required this.count, required this.selected, required this.onTap});
+
   final String label;
   final int count;
   final bool selected;
@@ -190,6 +259,7 @@ class _FilterButton extends StatelessWidget {
 
 class _MonthHeader extends StatelessWidget {
   const _MonthHeader({required this.label, required this.count});
+
   final String label;
   final int count;
 
@@ -211,12 +281,12 @@ class _MonthHeader extends StatelessWidget {
 
 class _HistoryResultRow extends StatelessWidget {
   const _HistoryResultRow({required this.result});
-  final HomeRecentResult result;
+
+  final TestHistoryItem result;
 
   @override
   Widget build(BuildContext context) {
-    final accent = result.type == HomeTestType.cortisol ? const Color(0xFF8AB4CB) : const Color(0xFFF5C842);
-    final typeLabel = result.type == HomeTestType.cortisol ? 'Cortisol' : 'Testosterone';
+    final accent = result.type == TestHistoryFilter.cortisol ? const Color(0xFF8AB4CB) : const Color(0xFFF5C842);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
@@ -230,12 +300,13 @@ class _HistoryResultRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(result.dateLabel, style: const TextStyle(color: _historyInk, fontSize: 14, fontWeight: FontWeight.w800)),
+                Text(result.date, style: const TextStyle(color: _historyInk, fontSize: 14, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 3),
-                Text('${result.periodLabel}   ·   $typeLabel', style: const TextStyle(color: _historyMuted, fontSize: 12)),
+                Text('${result.timePeriod}   ·   ${result.type.label}', style: const TextStyle(color: _historyMuted, fontSize: 12)),
               ],
             ),
           ),
+          const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -249,4 +320,9 @@ class _HistoryResultRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String _resultSummary(int count, TestHistoryFilter filter) {
+  final type = filter == TestHistoryFilter.all ? '' : ' · ${filter.label}';
+  return '$count ${count == 1 ? 'result' : 'results'}$type';
 }

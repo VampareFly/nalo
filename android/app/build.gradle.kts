@@ -8,6 +8,11 @@ plugins {
 
 dependencies {
     implementation("com.google.android.gms:play-services-ads-identifier:18.3.0")
+    val cameraXVersion = "1.5.3"
+    implementation("androidx.camera:camera-core:$cameraXVersion")
+    implementation("androidx.camera:camera-camera2:$cameraXVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraXVersion")
+    implementation("androidx.camera:camera-view:$cameraXVersion")
 }
 
 android {

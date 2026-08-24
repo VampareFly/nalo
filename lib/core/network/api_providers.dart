@@ -200,9 +200,9 @@ final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
       baseUrl: currentEnvironment.apiBaseUrl,
       // 统一将 Content-Type 设为 application/json。
       contentType: Headers.jsonContentType,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      sendTimeout: const Duration(seconds: 15),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 30),
     ),
   );
   dio.interceptors.addAll([

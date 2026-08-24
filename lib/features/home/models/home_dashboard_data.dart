@@ -4,7 +4,7 @@
 /// 首页支持的检测结果类型。
 enum HomeTestType { cortisol, testosterone }
 
-/// 首页和检测历史共用的一条检测结果。
+/// 首页最近检测模块使用的一条结果。
 class HomeRecentResult {
   const HomeRecentResult({
     required this.type,

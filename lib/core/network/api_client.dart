@@ -82,10 +82,9 @@ class ApiResponse<T> {
 /// 封装自有业务 API 的通用 HTTP 请求。
 class ApiClient {
   const ApiClient({
-    required Dio dio,
-    required Future<void> Function(String message) onSessionExpired,
-  }) : _dio = dio,
-       _onSessionExpired = onSessionExpired;
+    required this._dio,
+    required this._onSessionExpired,
+  });
 
   final Dio _dio;
   final Future<void> Function(String message) _onSessionExpired;
@@ -264,15 +263,15 @@ class NetworkLogInterceptor extends Interceptor {
   }
 
   @override
-  void onError(DioException error, ErrorInterceptorHandler handler) {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
     _writeSafely(() {
-      final cause = error.error;
+      final cause = err.error;
       _logger.w(
-        '${error.requestOptions.method} ${_safeUri(error.requestOptions)}: '
-        '${error.message ?? cause ?? 'Unknown Dio error'}',
+        '${err.requestOptions.method} ${_safeUri(err.requestOptions)}: '
+        '${err.message ?? cause ?? 'Unknown Dio error'}',
       );
     });
-    handler.next(error);
+    handler.next(err);
   }
 
   // 日志是可降级能力，任何日志异常都不得改变 Dio 请求流程。

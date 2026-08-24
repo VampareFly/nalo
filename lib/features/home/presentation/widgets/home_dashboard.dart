@@ -128,11 +128,11 @@ class _HomeDashboardBody extends StatelessWidget {
         _HistoryCard(totalCount: data.totalTestCount, onPressed: onHistoryPressed),
         if (data.cortisolResults.isNotEmpty) ...[
           const SizedBox(height: 20),
-          _ResultsCard(type: HomeTestType.cortisol, results: data.cortisolResults.take(3).toList()),
+          _ResultsCard(type: HomeTestType.cortisol, results: data.cortisolResults),
         ],
         if (data.testosteroneResults.isNotEmpty) ...[
           const SizedBox(height: 20),
-          _ResultsCard(type: HomeTestType.testosterone, results: data.testosteroneResults.take(3).toList()),
+          _ResultsCard(type: HomeTestType.testosterone, results: data.testosteroneResults),
         ],
         if (data.referralOffer case final offer?) ...[
           const SizedBox(height: 20),

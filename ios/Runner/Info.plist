@@ -37,6 +37,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Nalo needs camera access to photograph your test strip and analyze your result.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Your device identifier helps us understand app usage and improve the Nalo experience.</string>
 	<key>UIApplicationSceneManifest</key>

@@ -1,5 +1,5 @@
 // 承载新版首页与 Shop Tab，并统一处理页面级导航、版本检查和生命周期事件。
-// 每次冷启动首次进入 Home Tab 时立即检查版本，Home/Shop 使用 IndexedStack 保留状态。
+// 每次进入 Home Tab 时刷新首页检测结果，Home/Shop 使用 IndexedStack 保留状态。
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +11,7 @@ import 'package:nalo/features/app_update/view_models/app_version_view_model.dart
 import 'package:nalo/features/home/presentation/widgets/home_bottom_tabs.dart';
 import 'package:nalo/features/home/presentation/widgets/home_dashboard.dart';
 import 'package:nalo/features/home/presentation/pages/test_history_page.dart';
+import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_page.dart';
 import 'package:nalo/features/shop/presentation/pages/shop_page.dart';
@@ -72,6 +73,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(appNotificationPermissionProvider.notifier).refresh();
+      if (_selectedIndex == _homeIndex) _refreshHome();
     }
   }
 
@@ -81,6 +83,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       if (index == _shopIndex) _hasOpenedShop = true;
     });
     if (index == _homeIndex) {
+      _refreshHome();
       _checkVersion();
     }
   }
@@ -141,11 +144,22 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     }
   }
 
-  void _openTestFlow() => context.push(TestFlowPage.path);
+  void _refreshHome() => ref.invalidate(homeDashboardProvider);
 
-  void _openProfile() => context.push(ProfilePage.path);
+  Future<void> _openTestFlow() async {
+    await context.push(TestFlowPage.path);
+    if (mounted && _selectedIndex == _homeIndex) _refreshHome();
+  }
 
-  void _openTestHistory() => context.push(TestHistoryPage.path);
+  Future<void> _openProfile() async {
+    await context.push(ProfilePage.path);
+    if (mounted && _selectedIndex == _homeIndex) _refreshHome();
+  }
+
+  Future<void> _openTestHistory() async {
+    await context.push(TestHistoryPage.path);
+    if (mounted) _refreshHome();
+  }
 
   void _showReferralPlaceholder() {
     // TODO: <pf> Referral 目标页或分享方式确认后接入正式交互。

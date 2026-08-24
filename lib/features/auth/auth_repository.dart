@@ -10,12 +10,10 @@ import 'package:nalo/features/auth/token_storage.dart';
 /// 编排 Token 刷新和本地持久化。
 class AuthRepository {
   const AuthRepository({
-    required AuthService service,
-    required TokenStorage tokenStorage,
-    required CurrentUserStorage currentUserStorage,
-  }) : _service = service,
-       _tokenStorage = tokenStorage,
-       _currentUserStorage = currentUserStorage;
+    required this._service,
+    required this._tokenStorage,
+    required this._currentUserStorage,
+  });
 
   final AuthService _service;
   final TokenStorage _tokenStorage;

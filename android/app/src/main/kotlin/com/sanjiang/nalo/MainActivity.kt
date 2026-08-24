@@ -16,6 +16,13 @@ class MainActivity : FlutterActivity() {
         notificationPermissionChannel.register(
             binaryMessenger = flutterEngine.dartExecutor.binaryMessenger,
         )
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            "nalo/native_camera_view",
+            NativeCameraViewFactory(
+                messenger = flutterEngine.dartExecutor.binaryMessenger,
+                lifecycleOwner = this,
+            ),
+        )
     }
 
     override fun onRequestPermissionsResult(

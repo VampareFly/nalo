@@ -1,7 +1,6 @@
 // Crashlytics 崩溃上报服务，负责初始化收集策略、注册全局异常处理和触发测试崩溃。
 // 应用启动时初始化；测试版本可从欢迎页主动制造崩溃以检查 Firebase 与 dSYM 配置。
 
-import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';

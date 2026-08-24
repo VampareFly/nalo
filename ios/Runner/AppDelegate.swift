@@ -22,5 +22,8 @@ import UIKit
         TrackingTransparencyChannel.register(
             binaryMessenger: engineBridge.applicationRegistrar.messenger()
         )
+        if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NativeCameraPlugin") {
+            NativeCameraPlugin.register(with: registrar)
+        }
     }
 }
