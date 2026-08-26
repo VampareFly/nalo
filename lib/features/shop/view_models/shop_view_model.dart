@@ -1,8 +1,9 @@
-// 统一管理 Shop 初始加载、下拉刷新、上拉分页和购买链接状态。
+// 统一管理 Shop 列表、购买链接状态和链接请求结果埋点。
 // ShopPage 只监听本 Provider，并在获得 URL 后负责打开外部浏览器。
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/logging/logger_provider.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/core/network/api_providers.dart';
@@ -67,8 +68,7 @@ class ShopPurchaseResult {
   final String? errorMessage;
 
   /// 创建可供页面打开的成功结果。
-  factory ShopPurchaseResult.success(Uri url) =>
-      ShopPurchaseResult._(url: url);
+  factory ShopPurchaseResult.success(Uri url) => ShopPurchaseResult._(url: url);
 
   /// 创建需要页面提示的失败结果。
   factory ShopPurchaseResult.failure(String message) =>
@@ -119,10 +119,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
     if (current == null || _isListRequestRunning) return;
     _isListRequestRunning = true;
     state = AsyncData(
-      current.copyWith(
-        isRefreshing: true,
-        clearLoadMoreError: true,
-      ),
+      current.copyWith(isRefreshing: true, clearLoadMoreError: true),
     );
     try {
       final repository = await ref.read(shopRepositoryProvider.future);
@@ -135,11 +132,13 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
         ),
       );
     } catch (error, stackTrace) {
-      ref.read(loggerProvider).e(
-        'Shop products refresh failed.',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      ref
+          .read(loggerProvider)
+          .e(
+            'Shop products refresh failed.',
+            error: error,
+            stackTrace: stackTrace,
+          );
       state = AsyncData(current.copyWith(isRefreshing: false));
       rethrow;
     } finally {
@@ -159,10 +158,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
     }
     _isListRequestRunning = true;
     state = AsyncData(
-      current.copyWith(
-        isLoadingMore: true,
-        clearLoadMoreError: true,
-      ),
+      current.copyWith(isLoadingMore: true, clearLoadMoreError: true),
     );
     try {
       final nextPage = current.currentPage + 1;
@@ -181,11 +177,13 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
         ),
       );
     } catch (error, stackTrace) {
-      ref.read(loggerProvider).e(
-        'Shop products load-more failed.',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      ref
+          .read(loggerProvider)
+          .e(
+            'Shop products load-more failed.',
+            error: error,
+            stackTrace: stackTrace,
+          );
       state = AsyncData(
         current.copyWith(
           isLoadingMore: false,
@@ -198,9 +196,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
   }
 
   /// 点击 Get kit 时生成一次性 Shopify 购买 URL。
-  Future<ShopPurchaseResult> createPurchaseLink(
-    TestKitProduct product,
-  ) async {
+  Future<ShopPurchaseResult> createPurchaseLink(TestKitProduct product) async {
     final current = state.asData?.value;
     if (current == null || current.loadingProductId != null) {
       return ShopPurchaseResult.failure('A shop request is already running.');
@@ -214,12 +210,24 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
           'The Shopify product URL has already expired.',
         );
       }
+      await _reportPurchaseLinkResult(
+        product,
+        url: link.url.toString(),
+        isSuccess: true,
+      );
       return ShopPurchaseResult.success(link.url);
     } catch (error, stackTrace) {
-      ref.read(loggerProvider).e(
-        'Shop purchase-link request failed.',
-        error: error,
-        stackTrace: stackTrace,
+      ref
+          .read(loggerProvider)
+          .e(
+            'Shop purchase-link request failed.',
+            error: error,
+            stackTrace: stackTrace,
+          );
+      await _reportPurchaseLinkResult(
+        product,
+        isSuccess: false,
+        failReason: _analyticsFailReason(error),
       );
       return ShopPurchaseResult.failure(_messageFor(error));
     } finally {
@@ -228,6 +236,37 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
         state = AsyncData(latest.copyWith(clearLoadingProductId: true));
       }
     }
+  }
+
+  Future<void> _reportPurchaseLinkResult(
+    TestKitProduct product, {
+    required bool isSuccess,
+    String url = '',
+    String failReason = '',
+  }) {
+    return ref
+        .read(analyticsProvider)
+        .report(
+          AnalyticsEvent.shopShopifyUrlRequest,
+          properties: {
+            AnalyticsEventProperty.productId: product.productId.toString(),
+            AnalyticsEventProperty.variantId: product.variantId.toString(),
+            AnalyticsEventProperty.url: url,
+            AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
+            AnalyticsEventProperty.failReason: failReason,
+          },
+        );
+  }
+
+  String _analyticsFailReason(Object error) {
+    return switch (error) {
+      ApiException(:final code, :final message) => '$code: $message',
+      NetworkException(:final type, :final message) => '${type.name}: $message',
+      SessionExpiredException(:final message) => 'session_expired: $message',
+      ResponseFormatException(:final message) =>
+        'response_format_error: $message',
+      _ => 'unknown_error: Something went wrong. Please try again.',
+    };
   }
 
   Future<ShopState> _loadFirstPage(ShopRepository repository) async {
@@ -240,11 +279,13 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
   }
 
   void _logInitialLoadError(Object error, StackTrace stackTrace) {
-    ref.read(loggerProvider).e(
-      'Shop products initial load failed before the page could render.',
-      error: error,
-      stackTrace: stackTrace,
-    );
+    ref
+        .read(loggerProvider)
+        .e(
+          'Shop products initial load failed before the page could render.',
+          error: error,
+          stackTrace: stackTrace,
+        );
   }
 
   String _messageFor(Object error) {

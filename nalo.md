@@ -150,18 +150,19 @@ Widget / ViewModel → AnalyticsService → Amplitude SDK
 - `AnalyticsEventProperty`：具体事件按需传入的属性。
 - `AnalyticsUserProperty`：用户画像属性。
 
-登录注册埋点设计、字段和值域以以下文档为准：
+客户端埋点设计、字段和值域以以下文档为准：
 
 ```text
-docs/requirements/2026-08-20-登录注册埋点设计.md
+docs/requirements/2026-08-20-客户端埋点设计.md
 ```
 
 页面、业务层和 SDK 的职责分别为：
 
 ```text
-Widget 上报点击事件
+Widget 上报点击和商品可视曝光
 ViewModel 上报请求结果
 AnalyticsNavigatorObserver 上报页面曝光
+HomePage 上报 Home / Shop Tab 页面访问
 AnalyticsService 补充公共属性并调用 Amplitude SDK
 ```
 
@@ -204,6 +205,8 @@ ref.read(analyticsProvider).report(
 ```
 
 普通 Dart 类通过构造函数注入 `AnalyticsService`。
+
+Shop 商品卡片使用 `visibility_detector` 判断可视比例：达到 10% 后上报 `sku_view`，每次进入 Shop 或从 Flutter 子页面返回时开启新曝光周期，并按 `product_id + variant_id` 去重；App 前后台切换和外部 Shopify 返回不重置曝光。点击 Get kit 时立即上报 `sku_click`，链接请求和校验完成后由 ViewModel 上报 `shop_shopify_url_request`。
 
 用户身份生命周期：
 
@@ -259,6 +262,7 @@ lib/core/logging/logger_provider.dart
 - Hive / Drift：本地数据和数据库
 - Firebase Core / Crashlytics：崩溃监控
 - Amplitude Flutter：产品分析和埋点
+- Visibility Detector：商品卡片可视曝光判断
 - Flutter AppAuth：认证流程
 - Logger：日志
 

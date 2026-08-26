@@ -1,4 +1,5 @@
 {
+  "originHash" : "cddc6e2424cfb164c17f976cc221a4e6ad7a44dfd24501876740eb6b154728c8",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -23,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/amplitude/AmplitudeCore-Swift.git",
       "state" : {
-        "revision" : "bbad108b92f332fdaa76b67bce3f3ae88015ad0b",
-        "version" : "1.4.10"
+        "revision" : "6ed18476726e13525c00594e38a04b6c4360c0f3",
+        "version" : "1.5.0"
       }
     },
     {
@@ -154,5 +155,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

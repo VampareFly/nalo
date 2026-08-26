@@ -1,10 +1,13 @@
-// 承载新版首页与 Shop Tab，并统一处理页面级导航、版本检查和生命周期事件。
-// 每次进入 Home Tab 时刷新首页检测结果，Home/Shop 使用 IndexedStack 保留状态。
+// 承载新版首页与 Shop Tab，并统一处理页面访问、导航和曝光周期。
+// Tab 重新进入或从 Flutter 子页面返回时，为 Shop 开启新一轮商品曝光。
+
+import 'dart:async';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/app_update/models/app_version_update.dart';
 import 'package:nalo/features/app_update/presentation/widgets/version_update_dialog.dart';
 import 'package:nalo/features/app_update/view_models/app_version_view_model.dart';
@@ -31,11 +34,13 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver {
+class _HomePageState extends ConsumerState<HomePage>
+    with WidgetsBindingObserver {
   static const _homeIndex = 0;
   static const _shopIndex = 1;
   late int _selectedIndex;
   late bool _hasOpenedShop;
+  int _shopExposureCycle = 0;
   bool _hasRenderedFirstFrame = false;
   bool _isVersionDialogVisible = false;
   AppVersionUpdate? _pendingVersionUpdate;
@@ -44,7 +49,9 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _selectedIndex = widget.initialIndex == _shopIndex ? _shopIndex : _homeIndex;
+    _selectedIndex = widget.initialIndex == _shopIndex
+        ? _shopIndex
+        : _homeIndex;
     _hasOpenedShop = _selectedIndex == _shopIndex;
     ref.listenManual(
       appVersionViewModelProvider,
@@ -53,6 +60,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      unawaited(ref.reportAnalyticsPageView(_selectedPageName));
       _hasRenderedFirstFrame = true;
       final update = _pendingVersionUpdate;
       _pendingVersionUpdate = null;
@@ -78,15 +86,24 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   void _selectTab(int index) {
+    if (index == _selectedIndex) return;
     setState(() {
       _selectedIndex = index;
-      if (index == _shopIndex) _hasOpenedShop = true;
+      if (index == _shopIndex) {
+        _hasOpenedShop = true;
+        _shopExposureCycle++;
+      }
     });
+    unawaited(ref.reportAnalyticsPageView(_selectedPageName));
     if (index == _homeIndex) {
       _refreshHome();
       _checkVersion();
     }
   }
+
+  AnalyticsPageName get _selectedPageName => _selectedIndex == _shopIndex
+      ? AnalyticsPageName.tabShop
+      : AnalyticsPageName.tabHome;
 
   void _checkVersion() {
     if (!mounted || _selectedIndex != _homeIndex) return;
@@ -152,7 +169,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   }
 
   Future<void> _openProfile() async {
+    final shouldRestartShopExposure = _selectedIndex == _shopIndex;
     await context.push(ProfilePage.path);
+    if (mounted && shouldRestartShopExposure) {
+      setState(() => _shopExposureCycle++);
+    }
     if (mounted && _selectedIndex == _homeIndex) _refreshHome();
   }
 
@@ -163,7 +184,10 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
 
   void _showReferralPlaceholder() {
     // TODO: <pf> Referral 目标页或分享方式确认后接入正式交互。
-    BotToast.showText(text: 'Referral details are coming soon', align: Alignment.center);
+    BotToast.showText(
+      text: 'Referral details are coming soon',
+      align: Alignment.center,
+    );
   }
 
   @override
@@ -180,7 +204,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
             onReferralPressed: _showReferralPlaceholder,
           ),
           _hasOpenedShop
-              ? ShopPage(onMinePressed: _openProfile)
+              ? ShopPage(
+                  isActive: _selectedIndex == _shopIndex,
+                  exposureCycle: _shopExposureCycle,
+                  onMinePressed: _openProfile,
+                )
               : const SizedBox.shrink(),
         ],
       ),

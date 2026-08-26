@@ -206,6 +206,7 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
                                 'Enable notifications',
                                 style: TextStyle(
                                   decoration: TextDecoration.underline,
+                                  decorationColor: Color(0xFF008BC7),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),

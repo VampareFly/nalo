@@ -1,5 +1,5 @@
-// 登录注册埋点统一入口。
-// Widget 上报点击，ViewModel 上报请求结果，NavigatorObserver 上报页面曝光；
+// 客户端埋点统一入口。
+// Widget 上报点击和曝光，ViewModel 上报请求结果，页面容器上报页面访问；
 // AnalyticsService 自动补充公共属性并隔离 Amplitude SDK。
 
 import 'dart:io';
@@ -19,7 +19,7 @@ import 'package:nalo/core/logging/logger_provider.dart';
 import 'package:nalo/features/notifications/services/notification_permission_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-/// 登录注册流程发送到 Amplitude 的事件名称。
+/// 客户端发送到 Amplitude 的事件名称。
 enum AnalyticsEvent {
   pageView('page_view'),
   loginClick('login_click'),
@@ -30,7 +30,10 @@ enum AnalyticsEvent {
   under18AlertView('under_18_alert_view'),
   under18AlertGoBackClick('under_18_alert_goback_click'),
   notificationEnableClick('notification_enable_click'),
-  startJourney('start_journey');
+  startJourney('start_journey'),
+  skuView('sku_view'),
+  skuClick('sku_click'),
+  shopShopifyUrlRequest('shop_shopify_url_request');
 
   const AnalyticsEvent(this.eventName);
 
@@ -41,7 +44,9 @@ enum AnalyticsEvent {
 enum AnalyticsPageName {
   loginSignIn('login_sign_in'),
   createAccount('create_account'),
-  welcome('welcome');
+  welcome('welcome'),
+  tabHome('tab_home'),
+  tabShop('tab_shop');
 
   const AnalyticsPageName(this.value);
 
@@ -70,7 +75,7 @@ enum AnalyticsCommonProperty {
   final String propertyName;
 }
 
-/// 登录注册事件按需传入的属性。
+/// 业务事件按需传入的属性。
 enum AnalyticsEventProperty {
   pageName('page_name'),
   previousPage('previous_page'),
@@ -83,7 +88,15 @@ enum AnalyticsEventProperty {
   birth('birth'),
   gender('gender'),
   title('title'),
-  description('desc');
+  desc('desc'),
+  description('description'),
+  productId('product_id'),
+  variantId('variant_id'),
+  imageUrl('image_url'),
+  price('price'),
+  compareAtPrice('compare_at_price'),
+  currency('currency'),
+  url('url');
 
   const AnalyticsEventProperty(this.propertyName);
 
@@ -152,6 +165,37 @@ Map<AnalyticsEventProperty, Object> createAccountAnalyticsProperties({
   };
 }
 
+/// 按埋点文档构造 Shop 商品事件属性，并统一转换美分金额。
+Map<AnalyticsEventProperty, Object> skuAnalyticsProperties({
+  required int productId,
+  required int variantId,
+  required String? title,
+  required String? description,
+  required String? imageUrl,
+  required String price,
+  required String? compareAtPrice,
+  required String? currency,
+}) {
+  return {
+    AnalyticsEventProperty.pageName: AnalyticsPageName.tabShop.value,
+    AnalyticsEventProperty.productId: productId.toString(),
+    AnalyticsEventProperty.variantId: variantId.toString(),
+    AnalyticsEventProperty.title: title?.trim() ?? '',
+    AnalyticsEventProperty.description: description?.trim() ?? '',
+    AnalyticsEventProperty.imageUrl: imageUrl?.trim() ?? '',
+    AnalyticsEventProperty.price: _minorUnitValue(price),
+    if (compareAtPrice != null)
+      AnalyticsEventProperty.compareAtPrice: _minorUnitValue(compareAtPrice),
+    AnalyticsEventProperty.currency: currency?.trim() ?? '',
+  };
+}
+
+int _minorUnitValue(String value) {
+  final amount = num.tryParse(value.trim());
+  if (amount == null || !amount.isFinite) return -1;
+  return (amount * 100).round();
+}
+
 /// 业务层使用的统一分析接口。
 abstract interface class AnalyticsService {
   /// 上报事件，并自动附加公共事件属性。
@@ -159,6 +203,9 @@ abstract interface class AnalyticsService {
     AnalyticsEvent event, {
     Map<AnalyticsEventProperty, Object> properties = const {},
   });
+
+  /// 页面实际可见时上报，并自动使用上一次 Page Name 作为来源。
+  Future<void> reportPageView(AnalyticsPageName pageName);
 
   /// 登录成功后绑定后端用户 ID，并设置登录相关用户属性。
   Future<void> identifyUser(
@@ -192,6 +239,7 @@ class AmplitudeAnalyticsService implements AnalyticsService {
   final TrackingTransparencyService _trackingTransparencyService;
   final Logger _logger;
   final Future<PackageInfo> _packageInfo;
+  AnalyticsPageName? _currentPageName;
 
   @override
   Future<void> report(
@@ -210,6 +258,19 @@ class AmplitudeAnalyticsService implements AnalyticsService {
     } catch (error, stackTrace) {
       _logFailure('report ${event.eventName}', error, stackTrace);
     }
+  }
+
+  @override
+  Future<void> reportPageView(AnalyticsPageName pageName) {
+    final previousPage = _currentPageName;
+    _currentPageName = pageName;
+    return report(
+      AnalyticsEvent.pageView,
+      properties: {
+        AnalyticsEventProperty.pageName: pageName.value,
+        AnalyticsEventProperty.previousPage: previousPage?.value ?? '',
+      },
+    );
   }
 
   @override
@@ -353,7 +414,7 @@ final analyticsProvider = Provider<AnalyticsService>((ref) {
   );
 });
 
-/// 监听页面进入和返回，并统一上报 `page_view`。
+/// 监听路由页面进入和返回，并统一上报 `page_view`。
 class AnalyticsNavigatorObserver extends NavigatorObserver {
   AnalyticsNavigatorObserver(this._analytics);
 
@@ -362,43 +423,31 @@ class AnalyticsNavigatorObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    _reportPageView(route, previousRoute);
+    _reportPageView(route);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    _reportPageView(previousRoute, route);
+    _reportPageView(previousRoute);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    _reportPageView(newRoute, oldRoute);
+    _reportPageView(newRoute);
   }
 
-  void _reportPageView(
-    Route<dynamic>? currentRoute,
-    Route<dynamic>? previousRoute,
-  ) {
+  void _reportPageView(Route<dynamic>? currentRoute) {
     final pageName = AnalyticsPageName.fromRouteName(
       currentRoute?.settings.name,
     );
     if (pageName == null) return;
-    final previousPage = AnalyticsPageName.fromRouteName(
-      previousRoute?.settings.name,
-    );
-    _analytics.report(
-      AnalyticsEvent.pageView,
-      properties: {
-        AnalyticsEventProperty.pageName: pageName.value,
-        AnalyticsEventProperty.previousPage: previousPage?.value ?? '',
-      },
-    );
+    _analytics.reportPageView(pageName);
   }
 }
 
-/// 注入登录注册页面使用的路由埋点观察器。
+/// 注入已定义路由页面使用的埋点观察器。
 final analyticsNavigatorObserverProvider = Provider<NavigatorObserver>((ref) {
   return AnalyticsNavigatorObserver(ref.watch(analyticsProvider));
 });
@@ -411,6 +460,11 @@ extension AnalyticsWidgetRef on WidgetRef {
     Map<AnalyticsEventProperty, Object> properties = const {},
   }) {
     return read(analyticsProvider).report(event, properties: properties);
+  }
+
+  /// 页面或 Tab 实际可见时上报统一 Page View。
+  Future<void> reportAnalyticsPageView(AnalyticsPageName pageName) {
+    return read(analyticsProvider).reportPageView(pageName);
   }
 
   /// 登录成功后绑定用户和登录方式。

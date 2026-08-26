@@ -1,20 +1,25 @@
-// 展示新版 Shop 页并协调列表刷新、分页、购买跳转与 Referral 入口。
-// 页面通过 ShopViewModel 获取数据，只在获得服务端 URL 后调用系统外部浏览器。
+// 展示 Shop 商品并协调曝光、点击、分页和购买跳转。
+// 商品达到 10% 可视比例时按单次页面可见周期去重，点击在请求链接前上报。
+
+import 'dart:async';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/shop/models/test_kit_product.dart';
 import 'package:nalo/features/shop/presentation/widgets/shop_referral_card.dart';
 import 'package:nalo/features/shop/presentation/widgets/test_kit_purchase_card.dart';
 import 'package:nalo/features/shop/view_models/shop_view_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 const _blue = Color(0xFF008BC7);
 const _ink = Color(0xFF1A2433);
 const _muted = Color(0xFF9FA89E);
 const _pageBackground = Color(0xFFEDE8E0);
+const _skuVisibleFraction = 0.1;
 const _productBackgrounds = [
   Color(0xFFB6D0DF),
   Color(0xFFFDDA7C),
@@ -23,8 +28,18 @@ const _productBackgrounds = [
 
 /// Home 容器中的 Shop Tab，保留滚动位置并在接近底部时加载更多。
 class ShopPage extends ConsumerStatefulWidget {
-  const ShopPage({super.key, required this.onMinePressed});
+  const ShopPage({
+    super.key,
+    required this.isActive,
+    required this.exposureCycle,
+    required this.onMinePressed,
+  });
 
+  /// 当前 Shop Tab 是否实际可见。
+  final bool isActive;
+
+  /// Shop 每次重新可见时递增，用于开启新一轮商品曝光。
+  final int exposureCycle;
   final VoidCallback onMinePressed;
 
   @override
@@ -33,6 +48,7 @@ class ShopPage extends ConsumerStatefulWidget {
 
 class _ShopPageState extends ConsumerState<ShopPage> {
   late final ScrollController _scrollController;
+  final Set<String> _viewedSkuKeys = {};
 
   @override
   void initState() {
@@ -46,6 +62,15 @@ class _ShopPageState extends ConsumerState<ShopPage> {
       ..removeListener(_loadMoreIfNeeded)
       ..dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant ShopPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.exposureCycle != widget.exposureCycle ||
+        (oldWidget.isActive && !widget.isActive)) {
+      _viewedSkuKeys.clear();
+    }
   }
 
   void _loadMoreIfNeeded() {
@@ -67,6 +92,9 @@ class _ShopPageState extends ConsumerState<ShopPage> {
   }
 
   Future<void> _purchase(TestKitProduct product) async {
+    unawaited(
+      ref.report(AnalyticsEvent.skuClick, properties: _skuProperties(product)),
+    );
     final result = await ref
         .read(shopViewModelProvider.notifier)
         .createPurchaseLink(product);
@@ -79,16 +107,35 @@ class _ShopPageState extends ConsumerState<ShopPage> {
       );
       return;
     }
-    final didOpen = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final didOpen = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!didOpen) {
       BotToast.showText(
         text: 'Unable to open the shop.',
         align: Alignment.center,
       );
     }
+  }
+
+  void _handleSkuVisibility(TestKitProduct product, double visibleFraction) {
+    if (!widget.isActive || visibleFraction < _skuVisibleFraction) return;
+    final skuKey = '${product.productId}:${product.variantId}';
+    if (!_viewedSkuKeys.add(skuKey)) return;
+    unawaited(
+      ref.report(AnalyticsEvent.skuView, properties: _skuProperties(product)),
+    );
+  }
+
+  Map<AnalyticsEventProperty, Object> _skuProperties(TestKitProduct product) {
+    return skuAnalyticsProperties(
+      productId: product.productId,
+      variantId: product.variantId,
+      title: product.title,
+      description: product.description,
+      imageUrl: product.imageUrl,
+      price: product.price,
+      compareAtPrice: product.compareAtPrice,
+      currency: product.currency,
+    );
   }
 
   void _shareReferral() {
@@ -109,19 +156,14 @@ class _ShopPageState extends ConsumerState<ShopPage> {
       color: _pageBackground,
       child: Column(
         children: [
-          _ShopTopBar(
-            initial: initial,
-            onProfilePressed: widget.onMinePressed,
-          ),
+          _ShopTopBar(initial: initial, onProfilePressed: widget.onMinePressed),
           Expanded(
             child: products.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: _blue),
-              ),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator(color: _blue)),
               error: (_, _) => _ShopLoadError(
-                onRetry: () => ref
-                    .read(shopViewModelProvider.notifier)
-                    .retryInitialLoad(),
+                onRetry: () =>
+                    ref.read(shopViewModelProvider.notifier).retryInitialLoad(),
               ),
               data: (state) => RefreshIndicator(
                 color: _blue,
@@ -144,18 +186,30 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                               index < state.products.length;
                               index++
                             ) ...[
-                              TestKitPurchaseCard(
-                                product: state.products[index],
-                                imageBackgroundColor:
-                                    _productBackgrounds[index %
-                                        _productBackgrounds.length],
-                                isPurchasing:
-                                    state.loadingProductId ==
-                                    state.products[index].productId,
-                                isPurchaseEnabled:
-                                    state.loadingProductId == null,
-                                onPurchasePressed: () =>
-                                    _purchase(state.products[index]),
+                              VisibilityDetector(
+                                key: ValueKey<String>(
+                                  'shop-sku-${widget.exposureCycle}-'
+                                  '${state.products[index].productId}-'
+                                  '${state.products[index].variantId}',
+                                ),
+                                onVisibilityChanged: (info) =>
+                                    _handleSkuVisibility(
+                                      state.products[index],
+                                      info.visibleFraction,
+                                    ),
+                                child: TestKitPurchaseCard(
+                                  product: state.products[index],
+                                  imageBackgroundColor:
+                                      _productBackgrounds[index %
+                                          _productBackgrounds.length],
+                                  isPurchasing:
+                                      state.loadingProductId ==
+                                      state.products[index].productId,
+                                  isPurchaseEnabled:
+                                      state.loadingProductId == null,
+                                  onPurchasePressed: () =>
+                                      _purchase(state.products[index]),
+                                ),
                               ),
                               const SizedBox(height: 20),
                             ],
@@ -192,10 +246,7 @@ class _ShopPageState extends ConsumerState<ShopPage> {
 }
 
 class _ShopTopBar extends StatelessWidget {
-  const _ShopTopBar({
-    required this.initial,
-    required this.onProfilePressed,
-  });
+  const _ShopTopBar({required this.initial, required this.onProfilePressed});
 
   final String initial;
   final VoidCallback onProfilePressed;

@@ -17,6 +17,7 @@ import 'package:nalo/core/device/device_id_provider.dart';
 import 'package:nalo/core/device/device_id_service.dart';
 import 'package:nalo/core/logging/logger_provider.dart';
 import 'package:nalo/core/network/api_client.dart';
+import 'package:nalo/core/network/dio_provider.dart';
 import 'package:nalo/features/auth/token_storage.dart';
 
 /// 一次请求需要注入的应用和设备信息。
@@ -205,6 +206,8 @@ final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
       sendTimeout: const Duration(seconds: 30),
     ),
   );
+  // 当前所有构建模式临时允许抓包；正式上线前按 RELEASE_CHECKLIST.md 恢复 TLS 校验。
+  configureCertificateBypass(dio);
   dio.interceptors.addAll([
     // 日志放在动态 Header 之前，确保请求上下文初始化失败也可追踪。
     NetworkLogInterceptor(logger),

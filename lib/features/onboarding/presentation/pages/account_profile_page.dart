@@ -151,7 +151,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
       AnalyticsEvent.under18AlertView,
       properties: const {
         AnalyticsEventProperty.title: _under18Title,
-        AnalyticsEventProperty.description: _under18Description,
+        AnalyticsEventProperty.desc: _under18Description,
       },
     );
     if (!mounted) return;
