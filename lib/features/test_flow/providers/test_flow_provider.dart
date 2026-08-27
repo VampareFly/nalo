@@ -291,6 +291,40 @@ class TestFlowController extends Notifier<TestFlowState> {
     }
   }
 
+  /// 停止当前计时并返回流程上一步；已完成的前一步保持完成状态。
+  void previousTimerStep() {
+    _stopTicker();
+    _endsAt = null;
+    switch (state.step) {
+      case TestFlowStep.swab:
+        state = state.copyWith(
+          step: TestFlowStep.beforeStart,
+          timerStatus: TimerStatus.idle,
+          remaining: Duration.zero,
+          timerDuration: Duration.zero,
+        );
+        return;
+      case TestFlowStep.dip:
+        state = state.copyWith(
+          step: TestFlowStep.swab,
+          timerStatus: TimerStatus.complete,
+          remaining: Duration.zero,
+          timerDuration: const Duration(seconds: 15),
+        );
+        return;
+      case TestFlowStep.develop:
+        state = state.copyWith(
+          step: TestFlowStep.dip,
+          timerStatus: TimerStatus.complete,
+          remaining: Duration.zero,
+          timerDuration: const Duration(seconds: 30),
+        );
+        return;
+      default:
+        return;
+    }
+  }
+
   void showCapture() => state = state.copyWith(step: TestFlowStep.capture);
 
   void setPhoto(String path) => state = state.copyWith(

@@ -31,6 +31,7 @@ final homeDashboardProvider = FutureProvider<HomeDashboardData>((ref) async {
     greeting: _greetingFrom(indexData),
     userName: displayName,
     userInitial: initial ?? 'N',
+    hasIndexData: indexData != null,
     totalTestCount: indexData?.historyTotal ?? 0,
     cortisolResults: _resultsFor(indexData, HomeTestType.cortisol),
     testosteroneResults: _resultsFor(indexData, HomeTestType.testosterone),
@@ -42,10 +43,12 @@ final homeDashboardProvider = FutureProvider<HomeDashboardData>((ref) async {
 });
 
 void _updateRecentCache(Ref ref, HomeIndexData data) {
-  ref.read(recentTestsCacheProvider.notifier).replaceFromHome(
-    cortisol: _cachedResultsFor(data, 'cortisol'),
-    testosterone: _cachedResultsFor(data, 'testosterone'),
-  );
+  ref
+      .read(recentTestsCacheProvider.notifier)
+      .replaceFromHome(
+        cortisol: _cachedResultsFor(data, 'cortisol'),
+        testosterone: _cachedResultsFor(data, 'testosterone'),
+      );
 }
 
 List<RecentDetection> _cachedResultsFor(HomeIndexData data, String type) {
@@ -64,7 +67,9 @@ List<RecentDetection> _cachedResultsFor(HomeIndexData data, String type) {
       .toList(growable: false);
 }
 
-Future<String> _loadDisplayName(Future<CurrentUserStorage> storageFuture) async {
+Future<String> _loadDisplayName(
+  Future<CurrentUserStorage> storageFuture,
+) async {
   try {
     final storage = await storageFuture;
     final userName = (await storage.read())?.fullName?.trim();
@@ -83,11 +88,14 @@ List<HomeRecentResult> _resultsFor(HomeIndexData? data, HomeTestType type) {
   return items
       .map(
         (item) => HomeRecentResult(
+          id: item.id,
           type: type,
           monthLabel: _monthLabel(item.date),
           dateLabel: item.date,
           periodLabel: item.timePeriod,
           valueLabel: '${item.value} ${item.unit}'.trim(),
+          value: item.value,
+          unit: item.unit,
           typicalRange: item.typicalRange,
         ),
       )

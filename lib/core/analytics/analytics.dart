@@ -31,6 +31,17 @@ enum AnalyticsEvent {
   under18AlertGoBackClick('under_18_alert_goback_click'),
   notificationEnableClick('notification_enable_click'),
   startJourney('start_journey'),
+  testStartClick('test_start_click'),
+  testResultSectionView('test_result_section_view'),
+  testResultItemView('test_result_item_view'),
+  testHistoryEntryView('test_history_entry_view'),
+  testHistoryEntryClick('test_history_entry_click'),
+  notificationEnableView('notification_enable_view'),
+  referralView('referral_view'),
+  referralClick('referral_click'),
+  appUpdateAlertView('app_update_alert_view'),
+  appUpdateClick('app_update_click'),
+  profileClick('profile_click'),
   skuView('sku_view'),
   skuClick('sku_click'),
   shopShopifyUrlRequest('shop_shopify_url_request');
@@ -46,7 +57,10 @@ enum AnalyticsPageName {
   createAccount('create_account'),
   welcome('welcome'),
   tabHome('tab_home'),
-  tabShop('tab_shop');
+  tabShop('tab_shop'),
+  testFlow('test_flow'),
+  testHistory('test_history'),
+  profile('profile');
 
   const AnalyticsPageName(this.value);
 
@@ -96,7 +110,22 @@ enum AnalyticsEventProperty {
   price('price'),
   compareAtPrice('compare_at_price'),
   currency('currency'),
-  url('url');
+  url('url'),
+  position('position'),
+  totalTestCount('total_test_count'),
+  detectionType('detection_type'),
+  itemCount('item_count'),
+  testId('test_id'),
+  date('date'),
+  timePeriod('time_period'),
+  value('value'),
+  unit('unit'),
+  typicalRange('typical_range'),
+  discountPercent('discount_percent'),
+  currentVersion('current_version'),
+  targetVersion('target_version'),
+  updateType('update_type'),
+  action('action');
 
   const AnalyticsEventProperty(this.propertyName);
 
@@ -142,6 +171,47 @@ enum AnalyticsGender {
   male('2');
 
   const AnalyticsGender(this.value);
+
+  final String value;
+}
+
+/// `test_start_click.position` 的检测入口位置。
+enum AnalyticsTestStartPosition {
+  homeCard('1'),
+  bottomScan('2');
+
+  const AnalyticsTestStartPosition(this.value);
+
+  final String value;
+}
+
+/// 检测结果事件使用的类型枚举。
+enum AnalyticsDetectionType {
+  cortisol('1'),
+  testosterone('2'),
+  unknown('');
+
+  const AnalyticsDetectionType(this.value);
+
+  final String value;
+}
+
+/// 版本更新弹窗的更新类型。
+enum AnalyticsUpdateType {
+  optional('1'),
+  force('2');
+
+  const AnalyticsUpdateType(this.value);
+
+  final String value;
+}
+
+/// `app_update_click.action` 的用户操作。
+enum AnalyticsUpdateAction {
+  update('1'),
+  later('2');
+
+  const AnalyticsUpdateAction(this.value);
 
   final String value;
 }

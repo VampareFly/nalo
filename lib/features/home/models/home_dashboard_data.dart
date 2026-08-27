@@ -7,19 +7,25 @@ enum HomeTestType { cortisol, testosterone }
 /// 首页最近检测模块使用的一条结果。
 class HomeRecentResult {
   const HomeRecentResult({
+    required this.id,
     required this.type,
     required this.monthLabel,
     required this.dateLabel,
     required this.periodLabel,
     required this.valueLabel,
+    required this.value,
+    required this.unit,
     required this.typicalRange,
   });
 
+  final int id;
   final HomeTestType type;
   final String monthLabel;
   final String dateLabel;
   final String periodLabel;
   final String valueLabel;
+  final String value;
+  final String unit;
   final String typicalRange;
 }
 
@@ -37,6 +43,7 @@ class HomeDashboardData {
     required this.greeting,
     required this.userName,
     required this.userInitial,
+    required this.hasIndexData,
     required this.totalTestCount,
     required this.cortisolResults,
     required this.testosteroneResults,
@@ -46,6 +53,9 @@ class HomeDashboardData {
   final String greeting;
   final String userName;
   final String userInitial;
+
+  /// 首页聚合接口是否成功，用于区分真实 0 和降级数据。
+  final bool hasIndexData;
   final int totalTestCount;
   final List<HomeRecentResult> cortisolResults;
   final List<HomeRecentResult> testosteroneResults;

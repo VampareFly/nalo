@@ -206,14 +206,19 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
             }
             return
         }
-        guard let data = photo.fileDataRepresentation() else {
+        guard let sourceData = photo.fileDataRepresentation(),
+              let data = optimizedPhotoData(sourceData) else {
             DispatchQueue.main.async {
                 result?(FlutterError(code: "capture_failed", message: "Photo data is unavailable.", details: nil))
             }
             return
         }
+        let debugId = UUID().uuidString
+        #if DEBUG
+        saveDebugPhotoPair(original: sourceData, upload: data, id: debugId)
+        #endif
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("nalo_test_\(UUID().uuidString).jpg")
+            .appendingPathComponent("nalo_upload_\(debugId).jpg")
         do {
             try data.write(to: url, options: .atomic)
             DispatchQueue.main.async {
@@ -225,6 +230,56 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
             }
         }
     }
+
+    /// 将系统高清成片缩放并压缩到适合移动网络上传的尺寸。
+    private func optimizedPhotoData(_ data: Data) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        let maxPixel: CGFloat = 2500
+        let longestSide = max(image.size.width, image.size.height)
+        let targetImage: UIImage
+        if longestSide > maxPixel {
+            let ratio = maxPixel / longestSide
+            let targetSize = CGSize(
+                width: image.size.width * ratio,
+                height: image.size.height * ratio
+            )
+            let format = UIGraphicsImageRendererFormat.default()
+            format.scale = 1
+            format.opaque = true
+            targetImage = UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: targetSize))
+            }
+        } else {
+            targetImage = image
+        }
+
+        let maxBytes = 5 * 1024 * 1024
+        var quality: CGFloat = 0.88
+        var output = targetImage.jpegData(compressionQuality: quality)
+        while let current = output, current.count > maxBytes, quality > 0.60 {
+            quality = max(0.60, quality - 0.08)
+            output = targetImage.jpegData(compressionQuality: quality)
+        }
+        return output
+    }
+
+    #if DEBUG
+    /// Debug 构建保留原始成片和实际上传图，便于对比压缩前后的识别细节。
+    private func saveDebugPhotoPair(original: Data, upload: Data, id: String) {
+        guard let directory = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first else { return }
+        try? original.write(
+            to: directory.appendingPathComponent("nalo_original_\(id).jpg"),
+            options: .atomic
+        )
+        try? upload.write(
+            to: directory.appendingPathComponent("nalo_upload_\(id).jpg"),
+            options: .atomic
+        )
+    }
+    #endif
 
     private func release() {
         ready = false

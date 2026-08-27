@@ -324,7 +324,12 @@ class _PreparationCard extends StatelessWidget {
 
 /// 复用展示采样、浸泡和显色三个计时步骤。
 class TestTimerScreen extends ConsumerWidget {
-  const TestTimerScreen({required this.onExit, super.key});
+  const TestTimerScreen({
+    required this.onBack,
+    required this.onExit,
+    super.key,
+  });
+  final VoidCallback onBack;
   final VoidCallback onExit;
 
   @override
@@ -347,7 +352,7 @@ class TestTimerScreen extends ConsumerWidget {
       child: Column(
         children: [
           FlowTopBar(
-            onBack: onExit,
+            onBack: onBack,
             onClose: onExit,
             center: FlowStepPills(activeIndex: active),
           ),
@@ -534,8 +539,8 @@ class _RiskDialog extends StatelessWidget {
 
 /// 在 App 内完成相机授权、取景和试纸拍摄。
 class CaptureScreen extends ConsumerStatefulWidget {
-  const CaptureScreen({required this.onBack, super.key});
-  final VoidCallback onBack;
+  const CaptureScreen({required this.onClose, super.key});
+  final VoidCallback onClose;
   @override
   ConsumerState<CaptureScreen> createState() => _CaptureScreenState();
 }
@@ -646,7 +651,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
             children: [
               FlowTopBar(
                 title: 'Photo capture',
-                onBack: widget.onBack,
+                onClose: widget.onClose,
                 dark: true,
               ),
               if (permissionReady && _cameraReady) ...[
@@ -954,8 +959,8 @@ class PhotoPreviewScreen extends ConsumerWidget {
 
 /// 展示服务端识别区间，并允许用户修正区间、日期和检测时段。
 class ConfirmResultScreen extends ConsumerWidget {
-  const ConfirmResultScreen({required this.onBack, super.key});
-  final VoidCallback onBack;
+  const ConfirmResultScreen({required this.onClose, super.key});
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -972,7 +977,7 @@ class ConfirmResultScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FlowTopBar(title: state.type.label, onBack: onBack),
+          FlowTopBar(title: state.type.label, onClose: onClose),
           const SizedBox(height: 24),
           const Text(
             'Confirm your result.',
@@ -1434,7 +1439,11 @@ class ResultDetailsScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FlowTopBar(onClose: onClose, center: const FlowNaloMark()),
+          FlowTopBar(
+            onClose: onClose,
+            center: const FlowNaloMark(),
+            closeOnRight: true,
+          ),
           Text(
             state.type.label,
             textAlign: TextAlign.center,

@@ -41,7 +41,6 @@ class TestFlowService {
     required DetectionType type,
     required String imagePath,
   }) async {
-    // TODO: <pf> 服务端确认格式、分辨率、压缩、大小限制和上传超时后补充客户端预处理与校验。
     final result = await _client.post<DetectionAnalysis>(
       '/api/v1/app/detections',
       data: FormData.fromMap({

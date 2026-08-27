@@ -1,4 +1,4 @@
-// 集中维护应用路由，并通过 NavigatorObserver 上报登录注册页面曝光。
+// 集中维护应用路由，并为已定义 Page Name 的页面提供路由曝光。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,10 +42,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        name: AnalyticsPageName.testHistory.value,
         path: TestHistoryPage.path,
         builder: (context, state) => const TestHistoryPage(),
       ),
       GoRoute(
+        name: AnalyticsPageName.profile.value,
         path: ProfilePage.path,
         builder: (context, state) => const ProfilePage(),
       ),
@@ -72,9 +74,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         name: AnalyticsPageName.loginSignIn.value,
         path: AuthEntryPage.path,
-        pageBuilder: (context, state) => const NoTransitionPage(
-          child: AuthEntryPage(),
-        ),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: AuthEntryPage()),
       ),
       GoRoute(
         name: AnalyticsPageName.createAccount.value,
@@ -104,6 +105,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        name: AnalyticsPageName.testFlow.value,
         path: TestFlowPage.path,
         builder: (context, state) => const TestFlowPage(),
       ),

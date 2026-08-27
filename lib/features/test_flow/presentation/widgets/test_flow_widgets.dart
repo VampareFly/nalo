@@ -36,7 +36,7 @@ class FlowNaloMark extends StatelessWidget {
   );
 }
 
-/// 检测页面顶部导航栏，支持返回、关闭和自定义中间内容。
+/// 检测页面顶部导航栏，支持返回、左右关闭位置和自定义中间内容。
 class FlowTopBar extends StatelessWidget {
   const FlowTopBar({
     this.title,
@@ -44,6 +44,7 @@ class FlowTopBar extends StatelessWidget {
     this.onClose,
     this.center,
     this.dark = false,
+    this.closeOnRight = false,
     super.key,
   });
   final String? title;
@@ -51,6 +52,7 @@ class FlowTopBar extends StatelessWidget {
   final VoidCallback? onClose;
   final Widget? center;
   final bool dark;
+  final bool closeOnRight;
 
   @override
   Widget build(BuildContext context) {
@@ -61,15 +63,17 @@ class FlowTopBar extends StatelessWidget {
         children: [
           SizedBox(
             width: 44,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              onPressed: onBack ?? onClose,
-              icon: Icon(
-                onBack != null ? Icons.arrow_back : Icons.close,
-                color: color,
-                size: 24,
-              ),
-            ),
+            child: onBack == null && (onClose == null || closeOnRight)
+                ? null
+                : IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: onBack ?? onClose,
+                    icon: Icon(
+                      onBack != null ? Icons.arrow_back : Icons.close,
+                      color: color,
+                      size: 24,
+                    ),
+                  ),
           ),
           Expanded(
             child:
@@ -86,7 +90,7 @@ class FlowTopBar extends StatelessWidget {
           ),
           SizedBox(
             width: 44,
-            child: onClose == null || onBack == null
+            child: onClose == null || (onBack == null && !closeOnRight)
                 ? null
                 : DecoratedBox(
                     decoration: const BoxDecoration(

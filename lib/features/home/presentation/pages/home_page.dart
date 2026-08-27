@@ -1,5 +1,5 @@
-// 承载新版首页与 Shop Tab，并统一处理页面访问、导航和曝光周期。
-// Tab 重新进入或从 Flutter 子页面返回时，为 Shop 开启新一轮商品曝光。
+// 承载首页与 Shop Tab，并统一处理页面访问、导航和曝光周期。
+// Tab 重新进入或 Flutter 子页面返回时，为当前 Tab 开启新曝光周期。
 
 import 'dart:async';
 
@@ -7,6 +7,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/app/config/app_version_provider.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/app_update/models/app_version_update.dart';
 import 'package:nalo/features/app_update/presentation/widgets/version_update_dialog.dart';
@@ -40,6 +41,7 @@ class _HomePageState extends ConsumerState<HomePage>
   static const _shopIndex = 1;
   late int _selectedIndex;
   late bool _hasOpenedShop;
+  int _homeExposureCycle = 0;
   int _shopExposureCycle = 0;
   bool _hasRenderedFirstFrame = false;
   bool _isVersionDialogVisible = false;
@@ -92,6 +94,8 @@ class _HomePageState extends ConsumerState<HomePage>
       if (index == _shopIndex) {
         _hasOpenedShop = true;
         _shopExposureCycle++;
+      } else {
+        _homeExposureCycle++;
       }
     });
     unawaited(ref.reportAnalyticsPageView(_selectedPageName));
@@ -123,13 +127,19 @@ class _HomePageState extends ConsumerState<HomePage>
   Future<void> _showVersionDialog(AppVersionUpdate update) async {
     if (!mounted || _isVersionDialogVisible) return;
     _isVersionDialogVisible = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.appUpdateAlertView,
+        properties: _appUpdateProperties(update),
+      ),
+    );
     await showDialog<void>(
       context: context,
       barrierDismissible: !update.isForceUpdate,
       builder: (dialogContext) => VersionUpdateDialog(
         update: update,
         onUpdatePressed: () => _openUpdate(update, dialogContext),
-        onLaterPressed: () => Navigator.of(dialogContext).pop(),
+        onLaterPressed: () => _closeUpdateLater(update, dialogContext),
       ),
     );
     _isVersionDialogVisible = false;
@@ -140,6 +150,15 @@ class _HomePageState extends ConsumerState<HomePage>
     AppVersionUpdate update,
     BuildContext dialogContext,
   ) async {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.appUpdateClick,
+        properties: _appUpdateProperties(
+          update,
+          action: AnalyticsUpdateAction.update,
+        ),
+      ),
+    );
     final uri = update.updateUrl;
     if (uri == null) {
       BotToast.showText(
@@ -161,33 +180,114 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
+  void _closeUpdateLater(AppVersionUpdate update, BuildContext dialogContext) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.appUpdateClick,
+        properties: _appUpdateProperties(
+          update,
+          action: AnalyticsUpdateAction.later,
+        ),
+      ),
+    );
+    Navigator.of(dialogContext).pop();
+  }
+
+  Map<AnalyticsEventProperty, Object> _appUpdateProperties(
+    AppVersionUpdate update, {
+    AnalyticsUpdateAction? action,
+  }) {
+    final packageInfo = ref.read(appPackageInfoProvider).asData?.value;
+    return {
+      AnalyticsEventProperty.pageName: _selectedPageName.value,
+      AnalyticsEventProperty.currentVersion: packageInfo?.version ?? '',
+      AnalyticsEventProperty.targetVersion: update.latestVersion,
+      AnalyticsEventProperty.updateType: update.isForceUpdate
+          ? AnalyticsUpdateType.force.value
+          : AnalyticsUpdateType.optional.value,
+      if (action != null) AnalyticsEventProperty.action: action.value,
+    };
+  }
+
   void _refreshHome() => ref.invalidate(homeDashboardProvider);
 
-  Future<void> _openTestFlow() async {
+  Future<void> _openTestFlow(
+    AnalyticsTestStartPosition position, {
+    int? totalTestCount,
+  }) async {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testStartClick,
+        properties: {
+          AnalyticsEventProperty.pageName: _selectedPageName.value,
+          AnalyticsEventProperty.position: position.value,
+          AnalyticsEventProperty.totalTestCount:
+              totalTestCount ?? _currentTotalTestCount,
+        },
+      ),
+    );
     await context.push(TestFlowPage.path);
-    if (mounted && _selectedIndex == _homeIndex) _refreshHome();
+    if (mounted) _resumeSelectedTabAfterChild();
   }
 
   Future<void> _openProfile() async {
-    final shouldRestartShopExposure = _selectedIndex == _shopIndex;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.profileClick,
+        properties: {AnalyticsEventProperty.pageName: _selectedPageName.value},
+      ),
+    );
     await context.push(ProfilePage.path);
-    if (mounted && shouldRestartShopExposure) {
-      setState(() => _shopExposureCycle++);
-    }
-    if (mounted && _selectedIndex == _homeIndex) _refreshHome();
+    if (mounted) _resumeSelectedTabAfterChild();
   }
 
-  Future<void> _openTestHistory() async {
+  Future<void> _openTestHistory(int totalTestCount) async {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testHistoryEntryClick,
+        properties: {
+          AnalyticsEventProperty.pageName: AnalyticsPageName.tabHome.value,
+          AnalyticsEventProperty.totalTestCount: totalTestCount,
+        },
+      ),
+    );
     await context.push(TestHistoryPage.path);
-    if (mounted) _refreshHome();
+    if (mounted) _resumeSelectedTabAfterChild();
   }
 
   void _showReferralPlaceholder() {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.referralClick,
+        properties: {
+          AnalyticsEventProperty.pageName: AnalyticsPageName.tabHome.value,
+          // TODO: <pf> Referral 接口返回折扣比例后改用服务端数据。
+          AnalyticsEventProperty.discountPercent: 10,
+        },
+      ),
+    );
     // TODO: <pf> Referral 目标页或分享方式确认后接入正式交互。
     BotToast.showText(
       text: 'Referral details are coming soon',
       align: Alignment.center,
     );
+  }
+
+  int get _currentTotalTestCount {
+    final data = ref.read(homeDashboardProvider).asData?.value;
+    return data != null && data.hasIndexData ? data.totalTestCount : -1;
+  }
+
+  void _resumeSelectedTabAfterChild() {
+    setState(() {
+      if (_selectedIndex == _homeIndex) {
+        _homeExposureCycle++;
+      } else {
+        _shopExposureCycle++;
+      }
+    });
+    unawaited(ref.reportAnalyticsPageView(_selectedPageName));
+    if (_selectedIndex == _homeIndex) _refreshHome();
   }
 
   @override
@@ -198,8 +298,13 @@ class _HomePageState extends ConsumerState<HomePage>
         index: _selectedIndex,
         children: [
           HomeDashboard(
+            isActive: _selectedIndex == _homeIndex,
+            exposureCycle: _homeExposureCycle,
             onProfilePressed: _openProfile,
-            onScanPressed: _openTestFlow,
+            onScanPressed: (totalTestCount) => _openTestFlow(
+              AnalyticsTestStartPosition.homeCard,
+              totalTestCount: totalTestCount,
+            ),
             onHistoryPressed: _openTestHistory,
             onReferralPressed: _showReferralPlaceholder,
           ),
@@ -217,7 +322,8 @@ class _HomePageState extends ConsumerState<HomePage>
         homeIndex: _homeIndex,
         shopIndex: _shopIndex,
         onTabSelected: _selectTab,
-        onCreatePressed: _openTestFlow,
+        onCreatePressed: () =>
+            _openTestFlow(AnalyticsTestStartPosition.bottomScan),
       ),
     );
   }

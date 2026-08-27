@@ -67,13 +67,16 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
               ),
               TestFlowStep.swab ||
               TestFlowStep.dip ||
-              TestFlowStep.develop => TestTimerScreen(onExit: _confirmExit),
-              TestFlowStep.capture => CaptureScreen(onBack: _confirmExit),
+              TestFlowStep.develop => TestTimerScreen(
+                onBack: ref.read(testFlowProvider.notifier).previousTimerStep,
+                onExit: _confirmExit,
+              ),
+              TestFlowStep.capture => CaptureScreen(onClose: _confirmExit),
               TestFlowStep.preview => PhotoPreviewScreen(
                 onBack: ref.read(testFlowProvider.notifier).retake,
               ),
               TestFlowStep.confirm => ConfirmResultScreen(
-                onBack: () => _setStep(TestFlowStep.preview),
+                onClose: _confirmExit,
               ),
               TestFlowStep.milestone => const MilestoneScreen(),
               TestFlowStep.result => ResultDetailsScreen(
@@ -97,11 +100,16 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
       case TestFlowStep.beforeStart:
         _setStep(TestFlowStep.about);
         return;
+      case TestFlowStep.swab:
+      case TestFlowStep.dip:
+      case TestFlowStep.develop:
+        ref.read(testFlowProvider.notifier).previousTimerStep();
+        return;
       case TestFlowStep.preview:
         ref.read(testFlowProvider.notifier).retake();
         return;
       case TestFlowStep.confirm:
-        _setStep(TestFlowStep.preview);
+        _confirmExit();
         return;
       case TestFlowStep.result:
         _exitAfterCompletion();
