@@ -205,7 +205,10 @@ class _HomePageState extends ConsumerState<HomePage>
       AnalyticsEventProperty.updateType: update.isForceUpdate
           ? AnalyticsUpdateType.force.value
           : AnalyticsUpdateType.optional.value,
-      if (action != null) AnalyticsEventProperty.action: action.value,
+      if (action != null) ...{
+        AnalyticsEventProperty.action: action.value,
+        AnalyticsEventProperty.url: update.updateUrl?.toString() ?? '',
+      },
     };
   }
 

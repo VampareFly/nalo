@@ -21,10 +21,7 @@ class TestHistoryCounts {
     required this.testosterone,
   });
 
-  const TestHistoryCounts.empty()
-    : all = 0,
-      cortisol = 0,
-      testosterone = 0;
+  const TestHistoryCounts.empty() : all = 0, cortisol = 0, testosterone = 0;
 
   final int all;
   final int cortisol;
@@ -50,6 +47,7 @@ class TestHistoryCounts {
 /// 一条检测历史结果。
 class TestHistoryItem {
   const TestHistoryItem({
+    required this.id,
     required this.date,
     required this.timePeriod,
     required this.type,
@@ -58,6 +56,7 @@ class TestHistoryItem {
     required this.typicalRange,
   });
 
+  final int id;
   final String date;
   final String timePeriod;
   final TestHistoryFilter type;
@@ -71,11 +70,14 @@ class TestHistoryItem {
   /// 从历史接口响应中解析单条结果。
   factory TestHistoryItem.fromJson(Map<String, dynamic> json) {
     final typeValue = _requiredString(json, 'detection_type');
-    final type = TestHistoryFilter.values.where((item) => item.apiValue == typeValue).firstOrNull;
+    final type = TestHistoryFilter.values
+        .where((item) => item.apiValue == typeValue)
+        .firstOrNull;
     if (type == null || type == TestHistoryFilter.all) {
       throw const FormatException('Invalid history detection_type.');
     }
     return TestHistoryItem(
+      id: _requiredInt(json, 'id'),
       date: _requiredString(json, 'date'),
       timePeriod: _requiredString(json, 'time_period'),
       type: type,
@@ -88,7 +90,11 @@ class TestHistoryItem {
 
 /// 服务端按月份返回的一组检测历史。
 class TestHistoryGroup {
-  const TestHistoryGroup({required this.monthLabel, required this.sortKey, required this.items});
+  const TestHistoryGroup({
+    required this.monthLabel,
+    required this.sortKey,
+    required this.items,
+  });
 
   final String monthLabel;
   final String sortKey;
@@ -102,11 +108,14 @@ class TestHistoryGroup {
   );
 
   /// 从历史接口响应中解析月份分组。
-  factory TestHistoryGroup.fromJson(Map<String, dynamic> json) => TestHistoryGroup(
-    monthLabel: _requiredString(json, 'month_label'),
-    sortKey: _requiredString(json, 'sort_key'),
-    items: _requiredList(json, 'items').map((item) => TestHistoryItem.fromJson(_map(item))).toList(growable: false),
-  );
+  factory TestHistoryGroup.fromJson(Map<String, dynamic> json) =>
+      TestHistoryGroup(
+        monthLabel: _requiredString(json, 'month_label'),
+        sortKey: _requiredString(json, 'sort_key'),
+        items: _requiredList(json, 'items')
+            .map((item) => TestHistoryItem.fromJson(_map(item)))
+            .toList(growable: false),
+      );
 }
 
 /// 历史接口单页响应数据。

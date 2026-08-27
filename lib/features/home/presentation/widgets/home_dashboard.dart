@@ -70,6 +70,7 @@ class _HomeDashboardState extends ConsumerState<HomeDashboard> {
   void _handleSectionVisibility(
     HomeTestType type,
     int itemCount,
+    int position,
     double visibleFraction,
   ) {
     if (!widget.isActive || visibleFraction < _visibleFraction) return;
@@ -83,6 +84,7 @@ class _HomeDashboardState extends ConsumerState<HomeDashboard> {
           AnalyticsEventProperty.pageName: AnalyticsPageName.tabHome.value,
           AnalyticsEventProperty.detectionType: detectionType.value,
           AnalyticsEventProperty.itemCount: itemCount,
+          AnalyticsEventProperty.position: position,
         },
       ),
     );
@@ -259,7 +261,7 @@ class _HomeDashboardBody extends StatelessWidget {
   final VoidCallback onScanPressed;
   final VoidCallback onHistoryPressed;
   final VoidCallback onReferralPressed;
-  final void Function(HomeTestType, int, double) onSectionVisibility;
+  final void Function(HomeTestType, int, int, double) onSectionVisibility;
   final void Function(HomeRecentResult, int, double) onItemVisibility;
   final void Function(
     String,
@@ -329,6 +331,7 @@ class _HomeDashboardBody extends StatelessWidget {
           _ResultsCard(
             type: HomeTestType.cortisol,
             results: data.cortisolResults,
+            sectionPosition: 1,
             exposureCycle: exposureCycle,
             onSectionVisibility: onSectionVisibility,
             onItemVisibility: onItemVisibility,
@@ -339,6 +342,7 @@ class _HomeDashboardBody extends StatelessWidget {
           _ResultsCard(
             type: HomeTestType.testosterone,
             results: data.testosteroneResults,
+            sectionPosition: data.cortisolResults.isEmpty ? 1 : 2,
             exposureCycle: exposureCycle,
             onSectionVisibility: onSectionVisibility,
             onItemVisibility: onItemVisibility,
@@ -599,14 +603,16 @@ class _ResultsCard extends StatelessWidget {
   const _ResultsCard({
     required this.type,
     required this.results,
+    required this.sectionPosition,
     required this.exposureCycle,
     required this.onSectionVisibility,
     required this.onItemVisibility,
   });
   final HomeTestType type;
   final List<HomeRecentResult> results;
+  final int sectionPosition;
   final int exposureCycle;
-  final void Function(HomeTestType, int, double) onSectionVisibility;
+  final void Function(HomeTestType, int, int, double) onSectionVisibility;
   final void Function(HomeRecentResult, int, double) onItemVisibility;
 
   @override
@@ -618,7 +624,7 @@ class _ResultsCard extends StatelessWidget {
       keyName: 'result-section-${type.name}',
       exposureCycle: exposureCycle,
       onVisibilityChanged: (fraction) =>
-          onSectionVisibility(type, results.length, fraction),
+          onSectionVisibility(type, results.length, sectionPosition, fraction),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

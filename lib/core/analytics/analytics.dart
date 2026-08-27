@@ -36,6 +36,7 @@ enum AnalyticsEvent {
   testResultItemView('test_result_item_view'),
   testHistoryEntryView('test_history_entry_view'),
   testHistoryEntryClick('test_history_entry_click'),
+  testHistoryFilterClick('test_history_filter_click'),
   notificationEnableView('notification_enable_view'),
   referralView('referral_view'),
   referralClick('referral_click'),
