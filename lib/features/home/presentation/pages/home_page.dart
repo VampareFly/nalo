@@ -258,22 +258,27 @@ class _HomePageState extends ConsumerState<HomePage>
     if (mounted) _resumeSelectedTabAfterChild();
   }
 
-  void _showReferralPlaceholder() {
+  Future<void> _openReferral() async {
+    final offer = ref.read(homeDashboardProvider).asData?.value.referralOffer;
+    if (offer == null) return;
     unawaited(
       ref.report(
         AnalyticsEvent.referralClick,
         properties: {
           AnalyticsEventProperty.pageName: AnalyticsPageName.tabHome.value,
-          // TODO: <pf> Referral 接口返回折扣比例后改用服务端数据。
-          AnalyticsEventProperty.discountPercent: 10,
         },
       ),
     );
-    // TODO: <pf> Referral 目标页或分享方式确认后接入正式交互。
-    BotToast.showText(
-      text: 'Referral details are coming soon',
-      align: Alignment.center,
-    );
+    final uri = Uri.tryParse(offer.actionUrl);
+    final didOpen =
+        uri != null &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!didOpen && mounted) {
+      BotToast.showText(
+        text: 'Unable to open referral link',
+        align: Alignment.center,
+      );
+    }
   }
 
   int get _currentTotalTestCount {
@@ -309,7 +314,7 @@ class _HomePageState extends ConsumerState<HomePage>
               totalTestCount: totalTestCount,
             ),
             onHistoryPressed: _openTestHistory,
-            onReferralPressed: _showReferralPlaceholder,
+            onReferralPressed: _openReferral,
           ),
           _hasOpenedShop
               ? ShopPage(

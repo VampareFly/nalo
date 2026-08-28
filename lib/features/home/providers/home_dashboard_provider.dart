@@ -6,6 +6,7 @@ import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/home/models/home_dashboard_data.dart';
 import 'package:nalo/features/home/models/home_index_data.dart';
 import 'package:nalo/features/home/repositories/home_repository.dart';
+import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/recent_tests_cache_provider.dart';
 
@@ -15,7 +16,8 @@ const _fallbackGreeting = 'Hello,';
 final homeDashboardProvider = FutureProvider<HomeDashboardData>((ref) async {
   final storageFuture = ref.watch(currentUserStorageProvider.future);
   final repositoryFuture = ref.watch(homeRepositoryProvider.future);
-  final displayName = await _loadDisplayName(storageFuture);
+  final user = await _loadCurrentUser(storageFuture);
+  final displayName = _displayName(user);
   final initial = _firstVisibleCharacter(displayName);
   HomeIndexData? indexData;
 
@@ -35,10 +37,7 @@ final homeDashboardProvider = FutureProvider<HomeDashboardData>((ref) async {
     totalTestCount: indexData?.historyTotal ?? 0,
     cortisolResults: _resultsFor(indexData, HomeTestType.cortisol),
     testosteroneResults: _resultsFor(indexData, HomeTestType.testosterone),
-    referralOffer: const HomeReferralOffer(
-      title: 'Refer a friend — 10% off',
-      description: 'You both save when they order.',
-    ),
+    referralOffer: _referralOffer(user),
   );
 });
 
@@ -67,16 +66,31 @@ List<RecentDetection> _cachedResultsFor(HomeIndexData data, String type) {
       .toList(growable: false);
 }
 
-Future<String> _loadDisplayName(
+Future<AppUserInfo?> _loadCurrentUser(
   Future<CurrentUserStorage> storageFuture,
 ) async {
   try {
     final storage = await storageFuture;
-    final userName = (await storage.read())?.fullName?.trim();
-    return userName == null || userName.isEmpty ? 'Nalo' : userName;
+    return storage.read();
   } catch (_) {
-    return 'Nalo';
+    return null;
   }
+}
+
+String _displayName(AppUserInfo? user) {
+  final userName = user?.fullName?.trim();
+  return userName == null || userName.isEmpty ? 'Nalo' : userName;
+}
+
+HomeReferralOffer? _referralOffer(AppUserInfo? user) {
+  final card = user?.referralCard;
+  if (card == null) return null;
+  return HomeReferralOffer(
+    title: card.title,
+    description: card.description,
+    buttonText: card.buttonText,
+    actionUrl: card.actionUrl,
+  );
 }
 
 List<HomeRecentResult> _resultsFor(HomeIndexData? data, HomeTestType type) {

@@ -155,7 +155,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       await repository.update(
         fullName: state.fullName,
         birthDay: state.dateOfBirth!,
-        gender: state.biologicalSex == BiologicalSex.female ? 1 : 2,
+        gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
       );
       await _reportRequestResult(submittedProfile, isSuccess: true);
       state = state.copyWith(isSubmitting: false);

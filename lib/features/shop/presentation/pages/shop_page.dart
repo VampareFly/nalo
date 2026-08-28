@@ -138,12 +138,17 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     );
   }
 
-  void _shareReferral() {
-    // TODO: <pf> Referral 接口提供分享链接后接入系统分享。
-    BotToast.showText(
-      text: 'Referral sharing is coming soon.',
-      align: Alignment.center,
-    );
+  Future<void> _openReferral(String link) async {
+    final uri = Uri.tryParse(link);
+    final didOpen =
+        uri != null &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!didOpen && mounted) {
+      BotToast.showText(
+        text: 'Unable to open referral link',
+        align: Alignment.center,
+      );
+    }
   }
 
   @override
@@ -151,6 +156,7 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     final products = ref.watch(shopViewModelProvider);
     final dashboard = ref.watch(homeDashboardProvider);
     final initial = dashboard.asData?.value.userInitial ?? 'N';
+    final referralOffer = dashboard.asData?.value.referralOffer;
 
     return ColoredBox(
       color: _pageBackground,
@@ -213,7 +219,12 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                               ),
                               const SizedBox(height: 20),
                             ],
-                          ShopReferralCard(onSharePressed: _shareReferral),
+                          if (referralOffer != null)
+                            ShopReferralCard(
+                              offer: referralOffer,
+                              onSharePressed: () =>
+                                  _openReferral(referralOffer.actionUrl),
+                            ),
                           if (state.isLoadingMore) ...[
                             const SizedBox(height: 20),
                             const Center(

@@ -12,11 +12,7 @@ import 'package:nalo/features/onboarding/presentation/pages/auth_gate_page.dart'
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_page.dart';
-import 'package:nalo/features/profile/presentation/pages/about_page.dart';
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
-import 'package:nalo/features/profile/presentation/pages/help_faq_page.dart';
-import 'package:nalo/features/profile/presentation/pages/privacy_data_page.dart';
-import 'package:nalo/features/profile/presentation/pages/profile_notifications_page.dart';
 import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 
 /// 提供全局弹窗和根导航共用的 Navigator Key。
@@ -54,22 +50,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: EditProfilePage.path,
         builder: (context, state) => const EditProfilePage(),
-      ),
-      GoRoute(
-        path: ProfileNotificationsPage.path,
-        builder: (context, state) => const ProfileNotificationsPage(),
-      ),
-      GoRoute(
-        path: HelpFaqPage.path,
-        builder: (context, state) => const HelpFaqPage(),
-      ),
-      GoRoute(
-        path: PrivacyDataPage.path,
-        builder: (context, state) => const PrivacyDataPage(),
-      ),
-      GoRoute(
-        path: AboutPage.path,
-        builder: (context, state) => const AboutPage(),
       ),
       GoRoute(
         name: AnalyticsPageName.loginSignIn.value,

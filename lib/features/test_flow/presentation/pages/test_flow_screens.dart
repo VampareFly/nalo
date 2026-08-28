@@ -2,14 +2,29 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
 import 'package:nalo/features/test_flow/presentation/widgets/native_camera_view.dart';
 import 'package:nalo/features/test_flow/presentation/widgets/test_flow_widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+Future<void> _openReferralLink(String link) async {
+  final uri = Uri.tryParse(link);
+  final didOpen =
+      uri != null && await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!didOpen) {
+    BotToast.showText(
+      text: 'Unable to open referral link',
+      align: Alignment.center,
+    );
+  }
+}
 
 /// 展示检测类型选择、注意事项和最近三次结果。
 class AboutTestScreen extends ConsumerWidget {
@@ -1434,6 +1449,11 @@ class ResultDetailsScreen extends ConsumerWidget {
     final result = state.result;
     final infoTitle = result?.infoTitle ?? '';
     final infoContent = result?.infoContent ?? '';
+    final referralOffer = ref
+        .watch(homeDashboardProvider)
+        .asData
+        ?.value
+        .referralOffer;
     return _PaperPage(
       scrollable: true,
       child: Column(
@@ -1607,48 +1627,54 @@ class ResultDetailsScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          FlowCard(
-            color: flowYellow,
-            child: const Row(
-              children: [
-                Icon(Icons.card_giftcard, color: flowInk, size: 18),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '10% off for you + a friend',
-                        style: TextStyle(
-                          color: flowInk,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                        ),
+          if (referralOffer != null) ...[
+            const SizedBox(height: 20),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openReferralLink(referralOffer.actionUrl),
+              child: FlowCard(
+                color: flowYellow,
+                child: Row(
+                  children: [
+                    const Icon(Icons.card_giftcard, color: flowInk, size: 18),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            referralOffer.title,
+                            style: const TextStyle(
+                              color: flowInk,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            referralOffer.description,
+                            style: const TextStyle(
+                              color: Color(0xAA1A2433),
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            referralOffer.buttonText,
+                            style: const TextStyle(
+                              color: flowInk,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Share your link and both of you save on your next kit.',
-                        style: TextStyle(
-                          color: Color(0xAA1A2433),
-                          fontSize: 12,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Share link',
-                        style: TextStyle(
-                          color: flowInk,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 24),
           FlowPrimaryButton(label: 'Back to home', onPressed: onClose),
           if (state.errorMessage != null) ...[

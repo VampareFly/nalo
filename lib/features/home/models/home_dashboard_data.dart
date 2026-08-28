@@ -31,10 +31,17 @@ class HomeRecentResult {
 
 /// 首页邀请活动的展示数据。
 class HomeReferralOffer {
-  const HomeReferralOffer({required this.title, required this.description});
+  const HomeReferralOffer({
+    required this.title,
+    required this.description,
+    required this.buttonText,
+    required this.actionUrl,
+  });
 
   final String title;
   final String description;
+  final String buttonText;
+  final String actionUrl;
 }
 
 /// 首页一次渲染所需的聚合数据。

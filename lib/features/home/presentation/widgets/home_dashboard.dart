@@ -19,7 +19,6 @@ const _surface = Color(0xFFFFFFFF);
 const _softSurface = Color(0xFFF5F2EE);
 const _yellow = Color(0xFFFDDA7C);
 const _visibleFraction = 0.1;
-const _referralDiscountPercent = 10;
 
 /// 新版首页内容，消费聚合数据并将页面级操作交给 HomePage。
 class HomeDashboard extends ConsumerStatefulWidget {
@@ -357,9 +356,6 @@ class _HomeDashboardBody extends StatelessWidget {
                 onEntryVisibility('referral', AnalyticsEvent.referralView, {
                   AnalyticsEventProperty.pageName:
                       AnalyticsPageName.tabHome.value,
-                  // TODO: <pf> Referral 接口返回折扣比例后改用服务端数据。
-                  AnalyticsEventProperty.discountPercent:
-                      _referralDiscountPercent,
                 }, fraction),
             child: _ReferralCard(offer: offer, onPressed: onReferralPressed),
           ),
@@ -794,6 +790,16 @@ class _ReferralCard extends StatelessWidget {
                     Text(
                       offer.description,
                       style: const TextStyle(color: _muted, fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      offer.buttonText,
+                      style: const TextStyle(
+                        color: _ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ],
                 ),

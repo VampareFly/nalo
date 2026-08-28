@@ -1,5 +1,5 @@
 // 定义 Nalo 服务端 Shopify OAuth 接口的数据模型。
-// Service 负责 JSON 转换，Repository 使用这些模型编排授权和用户分流。
+// Service 负责 JSON 转换，Repository 使用这些模型编排授权、用户分流和 Profile 展示。
 
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/auth/auth_token.dart';
@@ -85,6 +85,8 @@ class AppUserInfo {
     this.fullName,
     this.birthDay,
     this.gender,
+    this.testInfo,
+    this.referralCard,
   });
 
   final int id;
@@ -97,7 +99,13 @@ class AppUserInfo {
   final String? birthDay;
   final int? gender;
 
-  /// 从 user/info 的 data 对象解析当前已确认字段。
+  /// Profile 展示使用的累计检测信息；接口缺失或格式异常时为空。
+  final UserTestInfo? testInfo;
+
+  /// Profile 展示使用的服务端 Referral 活动配置。
+  final UserReferralCard? referralCard;
+
+  /// 从 user/info 或 user/update 的 data 对象解析完整用户字段。
   factory AppUserInfo.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
     final profileCompleted = json['is_profile_completed'];
@@ -117,6 +125,8 @@ class AppUserInfo {
           ? json['birth_day'] as String
           : null,
       gender: json['gender'] is int ? json['gender'] as int : null,
+      testInfo: UserTestInfo.tryParse(json['test_info']),
+      referralCard: UserReferralCard.tryParse(json['referral_card']),
     );
   }
 
@@ -125,6 +135,95 @@ class AppUserInfo {
     'id': id,
     'email': email,
     'full_name': fullName,
+    'birth_day': birthDay,
+    'gender': gender,
     'is_profile_completed': isProfileCompleted ? 1 : 0,
+    if (testInfo != null) 'test_info': testInfo!.toJson(),
+    if (referralCard != null) 'referral_card': referralCard!.toJson(),
   };
+}
+
+/// 用户累计检测统计，用于 Profile 展示完成次数。
+class UserTestInfo {
+  const UserTestInfo({
+    required this.sumCount,
+    required this.cortisolCount,
+    required this.testosteroneCount,
+  });
+
+  final int sumCount;
+  final int cortisolCount;
+  final int testosteroneCount;
+
+  /// 安全解析 test_info；对象或字段异常时返回空并由 UI 降级为 0。
+  static UserTestInfo? tryParse(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final sumCount = _nonNegativeInt(value['sum_count']);
+    if (sumCount == null) return null;
+    return UserTestInfo(
+      sumCount: sumCount,
+      cortisolCount: _nonNegativeInt(value['cortisol_count']) ?? 0,
+      testosteroneCount: _nonNegativeInt(value['testosterone_count']) ?? 0,
+    );
+  }
+
+  /// 转换为本地用户快照字段。
+  Map<String, dynamic> toJson() => {
+    'sum_count': sumCount,
+    'cortisol_count': cortisolCount,
+    'testosterone_count': testosteroneCount,
+  };
+
+  static int? _nonNegativeInt(Object? value) =>
+      value is int && value >= 0 ? value : null;
+}
+
+/// Profile Referral 卡片的服务端动态配置。
+class UserReferralCard {
+  const UserReferralCard({
+    required this.title,
+    required this.description,
+    required this.buttonText,
+    required this.actionUrl,
+  });
+
+  final String title;
+  final String description;
+  final String buttonText;
+  final String actionUrl;
+
+  /// 解析 referral_card；任一必填字段为空时隐藏卡片。
+  static UserReferralCard? tryParse(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final title = _nonEmptyString(value['title']);
+    final description = _nonEmptyString(value['description']);
+    final buttonText = _nonEmptyString(value['button_text']);
+    final actionUrl = _nonEmptyString(value['action_url']);
+    if (title == null ||
+        description == null ||
+        buttonText == null ||
+        actionUrl == null) {
+      return null;
+    }
+    return UserReferralCard(
+      title: title,
+      description: description,
+      buttonText: buttonText,
+      actionUrl: actionUrl,
+    );
+  }
+
+  /// 转换为本地用户快照字段。
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'description': description,
+    'button_text': buttonText,
+    'action_url': actionUrl,
+  };
+
+  static String? _nonEmptyString(Object? value) {
+    if (value is! String) return null;
+    final text = value.trim();
+    return text.isEmpty ? null : text;
+  }
 }

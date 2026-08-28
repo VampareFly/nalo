@@ -1,11 +1,15 @@
-import 'package:bot_toast/bot_toast.dart';
+// 按 Figma 展示当前用户资料编辑表单。
+// 表单状态由 EditProfileViewModel 从 Profile 派生，页面生命周期只管理输入控制器。
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:nalo/features/profile/presentation/widgets/profile_subpage_widgets.dart';
-import 'package:nalo/features/profile/providers/profile_ui_provider.dart';
+import 'package:nalo/features/onboarding/view_models/account_profile_view_model.dart';
+import 'package:nalo/features/profile/view_models/edit_profile_view_model.dart';
+import 'package:nalo/features/profile/view_models/profile_view_model.dart';
 
+/// 编辑当前登录用户的姓名、生日和生理性别。
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
 
@@ -16,153 +20,326 @@ class EditProfilePage extends ConsumerStatefulWidget {
 }
 
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _firstNameController;
-  late final TextEditingController _lastNameController;
-  late final TextEditingController _emailController;
-  DateTime? _birthday;
-  ProfileGender? _gender;
+  static const _under18Title = 'Under 18';
+  static const _under18Description =
+      'Nalo is designed for adults 18 and over. Please check with a healthcare provider before testing.';
+
+  final _nameController = TextEditingController();
+  final _nameFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    final profile = ref.read(profileUiProvider);
-    _firstNameController = TextEditingController(text: profile.firstName);
-    _lastNameController = TextEditingController(text: profile.lastName);
-    _emailController = TextEditingController(text: profile.email);
-    _birthday = profile.birthday;
-    _gender = profile.gender;
+    final user = ref.read(profileViewModelProvider).user;
+    if (user != null) {
+      _nameController.text = user.fullName?.trim() ?? '';
+    }
   }
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
+    _nameController.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _selectBirthday() async {
-    FocusScope.of(context).unfocus();
+  Future<void> _pickBirthday() async {
+    _dismissKeyboard();
     final now = DateTime.now();
-    final selected = await showDatePicker(
+    final state = ref.read(editProfileViewModelProvider);
+    final value = await showDatePicker(
       context: context,
       locale: const Locale('en'),
-      initialDate: _birthday ?? DateTime(now.year - 18, now.month, now.day),
+      initialDate:
+          state.dateOfBirth ?? DateTime(now.year - 18, now.month, now.day),
       firstDate: DateTime(now.year - 120, now.month, now.day),
       lastDate: now,
     );
-    if (selected != null && mounted) setState(() => _birthday = selected);
+    if (value != null && mounted) {
+      ref.read(editProfileViewModelProvider.notifier).updateDateOfBirth(value);
+    }
   }
 
-  void _save() {
-    FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_gender == null) {
-      BotToast.showText(text: 'Please select your gender', align: Alignment.center);
-      return;
+  void _dismissKeyboard() {
+    _nameFocusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  Future<void> _submit() async {
+    _dismissKeyboard();
+    final result = await ref
+        .read(editProfileViewModelProvider.notifier)
+        .submit();
+    if (!mounted) return;
+    switch (result) {
+      case EditProfileSubmitResult.missingFields:
+      case EditProfileSubmitResult.submissionFailed:
+        return;
+      case EditProfileSubmitResult.under18:
+        await _showUnderageDialog();
+        return;
+      case EditProfileSubmitResult.completed:
+        final user = ref.read(editProfileViewModelProvider).updatedUser;
+        if (user != null) {
+          ref.read(profileViewModelProvider.notifier).useUpdatedUser(user);
+        }
+        context.pop();
+        return;
     }
-    if (_birthday == null) {
-      BotToast.showText(text: 'Please select your birthday', align: Alignment.center);
-      return;
-    }
-    ref.read(profileUiProvider.notifier).updateProfile(
-      firstName: _firstNameController.text,
-      lastName: _lastNameController.text,
-      gender: _gender!,
-      birthday: _birthday!,
-      email: _emailController.text,
+  }
+
+  Future<void> _showUnderageDialog() {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        contentPadding: const EdgeInsets.all(32),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircleAvatar(
+              radius: 32,
+              backgroundColor: Color(0xFFFEF2F2),
+              child: Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFD4183D),
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              _under18Title,
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              _under18Description,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF9FA89E), height: 1.45),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF008BC7),
+                  minimumSize: const Size.fromHeight(48),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Go back'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
-    BotToast.showText(text: 'Profile updated', align: Alignment.center);
-    context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ProfileSubpageScaffold(
-      title: 'Edit profile',
-      titleFontSize: 40,
-      children: [
-        const Text(
-          'Keep the details used to personalize your health insights up to date.',
-          style: TextStyle(color: Color(0xFF717277), fontSize: 15, height: 1.45),
-        ),
-        const SizedBox(height: 24),
-        Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              _ProfileField(label: 'First name', controller: _firstNameController, validator: _required),
-              const SizedBox(height: 22),
-              _ProfileField(label: 'Last name', controller: _lastNameController, validator: _required),
-              const SizedBox(height: 22),
-              _LabeledBlock(
-                label: 'Gender',
-                child: Row(
+    final state = ref.watch(editProfileViewModelProvider);
+    return Scaffold(
+      backgroundColor: const Color(0xFFEDE8E0),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _dismissKeyboard,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  onPressed: state.isSubmitting ? null : () => context.pop(),
+                  icon: const Icon(Icons.arrow_back, color: Color(0xFF008BC7)),
+                  style: IconButton.styleFrom(overlayColor: Colors.transparent),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'nalo',
+                  style: TextStyle(
+                    color: Color(0xFF008BC7),
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'Edit your\n'),
+                      TextSpan(
+                        text: 'profile.',
+                        style: TextStyle(color: Color(0xFF008BC7)),
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    color: Color(0xFF1A2433),
+                    fontSize: 30,
+                    height: 1.2,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                if (state.isOver65) ...[
+                  const _NoticeBox(
+                    color: Color(0xFFFDDA7C),
+                    icon: Icons.warning_amber_rounded,
+                    text:
+                        'You are over 65. We recommend speaking with your doctor before testing. You can still continue.',
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (state.showMissingFieldsError) ...[
+                  const Text(
+                    'Please fill in all fields.',
+                    style: TextStyle(
+                      color: Color(0xFFD4183D),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (state.errorMessage != null) ...[
+                  Text(
+                    state.errorMessage!,
+                    style: const TextStyle(
+                      color: Color(0xFFD4183D),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                _FieldLabel(
+                  label: 'Email',
+                  child: _ReadOnlyField(value: state.email),
+                ),
+                // TODO: <pf> 服务端支持修改 Email 后开放编辑并补充校验。
+                const SizedBox(height: 16),
+                _FieldLabel(
+                  label: 'Name',
+                  child: TextField(
+                    controller: _nameController,
+                    focusNode: _nameFocusNode,
+                    enabled: !state.isSubmitting,
+                    onChanged: ref
+                        .read(editProfileViewModelProvider.notifier)
+                        .updateFullName,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _dismissKeyboard(),
+                    decoration: _inputDecoration('Alex Smith'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _FieldLabel(
+                  label: 'Date of birth',
+                  child: InkWell(
+                    onTap: state.isSubmitting ? null : _pickBirthday,
+                    splashFactory: NoSplash.splashFactory,
+                    child: _ReadOnlyField(
+                      value: state.dateOfBirth == null
+                          ? ''
+                          : DateFormat.yMMMd('en').format(state.dateOfBirth!),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Biological sex',
+                  style: TextStyle(
+                    color: Color(0xFF1A2433),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
                   children: [
                     Expanded(
-                      child: _GenderChip(label: 'Female', selected: _gender == ProfileGender.female, onPressed: () => _setGender(ProfileGender.female)),
+                      child: _SexButton(
+                        label: 'Female',
+                        selected: state.biologicalSex == BiologicalSex.female,
+                        onTap: state.isSubmitting
+                            ? null
+                            : () => ref
+                                  .read(editProfileViewModelProvider.notifier)
+                                  .selectBiologicalSex(BiologicalSex.female),
+                      ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: _GenderChip(label: 'Male', selected: _gender == ProfileGender.male, onPressed: () => _setGender(ProfileGender.male)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: _GenderChip(
-                        label: 'Prefer not to say',
-                        selected: _gender == ProfileGender.preferNotToSay,
-                        onPressed: () => _setGender(ProfileGender.preferNotToSay),
+                      child: _SexButton(
+                        label: 'Male',
+                        selected: state.biologicalSex == BiologicalSex.male,
+                        onTap: state.isSubmitting
+                            ? null
+                            : () => ref
+                                  .read(editProfileViewModelProvider.notifier)
+                                  .selectBiologicalSex(BiologicalSex.male),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 22),
-              _LabeledBlock(
-                label: 'Birthday',
-                child: _SelectionField(
-                  value: _birthday == null ? 'Select your birthday' : DateFormat.yMMMd('en').format(_birthday!),
-                  onPressed: _selectBirthday,
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: state.isSubmitting ? null : _submit,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF008BC7),
+                      minimumSize: const Size.fromHeight(56),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: Text(
+                      state.isSubmitting
+                          ? 'Saving...'
+                          : state.isOver65
+                          ? 'Continue anyway'
+                          : 'Save changes',
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 22),
-              _ProfileField(
-                label: 'Enter email address',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 28),
-              FilledButton(
-                onPressed: _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF050505),
-                  minimumSize: const Size.fromHeight(52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                const SizedBox(height: 16),
+                const _NoticeBox(
+                  color: Color(0x11008BC7),
+                  assetPath: 'assets/icons/info_blue.png',
+                  text:
+                      'Your date of birth, biological sex, and personal information are used solely to personalise your hormone reports. They are never sold or shared with third parties.',
                 ),
-                child: const Text('Save changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ],
+      ),
     );
-  }
-
-  void _setGender(ProfileGender gender) => setState(() => _gender = gender);
-
-  String? _required(String? value) => value == null || value.trim().isEmpty ? 'Required' : null;
-
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Required';
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim()) ? null : 'Enter a valid email address';
   }
 }
 
-class _LabeledBlock extends StatelessWidget {
-  const _LabeledBlock({required this.label, required this.child});
+InputDecoration _inputDecoration(String hint) => InputDecoration(
+  hintText: hint,
+  filled: true,
+  fillColor: Colors.white,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(16),
+    borderSide: const BorderSide(color: Colors.black12),
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(16),
+    borderSide: const BorderSide(color: Colors.black12),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(16),
+    borderSide: const BorderSide(color: Color(0xFF008BC7)),
+  ),
+);
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel({required this.label, required this.child});
+
   final String label;
   final Widget child;
 
@@ -170,79 +347,117 @@ class _LabeledBlock extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label, style: const TextStyle(color: Color(0xFF66676B), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
-      const SizedBox(height: 10),
+      Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF1A2433),
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      const SizedBox(height: 6),
       child,
     ],
   );
 }
 
-class _ProfileField extends StatelessWidget {
-  const _ProfileField({required this.label, required this.controller, this.keyboardType, required this.validator});
-  final String label;
-  final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final FormFieldValidator<String> validator;
+class _ReadOnlyField extends StatelessWidget {
+  const _ReadOnlyField({required this.value});
+
+  final String value;
 
   @override
-  Widget build(BuildContext context) => _LabeledBlock(
-    label: label,
-    child: TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      autocorrect: false,
-      decoration: _fieldDecoration,
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    height: 50,
+    alignment: Alignment.centerLeft,
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.black12),
+    ),
+    child: Text(
+      value.isEmpty ? '—' : value,
+      style: const TextStyle(color: Color(0xFF1A2433), fontSize: 16),
     ),
   );
 }
 
-class _SelectionField extends StatelessWidget {
-  const _SelectionField({required this.value, required this.onPressed});
-  final String value;
-  final VoidCallback onPressed;
+class _SexButton extends StatelessWidget {
+  const _SexButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onPressed,
-    borderRadius: BorderRadius.circular(20),
-    child: InputDecorator(
-      decoration: _fieldDecoration,
-      child: Row(
-        children: [
-          Expanded(child: Text(value, style: TextStyle(color: value.startsWith('Select') ? const Color(0xFF999A9E) : Colors.black))),
-          const Icon(Icons.calendar_today_outlined, color: Color(0xFF717277), size: 20),
-        ],
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: Container(
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: selected ? const Color(0xFF008BC7) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF008BC7), width: 1.5),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: selected ? Colors.white : const Color(0xFF008BC7),
+          fontWeight: FontWeight.w700,
+        ),
       ),
     ),
   );
 }
 
-class _GenderChip extends StatelessWidget {
-  const _GenderChip({required this.label, required this.selected, required this.onPressed});
-  final String label;
-  final bool selected;
-  final VoidCallback onPressed;
+class _NoticeBox extends StatelessWidget {
+  const _NoticeBox({
+    required this.color,
+    required this.text,
+    this.icon,
+    this.assetPath,
+  });
+
+  final Color color;
+  final String text;
+  final IconData? icon;
+  final String? assetPath;
 
   @override
-  Widget build(BuildContext context) => ChoiceChip(
-    label: Text(label),
-    selected: selected,
-    onSelected: (_) => onPressed(),
-    showCheckmark: false,
-    selectedColor: const Color(0xFF050505),
-    backgroundColor: Colors.white,
-    side: const BorderSide(color: Color(0xFFE1E1E1)),
-    labelStyle: TextStyle(color: selected ? Colors.white : const Color(0xFF66676B)),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (assetPath != null)
+          Image.asset(assetPath!, width: 16, height: 16)
+        else
+          Icon(icon, size: 20, color: const Color(0xFF1A2433)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF2A6B8A),
+              fontSize: 12,
+              height: 1.6,
+            ),
+          ),
+        ),
+      ],
+    ),
   );
 }
-
-const _fieldDecoration = InputDecoration(
-  filled: true,
-  fillColor: Colors.white,
-  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 17),
-  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(20)), borderSide: BorderSide(color: Color(0xFFE1E1E1))),
-  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(20)), borderSide: BorderSide(color: Color(0xFFE1E1E1))),
-  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(20)), borderSide: BorderSide(color: Color(0xFF91A2E4))),
-);

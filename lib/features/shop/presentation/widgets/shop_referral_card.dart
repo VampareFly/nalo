@@ -1,13 +1,19 @@
-// 展示新版 Shop 底部的精简 Referral 入口。
-// 分享数据接口尚未提供，当前只将点击事件交给页面。
+// 展示新版 Shop 底部的动态 Referral 入口。
+// 文案和链接来自 user/info 保存的当前用户快照。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:nalo/features/home/models/home_dashboard_data.dart';
 
 /// 展示好友优惠信息及分享入口。
 class ShopReferralCard extends StatelessWidget {
-  const ShopReferralCard({super.key, required this.onSharePressed});
+  const ShopReferralCard({
+    super.key,
+    required this.offer,
+    required this.onSharePressed,
+  });
 
+  final HomeReferralOffer offer;
   final VoidCallback onSharePressed;
 
   @override
@@ -42,9 +48,9 @@ class ShopReferralCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '10% off for you and a friend',
-                  style: TextStyle(
+                Text(
+                  offer.title,
+                  style: const TextStyle(
                     color: Color(0xFF1A2433),
                     fontSize: 14,
                     height: 20 / 14,
@@ -52,9 +58,9 @@ class ShopReferralCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Share your referral link and save together.',
-                  style: TextStyle(
+                Text(
+                  offer.description,
+                  style: const TextStyle(
                     color: Color(0xB31A2433),
                     fontSize: 12,
                     height: 16 / 12,
@@ -63,9 +69,9 @@ class ShopReferralCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 GestureDetector(
                   onTap: onSharePressed,
-                  child: const Text(
-                    'Share referral link',
-                    style: TextStyle(
+                  child: Text(
+                    offer.buttonText,
+                    style: const TextStyle(
                       color: Color(0xFF1A2433),
                       fontSize: 12,
                       height: 16 / 12,

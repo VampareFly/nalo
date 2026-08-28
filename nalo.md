@@ -107,6 +107,16 @@ AuthEntryPage
 
 服务端协议联调期间，新入口页保留客户端直连 Shopify 的测试按钮。该按钮不参与正式 Session 和账号创建，后续需要删除。
 
+当前 Profile 流程为：
+
+```text
+HomePage
+→ ProfilePage（进入时请求 user/info）
+→ EditProfilePage（user/update 成功后直接刷新 Profile 快照）
+```
+
+Profile 使用 `test_info.sum_count` 展示累计检测数；Email 暂时只读。Notification、Privacy、Terms、Help 和 Shopify Manage 在目标地址确认前只展示临时 Toast。
+
 ## 环境配置
 
 当前环境在以下文件手动切换：

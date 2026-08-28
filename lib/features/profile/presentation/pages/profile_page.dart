@@ -1,58 +1,70 @@
-// 展示用户资料、设置入口和账号操作。
-// 退出和注销由 ProfileAccountViewModel 编排，页面只负责确认、反馈和导航。
+// 按 Figma 展示当前用户资料、检测统计、账号入口和账号操作。
+// 页面进入时由 ProfileViewModel 请求 user/info，退出与注销交给 ProfileAccountViewModel。
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:nalo/features/home/presentation/widgets/medical_disclaimer_footer.dart';
-import 'package:nalo/features/home/presentation/widgets/referral_program_card.dart';
-import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
-import 'package:nalo/features/profile/presentation/pages/about_page.dart';
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
-import 'package:nalo/features/profile/presentation/pages/help_faq_page.dart';
-import 'package:nalo/features/profile/presentation/pages/privacy_data_page.dart';
-import 'package:nalo/features/profile/presentation/pages/profile_notifications_page.dart';
-import 'package:nalo/features/profile/providers/profile_ui_provider.dart';
 import 'package:nalo/features/profile/view_models/profile_account_view_model.dart';
+import 'package:nalo/features/profile/view_models/profile_view_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Nalo 个人中心页面。
-class ProfilePage extends ConsumerWidget {
+/// Nalo 个人中心主页。
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   static const path = '/profile';
-  static const _referralCode = '7XY212AS0W0H';
-  static final _shareLink = Uri.parse(
-    'https://test-store-001-55rykspg.myshopify.com/discount/7XY212AS0W0H?redirect=%2Fcollections%2F%E5%95%86%E5%93%81%E6%A0%87%E9%A2%98-01',
-  );
+
+  @override
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(ref.read(profileViewModelProvider.notifier).load);
+  }
 
   void _showComingSoon(String feature) {
-    // TODO: <pf> Open the corresponding profile destination after it is implemented.
+    // TODO: <pf> 产品确认目标页面或链接后替换临时 Toast。
     BotToast.showText(text: '$feature is coming soon', align: Alignment.center);
   }
 
-  Future<void> _copyReferralCode() async {
-    await Clipboard.setData(const ClipboardData(text: _referralCode));
-    BotToast.showText(text: 'Referral code copied', align: Alignment.center);
+  void _openShopifyManage() {
+    // TODO: <pf> Shopify Customer accounts 管理 URL 确认后使用外部浏览器打开。
+    BotToast.showText(
+      text: 'Shopify account management is coming soon',
+      align: Alignment.center,
+    );
   }
 
-  Future<void> _openShareLink() async {
-    final opened = await launchUrl(_shareLink, mode: LaunchMode.externalApplication);
-    if (!opened) BotToast.showText(text: 'Unable to open share link', align: Alignment.center);
+  Future<void> _openReferralLink(String link) async {
+    final uri = Uri.tryParse(link);
+    final opened =
+        uri != null &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened) {
+      BotToast.showText(
+        text: 'Unable to open referral link',
+        align: Alignment.center,
+      );
+    }
   }
 
-  Future<void> _logout(BuildContext context, WidgetRef ref) async {
+  Future<void> _logout() async {
     final didLogout = await ref
         .read(profileAccountViewModelProvider.notifier)
         .logout();
-    if (!context.mounted || !didLogout) return;
+    if (!mounted || !didLogout) return;
     context.go(AuthEntryPage.path);
   }
 
-  Future<void> _deactivate(BuildContext context, WidgetRef ref) async {
+  Future<void> _deactivate() async {
     final didConfirm = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -70,19 +82,19 @@ class ProfilePage extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFC62828),
+              foregroundColor: const Color(0xFFD4183D),
             ),
             child: const Text('Delete account'),
           ),
         ],
       ),
     );
-    if (didConfirm != true || !context.mounted) return;
+    if (didConfirm != true || !mounted) return;
 
     final didDeactivate = await ref
         .read(profileAccountViewModelProvider.notifier)
         .deactivate();
-    if (!context.mounted) return;
+    if (!mounted) return;
     if (didDeactivate) {
       context.go(AuthEntryPage.path);
       return;
@@ -94,359 +106,495 @@ class ProfilePage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final uiState = ref.watch(profileUiProvider);
+  Widget build(BuildContext context) {
+    final profileState = ref.watch(profileViewModelProvider);
     final accountState = ref.watch(profileAccountViewModelProvider);
+    final user = profileState.user;
+
+    ref.listen(profileViewModelProvider.select((state) => state.errorMessage), (
+      previous,
+      next,
+    ) {
+      if (next != null && next != previous) {
+        BotToast.showText(text: next, align: Alignment.center);
+      }
+    });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5F2),
+      backgroundColor: const Color(0xFFEDE8E0),
       body: Stack(
         children: [
           SafeArea(
             child: CustomScrollView(
               slivers: [
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 44),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 40),
                   sliver: SliverList.list(
                     children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () => context.pop(),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF606064),
-                        padding: EdgeInsets.zero,
-                        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                      _Header(
+                        onBack: () => context.pop(),
+                        onEdit: user == null
+                            ? null
+                            : () => context.push(EditProfilePage.path),
                       ),
-                      icon: const Icon(Icons.chevron_left, size: 22),
-                      label: const Text('Back'),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Profile',
-                    style: TextStyle(
-                      color: Color(0xFF050505),
-                      fontFamily: 'Times New Roman',
-                      fontSize: 28,
-                      height: 1,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                  const SizedBox(height: 34),
-                  _ProfileSummaryCard(
-                    name: uiState.displayName,
-                    onPressed: () => context.push(EditProfilePage.path),
-                  ),
-                  const SizedBox(height: 18),
-                  _SettingsCard(
-                    title: 'ACCOUNT',
-                    children: [
-                      _SettingsActionRow(label: 'Edit profile', onPressed: () => context.push(EditProfilePage.path)),
-                      const _NotificationPermissionRow(),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _SettingsCard(
-                    title: 'SUPPORT',
-                    children: [
-                      _SettingsActionRow(label: 'Help & FAQ', onPressed: () => context.push(HelpFaqPage.path)),
-                      _SettingsActionRow(label: 'Privacy & data', onPressed: () => context.push(PrivacyDataPage.path)),
-                      _SettingsActionRow(label: 'About Nola Test Kit', onPressed: () => context.push(AboutPage.path)),
-                    ],
-                  ),
-                  if (uiState.isReferralVisible) ...[
-                    const SizedBox(height: 28),
-                    ReferralProgramCard(
-                      referralCode: _referralCode,
-                      onDismissed: ref.read(profileUiProvider.notifier).dismissReferral,
-                      onCopyPressed: _copyReferralCode,
-                      onShareLinkPressed: _openShareLink,
-                      onMessagePressed: () => _showComingSoon('Message sharing'),
-                    ),
-                  ],
-                  const SizedBox(height: 28),
-                  _AccountActionButton(
-                    label: 'Log out',
-                    onPressed: () => _logout(context, ref),
-                  ),
-                  const SizedBox(height: 12),
-                  _AccountActionButton(
-                    label: 'Delete account',
-                    foregroundColor: const Color(0xFFC62828),
-                    borderColor: const Color(0xFFE6B8B8),
-                    onPressed: () => _deactivate(context, ref),
-                  ),
-                  const SizedBox(height: 38),
-                  const MedicalDisclaimerFooter(),
+                      const SizedBox(height: 30),
+                      _TestsCompletedCard(count: user?.testInfo?.sumCount ?? 0),
+                      const SizedBox(height: 18),
+                      _UserInfoCard(user: user),
+                      const SizedBox(height: 18),
+                      _ShopifyAccountCard(
+                        email: _displayValue(user?.email),
+                        onManage: _openShopifyManage,
+                      ),
+                      const SizedBox(height: 18),
+                      _MenuCard(
+                        items: [
+                          _MenuItem(
+                            label: 'Notification settings',
+                            onPressed: () =>
+                                _showComingSoon('Notification settings'),
+                          ),
+                          _MenuItem(
+                            label: 'Privacy policy',
+                            onPressed: () => _showComingSoon('Privacy policy'),
+                          ),
+                          _MenuItem(
+                            label: 'Terms of service',
+                            onPressed: () =>
+                                _showComingSoon('Terms of service'),
+                          ),
+                          _MenuItem(
+                            label: 'Help & support',
+                            onPressed: () => _showComingSoon('Help & support'),
+                          ),
+                        ],
+                      ),
+                      if (user?.referralCard case final referralCard?) ...[
+                        const SizedBox(height: 18),
+                        _ReferralCard(
+                          referralCard: referralCard,
+                          onPressed: () =>
+                              _openReferralLink(referralCard.actionUrl),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      _SignOutButton(onPressed: _logout),
+                      const SizedBox(height: 14),
+                      TextButton(
+                        onPressed: _deactivate,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF9FA89E),
+                          minimumSize: const Size.fromHeight(42),
+                          textStyle: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: const Text('Delete account'),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          if (accountState.isLoading) const _ProfileLoadingOverlay(),
+          if (accountState.isLoading) const _LoadingOverlay(),
         ],
       ),
     );
   }
+
+  String _displayValue(String? value) {
+    final text = value?.trim() ?? '';
+    return text.isEmpty ? '—' : text;
+  }
 }
 
-class _AccountActionButton extends StatelessWidget {
-  const _AccountActionButton({
-    required this.label,
-    required this.onPressed,
-    this.foregroundColor = const Color(0xFF111113),
-    this.borderColor = const Color(0xFFD8D8DA),
-  });
+class _Header extends StatelessWidget {
+  const _Header({required this.onBack, required this.onEdit});
 
-  final String label;
-  final VoidCallback onPressed;
-  final Color foregroundColor;
-  final Color borderColor;
+  final VoidCallback onBack;
+  final VoidCallback? onEdit;
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: foregroundColor,
-          side: BorderSide(color: borderColor),
-          overlayColor: Colors.transparent,
-          shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) => Row(
+    children: [
+      IconButton.filled(
+        onPressed: onBack,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.black.withValues(alpha: 0.07),
+          foregroundColor: const Color(0xFF1A2433),
         ),
-        child: Text(label),
+        icon: const Icon(Icons.arrow_back, size: 20),
       ),
-    );
-  }
-}
-
-class _ProfileLoadingOverlay extends StatelessWidget {
-  const _ProfileLoadingOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Positioned.fill(
-      child: Stack(
-        children: [
-          ModalBarrier(dismissible: false, color: Color(0x52000000)),
-          Center(
-            child: SizedBox.square(
-              dimension: 36,
-              child: CircularProgressIndicator(strokeWidth: 3),
-            ),
+      const Expanded(
+        child: Text(
+          'Profile',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFF1A2433),
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
           ),
-        ],
+        ),
       ),
-    );
-  }
+      OutlinedButton(
+        onPressed: onEdit,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF008BC7),
+          side: const BorderSide(color: Color(0xFF008BC7), width: 1.5),
+          minimumSize: const Size(58, 40),
+          shape: const StadiumBorder(),
+        ),
+        child: const Text('Edit'),
+      ),
+    ],
+  );
 }
 
-class _ProfileSummaryCard extends StatelessWidget {
-  const _ProfileSummaryCard({required this.name, required this.onPressed});
+class _TestsCompletedCard extends StatelessWidget {
+  const _TestsCompletedCard({required this.count});
 
-  final String name;
-  final VoidCallback onPressed;
+  final int count;
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(27),
-      shadowColor: Colors.black.withValues(alpha: 0.12),
-      elevation: 5,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(27),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Row(
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+    decoration: BoxDecoration(
+      color: const Color(0xFF008BC7),
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(
-                radius: 32,
-                backgroundColor: Color(0xFF91A2E4),
-                child: Text('?', style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w700)),
+              const Text(
+                'TESTS COMPLETED',
+                style: TextStyle(
+                  color: Color(0x8CFFFFFF),
+                  fontSize: 12,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: Text(
-                  name.isEmpty ? 'Add your name' : name,
-                  style: const TextStyle(color: Color(0xFF111113), fontSize: 18, fontWeight: FontWeight.w700),
+              const SizedBox(height: 4),
+              Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 48,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
+        const CircleAvatar(
+          radius: 32,
+          backgroundColor: Color(0x1FFFFFFF),
+          child: Icon(
+            Icons.emoji_events_outlined,
+            color: Color(0xFFFFDA59),
+            size: 29,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
-class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({required this.title, required this.children});
+class _UserInfoCard extends StatelessWidget {
+  const _UserInfoCard({required this.user});
 
-  final String title;
-  final List<Widget> children;
+  final AppUserInfo? user;
 
   @override
   Widget build(BuildContext context) {
+    final rows = [
+      ('NAME', _value(user?.fullName)),
+      ('EMAIL', _value(user?.email)),
+      ('DATE OF BIRTH', _value(user?.birthDay)),
+      ('BIOLOGICAL SEX', _gender(user?.gender)),
+    ];
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(27),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 6)),
-        ],
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 13),
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF77777A),
-                fontSize: 10,
-                height: 1,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 1.5,
+          for (var index = 0; index < rows.length; index++) ...[
+            if (index > 0) const Divider(height: 1, color: Color(0x0D000000)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Row(
+                children: [
+                  Text(
+                    rows[index].$1,
+                    style: const TextStyle(
+                      color: Color(0xFF9FA89E),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      rows[index].$2,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: Color(0xFF1A2433),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          for (final child in children) ...[
-            const Divider(height: 1, thickness: 1, color: Color(0xFFE8E8E8)),
-            child,
           ],
         ],
       ),
     );
   }
+
+  String _value(String? value) {
+    final text = value?.trim() ?? '';
+    return text.isEmpty ? '—' : text;
+  }
+
+  String _gender(int? value) => switch (value) {
+    1 => 'Male',
+    2 => 'Female',
+    _ => '—',
+  };
 }
 
-class _SettingsActionRow extends StatelessWidget {
-  const _SettingsActionRow({required this.label, required this.onPressed});
+class _ShopifyAccountCard extends StatelessWidget {
+  const _ShopifyAccountCard({required this.email, required this.onManage});
 
-  final String label;
-  final VoidCallback onPressed;
+  final String email;
+  final VoidCallback onManage;
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onPressed,
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onManage,
+      borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 12, 0),
-        child: SizedBox(
-          height: 48,
-          child: Row(
-            children: [
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500))),
-              const Icon(Icons.chevron_right, color: Color(0xFF68686B), size: 22),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationPermissionRow extends ConsumerStatefulWidget {
-  const _NotificationPermissionRow();
-
-  @override
-  ConsumerState<_NotificationPermissionRow> createState() => _NotificationPermissionRowState();
-}
-
-class _NotificationPermissionRowState extends ConsumerState<_NotificationPermissionRow> with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      ref.invalidate(notificationPermissionStatusProvider);
-    }
-  }
-
-  Future<void> _handleSwitchPressed() async {
-    final service = ref.read(notificationPermissionServiceProvider);
-    final isEnabled = await service.isNotificationPermissionEnabled();
-    if (!mounted) return;
-
-    if (!isEnabled) {
-      await service.openAppSettings();
-      return;
-    }
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Notifications are on'),
-        content: const Text('To turn off push notifications, open your device settings and update the notification permission for Nola Test Kit.'),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          FilledButton(
-            onPressed: () => context.pop(),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF050505),
-              minimumSize: const Size(120, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-            ),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEnabled = ref.watch(
-      notificationPermissionStatusProvider.select(
-        (value) => value.when(data: (enabled) => enabled, loading: () => false, error: (error, stackTrace) => false),
-      ),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 0, 12, 0),
-      child: SizedBox(
-        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
         child: Row(
           children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => context.push(ProfileNotificationsPage.path),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: const Color(0xFF96BF48),
+              child: SvgPicture.asset(
+                'assets/icons/shopify.svg',
+                width: 18,
+                height: 18,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
                 ),
               ),
             ),
-            Switch(
-              value: isEnabled,
-              onChanged: (_) => _handleSwitchPressed(),
-              activeTrackColor: const Color(0xFF91A2E4),
-              inactiveTrackColor: const Color(0xFFE6E6E7),
-              inactiveThumbColor: Colors.white,
-              trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Shopify account',
+                    style: TextStyle(
+                      color: Color(0xFF1A2433),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Connected · $email',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF9FA89E),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: const ShapeDecoration(
+                color: Color(0x1F96BF48),
+                shape: StadiumBorder(),
+              ),
+              child: const Text(
+                'Manage',
+                style: TextStyle(
+                  color: Color(0xFF5A8A1A),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+class _MenuItem {
+  const _MenuItem({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+}
+
+class _MenuCard extends StatelessWidget {
+  const _MenuCard({required this.items});
+
+  final List<_MenuItem> items;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Column(
+      children: [
+        for (var index = 0; index < items.length; index++) ...[
+          if (index > 0) const Divider(height: 1, color: Color(0x0D000000)),
+          InkWell(
+            onTap: items[index].onPressed,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      items[index].label,
+                      style: const TextStyle(
+                        color: Color(0xFF1A2433),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Color(0xFF9FA89E),
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _ReferralCard extends StatelessWidget {
+  const _ReferralCard({required this.referralCard, required this.onPressed});
+
+  final UserReferralCard referralCard;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFDDA7C),
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          referralCard.title,
+          style: const TextStyle(
+            color: Color(0xFF1A2433),
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          referralCard.description,
+          style: const TextStyle(
+            color: Color(0xFF5A4200),
+            fontSize: 12,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF1A2433),
+              foregroundColor: const Color(0xFFFDDA7C),
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(referralCard.buttonText),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SignOutButton extends StatelessWidget {
+  const _SignOutButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    child: OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFFD4183D),
+        side: const BorderSide(color: Color(0xFFD4183D), width: 1.5),
+        minimumSize: const Size.fromHeight(46),
+        shape: const StadiumBorder(),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+      child: const Text('Sign out'),
+    ),
+  );
+}
+
+class _LoadingOverlay extends StatelessWidget {
+  const _LoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) => const Positioned.fill(
+    child: Stack(
+      children: [
+        ModalBarrier(dismissible: false, color: Color(0x33000000)),
+        Center(child: CircularProgressIndicator()),
+      ],
+    ),
+  );
 }

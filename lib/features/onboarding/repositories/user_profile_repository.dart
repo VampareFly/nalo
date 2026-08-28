@@ -13,8 +13,12 @@ class UserProfileRepository {
   final UserProfileService _service;
   final CurrentUserStorage _currentUserStorage;
 
-  /// 获取当前登录用户资料。
-  Future<AppUserInfo> getInfo() => _service.getInfo();
+  /// 获取当前用户资料，并用服务端最新响应覆盖本地快照。
+  Future<AppUserInfo> getInfo() async {
+    final user = await _service.getInfo();
+    await _saveSnapshot(user);
+    return user;
+  }
 
   /// 提交注册资料并返回服务端最新用户信息。
   Future<AppUserInfo> update({
@@ -27,12 +31,16 @@ class UserProfileRepository {
       birthDay: birthDay,
       gender: gender,
     );
+    await _saveSnapshot(user);
+    return user;
+  }
+
+  Future<void> _saveSnapshot(AppUserInfo user) async {
     try {
       await _currentUserStorage.save(user);
     } catch (_) {
       // TODO: <pf> 明确用户快照写入失败时的产品处理方式。
     }
-    return user;
   }
 }
 
