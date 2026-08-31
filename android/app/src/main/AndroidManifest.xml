@@ -2,6 +2,8 @@
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 用于读取当前网络的系统代理，供允许抓包的构建配置 Dio。 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- 用于在检测流程内拍摄并上传试纸照片。 -->
     <uses-permission android:name="android.permission.CAMERA"/>
 

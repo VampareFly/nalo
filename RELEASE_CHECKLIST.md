@@ -22,10 +22,10 @@
 ## 上线阻断项
 
 - [ ] 已确认目标环境与 API Base URL 一致。
-- [ ] Production 包已删除 HTTPS 证书绕过配置。
+- [ ] Google Play 构建已显式传入 `ALLOW_NETWORK_INSPECTION=false`。
 - [ ] Production 包没有写死 Charles、Proxyman 或其他代理地址。
 - [ ] Production 包没有携带测试抓包 CA。
-- [ ] 自有业务 Dio 和 Shopify Dio 均已恢复系统默认 TLS 校验。
+- [ ] 自有业务 Dio 和 Shopify Dio 均已通过构建开关恢复系统默认 TLS 校验。
 
 任一项未完成，禁止发布 Production 包。
 
@@ -101,54 +101,17 @@ client.badCertificateCallback = (certificate, host, port) => true;
 
 该配置会接受任意无法通过系统信任链验证的证书，只能用于当前接口联调。正式包保留该配置会产生中间人攻击风险，可能泄露 Access Token、Refresh Token 和用户业务数据。
 
-#### Production 上线代码操作
+#### Google Play 构建操作
 
-第一步：打开：
+抓包能力由编译期常量 `ALLOW_NETWORK_INSPECTION` 控制，默认值为 `true`。Google Play
+构建必须显式传入：
 
-```text
-lib/core/network/dio_provider.dart
+```bash
+flutter build appbundle --dart-define=ALLOW_NETWORK_INSPECTION=false
 ```
 
-删除整个方法：
-
-```dart
-void configureCertificateBypass(Dio dio) {
-  final adapter = IOHttpClientAdapter();
-  adapter.createHttpClient = () {
-    final client = HttpClient();
-    client.badCertificateCallback = (certificate, host, port) => true;
-    return client;
-  };
-  dio.httpClientAdapter = adapter;
-}
-```
-
-第二步：删除同一文件中的调用：
-
-```dart
-configureCertificateBypass(dio);
-```
-
-第三步：删除以下不再使用的 import：
-
-```dart
-import 'dart:io';
-import 'package:dio/io.dart';
-```
-
-第四步：打开：
-
-```text
-lib/core/network/api_providers.dart
-```
-
-删除业务 Dio 的调用：
-
-```dart
-configureCertificateBypass(dio);
-```
-
-完成后两个 Dio 都应直接使用 Dio 默认的系统 TLS 证书校验，不再设置自定义 `IOHttpClientAdapter`。
+关闭后不会读取 Android 系统代理，也不会安装自定义 `IOHttpClientAdapter`，自有业务 Dio
+和 Shopify Dio 都使用系统默认 TLS 校验。该值是编译期常量，运行时无法由用户重新开启。
 
 #### 全项目搜索检查
 
@@ -158,13 +121,12 @@ configureCertificateBypass(dio);
 rg -n "badCertificateCallback|configureCertificateBypass|findProxy|IOHttpClientAdapter|SecurityContext" lib android ios
 ```
 
-Production 预期结果：
+代码允许保留统一抓包实现，但必须确认：
 
 ```text
-badCertificateCallback：0 处
-configureCertificateBypass：0 处
-写死 findProxy：0 处
-IOHttpClientAdapter 抓包配置：0 处
+ALLOW_NETWORK_INSPECTION 默认值：true
+Google Play 构建参数：ALLOW_NETWORK_INSPECTION=false
+写死代理 IP 或端口：0 处
 测试 SecurityContext / 测试 CA：0 处
 ```
 
@@ -182,24 +144,23 @@ Production 要求：
 
 #### 人工检查
 
-- [ ] 已删除 `badCertificateCallback = (...) => true`。
-- [ ] 已删除 `configureCertificateBypass()`。
-- [ ] 已删除自有业务 Dio 的证书绕过调用。
-- [ ] 已删除 Shopify Dio 的证书绕过调用。
-- [ ] 已删除不再使用的 `dart:io` 和 `package:dio/io.dart` import。
+- [ ] Google Play 构建命令包含 `--dart-define=ALLOW_NETWORK_INSPECTION=false`。
+- [ ] 已确认关闭开关时自有业务 Dio 不安装抓包 Adapter。
+- [ ] 已确认关闭开关时 Shopify Dio 不安装抓包 Adapter。
 - [ ] 没有写死代理 IP 或端口。
 - [ ] Android Production 配置不信任用户 CA。
 - [ ] Production 包不包含测试抓包证书。
 
 #### 阻断规则
 
-Production 中只要还能搜索到接受任意证书的回调，就禁止发布。
+Google Play 构建未显式关闭 `ALLOW_NETWORK_INSPECTION` 时，禁止发布。
 
 ### 1.3 代理配置
 
 #### 当前规则
 
-项目代码不负责设置 Charles、Proxyman 等抓包工具的代理地址。代理由 Android 模拟器、真机 Wi-Fi 或调试环境单独配置。
+项目不写死 Charles、Proxyman 等代理地址。允许抓包的 Android 构建从当前系统网络读取
+代理；关闭 `ALLOW_NETWORK_INSPECTION` 后不读取或应用系统代理。
 
 #### 代码检查
 

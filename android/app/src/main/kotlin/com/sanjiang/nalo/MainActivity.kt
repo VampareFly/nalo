@@ -12,6 +12,10 @@ class MainActivity : FlutterActivity() {
             binaryMessenger = flutterEngine.dartExecutor.binaryMessenger,
             context = applicationContext,
         )
+        SystemProxyChannel.register(
+            binaryMessenger = flutterEngine.dartExecutor.binaryMessenger,
+            context = applicationContext,
+        )
         notificationPermissionChannel = NotificationPermissionChannel(this)
         notificationPermissionChannel.register(
             binaryMessenger = flutterEngine.dartExecutor.binaryMessenger,
