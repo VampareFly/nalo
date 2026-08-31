@@ -233,6 +233,8 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
         .report(
           AnalyticsEvent.createAccountRequestResult,
           properties: {
+            AnalyticsEventProperty.pageName:
+                AnalyticsPageName.createAccount.value,
             ...createAccountAnalyticsProperties(
               email: profile.email,
               name: profile.fullName,

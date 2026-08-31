@@ -356,6 +356,9 @@ class _HomeDashboardBody extends StatelessWidget {
                 onEntryVisibility('referral', AnalyticsEvent.referralView, {
                   AnalyticsEventProperty.pageName:
                       AnalyticsPageName.tabHome.value,
+                  // TODO: <pf> 服务端提供结构化折扣比例后替换固定值 10。
+                  AnalyticsEventProperty.discountPercent: 10,
+                  AnalyticsEventProperty.url: offer.actionUrl,
                 }, fraction),
             child: _ReferralCard(offer: offer, onPressed: onReferralPressed),
           ),

@@ -1,4 +1,5 @@
-// 检测流程页面集合：按 Provider 状态渲染说明、计时、拍照、确认、庆祝和结果页面。
+// 检测流程页面集合：渲染各步骤 UI，并上报页面内点击、曝光及结果交互。
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -6,6 +7,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
@@ -13,6 +15,14 @@ import 'package:nalo/features/test_flow/presentation/widgets/native_camera_view.
 import 'package:nalo/features/test_flow/presentation/widgets/test_flow_widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+
+const _analyticsVisibleFraction = 0.1;
+const _celebrationDescription =
+    'Consistent testing is everything. Each result builds a clearer picture '
+    'of your hormone patterns over time. Keep going — your data is working for you.';
+const _testAgainDescription =
+    'Patterns build over time. The more you test, the clearer the picture.';
 
 Future<void> _openReferralLink(String link) async {
   final uri = Uri.tryParse(link);
@@ -27,18 +37,101 @@ Future<void> _openReferralLink(String link) async {
 }
 
 /// 展示检测类型选择、注意事项和最近三次结果。
-class AboutTestScreen extends ConsumerWidget {
+class AboutTestScreen extends ConsumerStatefulWidget {
   const AboutTestScreen({required this.onClose, super.key});
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AboutTestScreen> createState() => _AboutTestScreenState();
+}
+
+class _AboutTestScreenState extends ConsumerState<AboutTestScreen> {
+  final Set<String> _viewedSections = {};
+  final Set<String> _viewedItems = {};
+
+  void _selectType(DetectionType type) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testTypeClick,
+        properties: {
+          AnalyticsEventProperty.pageName: AnalyticsPageName.testAbout.value,
+          AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+            type,
+          ).value,
+        },
+      ),
+    );
+    unawaited(ref.read(testFlowProvider.notifier).selectType(type));
+  }
+
+  void _startTest(TestFlowState state) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testStartClick,
+        properties: _testFlowProperties(
+          AnalyticsPageName.testAbout,
+          state.type,
+        ),
+      ),
+    );
+    ref.read(testFlowProvider.notifier).showBeforeStart();
+  }
+
+  void _reportSectionView(TestFlowState state, double visibleFraction) {
+    if (state.isLoading || visibleFraction < _analyticsVisibleFraction) return;
+    final detectionType = _analyticsDetectionType(state.type);
+    final key = '${AnalyticsPageName.testAbout.value}:${detectionType.value}';
+    if (!_viewedSections.add(key)) return;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultSectionView,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testAbout, state.type),
+          AnalyticsEventProperty.itemCount: state.recent.length,
+          AnalyticsEventProperty.position: 1,
+        },
+      ),
+    );
+  }
+
+  void _reportItemView(
+    RecentDetection item,
+    DetectionType type,
+    int position,
+    double visibleFraction,
+  ) {
+    if (visibleFraction < _analyticsVisibleFraction) return;
+    final detectionType = _analyticsDetectionType(type);
+    final testId = item.id.toString();
+    final key =
+        '${AnalyticsPageName.testAbout.value}:${detectionType.value}:$testId';
+    if (!_viewedItems.add(key)) return;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultItemView,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testAbout, type),
+          AnalyticsEventProperty.testId: testId,
+          AnalyticsEventProperty.position: position,
+          AnalyticsEventProperty.date: item.date,
+          AnalyticsEventProperty.timePeriod: item.period,
+          AnalyticsEventProperty.value: item.value,
+          AnalyticsEventProperty.unit: item.unit,
+          AnalyticsEventProperty.typicalRange: item.typicalRange,
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(testFlowProvider);
     return _PaperPage(
+      scrollable: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FlowTopBar(onClose: onClose, center: const FlowNaloMark()),
+          FlowTopBar(onClose: widget.onClose, center: const FlowNaloMark()),
           const SizedBox(height: 24),
           const Text.rich(
             TextSpan(
@@ -112,6 +205,7 @@ class AboutTestScreen extends ConsumerWidget {
                 child: _TypeButton(
                   type: DetectionType.cortisol,
                   selected: state.type == DetectionType.cortisol,
+                  onPressed: _selectType,
                 ),
               ),
               const SizedBox(width: 8),
@@ -119,32 +213,36 @@ class AboutTestScreen extends ConsumerWidget {
                 child: _TypeButton(
                   type: DetectionType.testosterone,
                   selected: state.type == DetectionType.testosterone,
+                  onPressed: _selectType,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          Expanded(
-            child: FlowCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const FlowSectionLabel('Last 3 tests'),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: RecentResultsList(
-                      items: state.recent,
-                      type: state.type,
-                    ),
-                  ),
-                ],
-              ),
+          FlowCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                VisibilityDetector(
+                  key: ValueKey('test-about-section-${state.type.name}'),
+                  onVisibilityChanged: (info) =>
+                      _reportSectionView(state, info.visibleFraction),
+                  child: const FlowSectionLabel('Last 3 tests'),
+                ),
+                const SizedBox(height: 12),
+                RecentResultsList(
+                  items: state.recent,
+                  type: state.type,
+                  shrinkWrap: true,
+                  onItemVisibilityChanged: _reportItemView,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
           FlowPrimaryButton(
             label: 'Start test',
-            onPressed: ref.read(testFlowProvider.notifier).showBeforeStart,
+            onPressed: () => _startTest(state),
           ),
         ],
       ),
@@ -152,15 +250,20 @@ class AboutTestScreen extends ConsumerWidget {
   }
 }
 
-class _TypeButton extends ConsumerWidget {
-  const _TypeButton({required this.type, required this.selected});
+class _TypeButton extends StatelessWidget {
+  const _TypeButton({
+    required this.type,
+    required this.selected,
+    required this.onPressed,
+  });
   final DetectionType type;
   final bool selected;
+  final ValueChanged<DetectionType> onPressed;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => SizedBox(
+  Widget build(BuildContext context) => SizedBox(
     height: 48,
     child: OutlinedButton(
-      onPressed: () => ref.read(testFlowProvider.notifier).selectType(type),
+      onPressed: () => onPressed(type),
       style: OutlinedButton.styleFrom(
         backgroundColor: selected ? flowBlue : Colors.white,
         foregroundColor: selected ? Colors.white : flowBlue,
@@ -175,9 +278,18 @@ class _TypeButton extends ConsumerWidget {
 
 /// 在检测介绍页和结果页复用的最近三次检测列表。
 class RecentResultsList extends StatelessWidget {
-  const RecentResultsList({required this.items, required this.type, super.key});
+  const RecentResultsList({
+    required this.items,
+    required this.type,
+    this.shrinkWrap = false,
+    this.onItemVisibilityChanged,
+    super.key,
+  });
   final List<RecentDetection> items;
   final DetectionType type;
+  final bool shrinkWrap;
+  final void Function(RecentDetection, DetectionType, int, double)?
+  onItemVisibilityChanged;
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
@@ -201,12 +313,13 @@ class RecentResultsList extends StatelessWidget {
     }
     return ListView.separated(
       padding: EdgeInsets.zero,
-      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: shrinkWrap,
+      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       itemCount: items.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, index) {
         final item = items[index];
-        return Container(
+        final row = Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: const Color(0xFFEAF6FB),
@@ -242,53 +355,133 @@ class RecentResultsList extends StatelessWidget {
             ],
           ),
         );
+        final onVisibilityChanged = this.onItemVisibilityChanged;
+        if (onVisibilityChanged == null) return row;
+        return VisibilityDetector(
+          key: ValueKey('test-about-item-${type.name}-${item.id}'),
+          onVisibilityChanged: (info) =>
+              onVisibilityChanged(item, type, index + 1, info.visibleFraction),
+          child: row,
+        );
       },
     );
   }
 }
 
 /// 展示正式检测开始前的准备要求。
-class BeforeStartScreen extends ConsumerWidget {
+class BeforeStartScreen extends ConsumerStatefulWidget {
   const BeforeStartScreen({required this.onBack, super.key});
   final VoidCallback onBack;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) => _PaperPage(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FlowTopBar(onBack: onBack),
-        const SizedBox(height: 24),
-        const Text(
-          'Before you start.',
-          style: TextStyle(
-            color: flowInk,
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
+  ConsumerState<BeforeStartScreen> createState() => _BeforeStartScreenState();
+}
+
+class _BeforeStartScreenState extends ConsumerState<BeforeStartScreen> {
+  final Set<int> _viewedTips = {};
+
+  void _reportTip(
+    TestFlowState state,
+    int position,
+    String title,
+    String desc,
+    double visibleFraction,
+  ) {
+    if (visibleFraction < _analyticsVisibleFraction ||
+        !_viewedTips.add(position)) {
+      return;
+    }
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testPreparationTipView,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testBeforeStart, state.type),
+          AnalyticsEventProperty.position: position,
+          AnalyticsEventProperty.title: title,
+          AnalyticsEventProperty.desc: desc,
+        },
+      ),
+    );
+  }
+
+  void _beginSwab(TestFlowState state) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testReadyClick,
+        properties: _testFlowProperties(
+          AnalyticsPageName.testBeforeStart,
+          state.type,
+        ),
+      ),
+    );
+    ref.read(testFlowProvider.notifier).beginSwab();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(testFlowProvider);
+    const firstTitle = 'No eating, drinking or brushing';
+    const firstDesc = 'for 30 minutes before the test.';
+    const secondTitle = 'Test at the same time';
+    const secondDesc =
+        'For the most consistent results, test at the same time of day each time.';
+    return _PaperPage(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FlowTopBar(onBack: widget.onBack),
+          const SizedBox(height: 24),
+          const Text(
+            'Before you start.',
+            style: TextStyle(
+              color: flowInk,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
-        const _PreparationCard(
-          icon: Icons.schedule,
-          iconColor: flowBlue,
-          title: 'No eating, drinking or brushing',
-          body: 'for 30 minutes before the test.',
-        ),
-        const SizedBox(height: 16),
-        const _PreparationCard(
-          icon: Icons.notifications_none,
-          iconColor: Color(0xFFF5A623),
-          title: 'Test at the same time',
-          body:
-              'For the most consistent results, test at the same time of day each time.',
-        ),
-        const Spacer(),
-        FlowPrimaryButton(
-          label: "Ready, let's go",
-          onPressed: ref.read(testFlowProvider.notifier).beginSwab,
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 24),
+          VisibilityDetector(
+            key: const ValueKey('test-preparation-tip-1'),
+            onVisibilityChanged: (info) => _reportTip(
+              state,
+              1,
+              firstTitle,
+              firstDesc,
+              info.visibleFraction,
+            ),
+            child: const _PreparationCard(
+              icon: Icons.schedule,
+              iconColor: flowBlue,
+              title: firstTitle,
+              body: firstDesc,
+            ),
+          ),
+          const SizedBox(height: 16),
+          VisibilityDetector(
+            key: const ValueKey('test-preparation-tip-2'),
+            onVisibilityChanged: (info) => _reportTip(
+              state,
+              2,
+              secondTitle,
+              secondDesc,
+              info.visibleFraction,
+            ),
+            child: const _PreparationCard(
+              icon: Icons.notifications_none,
+              iconColor: Color(0xFFF5A623),
+              title: secondTitle,
+              body: secondDesc,
+            ),
+          ),
+          const Spacer(),
+          FlowPrimaryButton(
+            label: "Ready, let's go",
+            onPressed: () => _beginSwab(state),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _PreparationCard extends StatelessWidget {
@@ -408,7 +601,14 @@ class TestTimerScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: state.timerStatus == TimerStatus.paused
-                      ? controller.resumeTimer
+                      ? () {
+                          _reportTimerClick(
+                            ref,
+                            state,
+                            AnalyticsTimerAction.resume,
+                          );
+                          controller.resumeTimer();
+                        }
                       : () => _pause(context, ref, isDevelop),
                   child: Text(
                     state.timerStatus == TimerStatus.paused
@@ -429,7 +629,10 @@ class TestTimerScreen extends ConsumerWidget {
           if (state.timerStatus == TimerStatus.complete)
             FlowPrimaryButton(
               label: 'Next',
-              onPressed: controller.nextAfterTimer,
+              onPressed: () {
+                _reportTimerClick(ref, state, AnalyticsTimerAction.next);
+                controller.nextAfterTimer();
+              },
             )
           else
             FlowOutlineButton(
@@ -443,35 +646,127 @@ class TestTimerScreen extends ConsumerWidget {
 
   /// 显色阶段暂停前提示试纸仍会继续显色。
   Future<void> _pause(BuildContext context, WidgetRef ref, bool warning) async {
+    final state = ref.read(testFlowProvider);
     if (warning) {
+      const title = 'Pause timer?';
+      const desc =
+          'The strip will continue developing while the timer is paused.';
+      _reportTimerAlertView(
+        ref,
+        state,
+        AnalyticsTimerAlertAction.pause,
+        title,
+        desc,
+      );
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (_) => const _RiskDialog(
-          title: 'Pause timer?',
-          body: 'The strip will continue developing while the timer is paused.',
-          confirm: 'Pause',
-        ),
+        builder: (_) =>
+            const _RiskDialog(title: title, body: desc, confirm: 'Pause'),
+      );
+      if (!context.mounted) return;
+      _reportTimerAlertClick(
+        ref,
+        state,
+        AnalyticsTimerAlertAction.pause,
+        confirmed == true,
       );
       if (confirmed != true) return;
     }
+    _reportTimerClick(ref, state, AnalyticsTimerAction.pause);
     ref.read(testFlowProvider.notifier).pauseTimer();
   }
 
   /// 显色阶段跳过前要求用户确认已实际等待满十五分钟。
   Future<void> _skip(BuildContext context, WidgetRef ref, bool warning) async {
+    final state = ref.read(testFlowProvider);
     if (warning) {
+      const title = 'Skip timer?';
+      const desc =
+          'Only continue if the strip has already developed for the full 15 minutes.';
+      _reportTimerAlertView(
+        ref,
+        state,
+        AnalyticsTimerAlertAction.skip,
+        title,
+        desc,
+      );
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (_) => const _RiskDialog(
-          title: 'Skip timer?',
-          body:
-              'Only continue if the strip has already developed for the full 15 minutes.',
-          confirm: 'Continue',
-        ),
+        builder: (_) =>
+            const _RiskDialog(title: title, body: desc, confirm: 'Continue'),
+      );
+      if (!context.mounted) return;
+      _reportTimerAlertClick(
+        ref,
+        state,
+        AnalyticsTimerAlertAction.skip,
+        confirmed == true,
       );
       if (confirmed != true) return;
     }
+    _reportTimerClick(ref, state, AnalyticsTimerAction.skip);
     ref.read(testFlowProvider.notifier).skipTimer();
+  }
+
+  void _reportTimerClick(
+    WidgetRef ref,
+    TestFlowState state,
+    AnalyticsTimerAction action,
+  ) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testTimerClick,
+        properties: {
+          ..._testFlowProperties(_timerPageName(state.step), state.type),
+          AnalyticsEventProperty.action: action.value,
+          AnalyticsEventProperty.timerDurationSeconds:
+              state.timerDuration.inSeconds,
+          AnalyticsEventProperty.remainingSeconds: _remainingSeconds(
+            state.remaining,
+          ),
+        },
+      ),
+    );
+  }
+
+  void _reportTimerAlertView(
+    WidgetRef ref,
+    TestFlowState state,
+    AnalyticsTimerAlertAction timerAction,
+    String title,
+    String desc,
+  ) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testTimerAlertView,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testDevelop, state.type),
+          AnalyticsEventProperty.timerAction: timerAction.value,
+          AnalyticsEventProperty.title: title,
+          AnalyticsEventProperty.desc: desc,
+        },
+      ),
+    );
+  }
+
+  void _reportTimerAlertClick(
+    WidgetRef ref,
+    TestFlowState state,
+    AnalyticsTimerAlertAction timerAction,
+    bool confirmed,
+  ) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testTimerAlertClick,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testDevelop, state.type),
+          AnalyticsEventProperty.timerAction: timerAction.value,
+          AnalyticsEventProperty.action: confirmed
+              ? AnalyticsConfirmationAction.confirm.value
+              : AnalyticsConfirmationAction.cancel.value,
+        },
+      ),
+    );
   }
 }
 
@@ -567,6 +862,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   bool _initializing = false;
   bool _cameraReady = false;
   bool _capturing = false;
+  bool _cameraInitResultReported = false;
+  bool _guideReported = false;
   Key _cameraViewKey = UniqueKey();
 
   @override
@@ -601,6 +898,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       setState(() {
         _permission = CameraPermissionState.loading;
         _cameraReady = false;
+        _cameraInitResultReported = false;
         _cameraViewKey = UniqueKey();
       });
     }
@@ -614,6 +912,19 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           NativeCameraPermissionStatus.restricted =>
             CameraPermissionState.permanentlyDenied,
         };
+        _reportPermissionResult(
+          status == NativeCameraPermissionStatus.granted
+              ? AnalyticsCameraPermissionStatus.granted
+              : AnalyticsCameraPermissionStatus.permanentlyDeniedOrRestricted,
+          isSuccess: status == NativeCameraPermissionStatus.granted,
+          failReason: switch (status) {
+            NativeCameraPermissionStatus.granted => '',
+            NativeCameraPermissionStatus.denied =>
+              'permission_permanently_denied: Camera permission permanently denied',
+            NativeCameraPermissionStatus.restricted =>
+              'permission_restricted: Camera permission restricted',
+          },
+        );
         setState(() => _permission = permission);
         return;
       }
@@ -626,9 +937,34 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         PermissionStatus.restricted => CameraPermissionState.permanentlyDenied,
         _ => CameraPermissionState.denied,
       };
+      final analyticsStatus = switch (status) {
+        PermissionStatus.granted => AnalyticsCameraPermissionStatus.granted,
+        PermissionStatus.permanentlyDenied || PermissionStatus.restricted =>
+          AnalyticsCameraPermissionStatus.permanentlyDeniedOrRestricted,
+        _ => AnalyticsCameraPermissionStatus.denied,
+      };
+      _reportPermissionResult(
+        analyticsStatus,
+        isSuccess: status == PermissionStatus.granted,
+        failReason: switch (status) {
+          PermissionStatus.granted => '',
+          PermissionStatus.permanentlyDenied =>
+            'permission_permanently_denied: Camera permission permanently denied',
+          PermissionStatus.restricted =>
+            'permission_restricted: Camera permission restricted',
+          _ => 'permission_denied: Camera permission denied',
+        },
+      );
       setState(() => _permission = permission);
     } catch (_) {
-      if (mounted) setState(() => _permission = CameraPermissionState.failed);
+      if (mounted) {
+        _reportPermissionResult(
+          AnalyticsCameraPermissionStatus.failed,
+          isSuccess: false,
+          failReason: 'permission_check_failed: Camera permission check failed',
+        );
+        setState(() => _permission = CameraPermissionState.failed);
+      }
     } finally {
       _initializing = false;
     }
@@ -637,12 +973,45 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   /// 调用原生高质量拍照并将临时文件交给流程状态进入预览页。
   Future<void> _takePhoto() async {
     if (!_cameraReady || _capturing) return;
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testPhotoCaptureClick,
+        properties: _testFlowProperties(
+          AnalyticsPageName.testCapture,
+          state.type,
+        ),
+      ),
+    );
     setState(() => _capturing = true);
     try {
       final path = await _camera.capture();
-      if (mounted) ref.read(testFlowProvider.notifier).setPhoto(path);
+      if (mounted) {
+        unawaited(
+          ref.report(
+            AnalyticsEvent.testPhotoCaptureResult,
+            properties: {
+              ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+              AnalyticsEventProperty.isSuccess: 1,
+              AnalyticsEventProperty.failReason: '',
+            },
+          ),
+        );
+        ref.read(testFlowProvider.notifier).setPhoto(path);
+      }
     } catch (_) {
       if (mounted) {
+        unawaited(
+          ref.report(
+            AnalyticsEvent.testPhotoCaptureResult,
+            properties: {
+              ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+              AnalyticsEventProperty.isSuccess: 0,
+              AnalyticsEventProperty.failReason:
+                  'photo_capture_failed: Photo capture failed',
+            },
+          ),
+        );
         setState(() {
           _cameraReady = false;
           _permission = CameraPermissionState.failed;
@@ -651,6 +1020,73 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+
+  void _reportPermissionResult(
+    AnalyticsCameraPermissionStatus status, {
+    required bool isSuccess,
+    required String failReason,
+  }) {
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testCameraPermissionResult,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          AnalyticsEventProperty.permissionStatus: status.value,
+          AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
+          AnalyticsEventProperty.failReason: failReason,
+        },
+      ),
+    );
+  }
+
+  void _reportPermissionClick(AnalyticsCameraPermissionAction action) {
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testCameraPermissionClick,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          AnalyticsEventProperty.action: action.value,
+        },
+      ),
+    );
+  }
+
+  void _reportCameraInitResult({required bool isSuccess}) {
+    if (_cameraInitResultReported) return;
+    _cameraInitResultReported = true;
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testCameraInitResult,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
+          AnalyticsEventProperty.failReason: isSuccess
+              ? ''
+              : 'camera_init_failed: Camera initialization failed',
+        },
+      ),
+    );
+  }
+
+  void _reportCaptureGuideView() {
+    if (_guideReported) return;
+    _guideReported = true;
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testCaptureGuideView,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          AnalyticsEventProperty.title: 'Hold steady and align the entire test',
+          AnalyticsEventProperty.desc:
+              'Place the cassette flat on a plain, dark surface.\nCenter the entire cassette inside the frame.',
+        },
+      ),
+    );
   }
 
   @override
@@ -739,7 +1175,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           title: 'Camera access is required',
           body: 'Allow camera access to photograph your test cassette.',
           button: 'Allow camera access',
-          onPressed: _initialize,
+          onPressed: () {
+            _reportPermissionClick(AnalyticsCameraPermissionAction.allow);
+            return _initialize();
+          },
         );
       case CameraPermissionState.permanentlyDenied:
         return _PermissionMessage(
@@ -747,6 +1186,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           body: 'Open Settings and allow Nalo to use the camera.',
           button: 'Open Settings',
           onPressed: () async {
+            _reportPermissionClick(
+              AnalyticsCameraPermissionAction.openSettings,
+            );
             await openAppSettings();
           },
         );
@@ -755,7 +1197,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           title: 'Camera unavailable',
           body: 'We could not start the camera. Please try again.',
           button: 'Try again',
-          onPressed: _initialize,
+          onPressed: () {
+            _reportPermissionClick(AnalyticsCameraPermissionAction.retry);
+            return _initialize();
+          },
         );
       case CameraPermissionState.ready:
         // TODO: <pf> 原生成像效果确认后，再决定是否恢复光线、模糊和移动的实时拍照门槛。
@@ -768,10 +1213,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                 key: _cameraViewKey,
                 controller: _camera,
                 onReady: () {
-                  if (mounted) setState(() => _cameraReady = true);
+                  if (!mounted) return;
+                  _reportCameraInitResult(isSuccess: true);
+                  setState(() => _cameraReady = true);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _reportCaptureGuideView();
+                  });
                 },
                 onError: (_) {
                   if (!mounted) return;
+                  _reportCameraInitResult(isSuccess: false);
                   setState(() {
                     _cameraReady = false;
                     _permission = CameraPermissionState.failed;
@@ -902,11 +1353,70 @@ class _CassetteFramePainter extends CustomPainter {
 }
 
 /// 展示拍摄结果，由用户选择重拍或上传分析。
-class PhotoPreviewScreen extends ConsumerWidget {
+class PhotoPreviewScreen extends ConsumerStatefulWidget {
   const PhotoPreviewScreen({required this.onBack, super.key});
   final VoidCallback onBack;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PhotoPreviewScreen> createState() => _PhotoPreviewScreenState();
+}
+
+class _PhotoPreviewScreenState extends ConsumerState<PhotoPreviewScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = ref.read(testFlowProvider);
+      unawaited(
+        ref.report(
+          AnalyticsEvent.testPhotoPreviewView,
+          properties: {
+            ..._testFlowProperties(
+              AnalyticsPageName.testPhotoPreview,
+              state.type,
+            ),
+            AnalyticsEventProperty.title: 'Photo capture',
+            AnalyticsEventProperty.desc:
+                'Make sure the entire cassette is visible and clear',
+          },
+        ),
+      );
+    });
+  }
+
+  void _retake(TestFlowState state) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testPhotoRetakeClick,
+        properties: {
+          ..._testFlowProperties(
+            AnalyticsPageName.testPhotoPreview,
+            state.type,
+          ),
+          AnalyticsEventProperty.method:
+              AnalyticsPhotoRetakeMethod.retakeButton.value,
+        },
+      ),
+    );
+    ref.read(testFlowProvider.notifier).retake();
+  }
+
+  void _usePhoto(TestFlowState state) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testPhotoUseClick,
+        properties: _testFlowProperties(
+          AnalyticsPageName.testPhotoPreview,
+          state.type,
+        ),
+      ),
+    );
+    unawaited(ref.read(testFlowProvider.notifier).analyzePhoto());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(testFlowProvider);
     final path = state.photoPath;
     return ColoredBox(
@@ -916,7 +1426,11 @@ class PhotoPreviewScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           child: Column(
             children: [
-              FlowTopBar(title: 'Photo capture', onBack: onBack, dark: true),
+              FlowTopBar(
+                title: 'Photo capture',
+                onBack: widget.onBack,
+                dark: true,
+              ),
               const SizedBox(height: 24),
               const Text(
                 'Make sure the entire cassette is visible and clear',
@@ -940,12 +1454,10 @@ class PhotoPreviewScreen extends ConsumerWidget {
                         state.analysisError ==
                             DetectionAnalysisError.recognitionFailed
                     ? null
-                    : ref.read(testFlowProvider.notifier).analyzePhoto,
+                    : () => _usePhoto(state),
               ),
               TextButton.icon(
-                onPressed: state.isLoading
-                    ? null
-                    : ref.read(testFlowProvider.notifier).retake,
+                onPressed: state.isLoading ? null : () => _retake(state),
                 icon: const Icon(Icons.replay, color: Colors.white70, size: 18),
                 label: const Text(
                   'Retake',
@@ -972,15 +1484,51 @@ class PhotoPreviewScreen extends ConsumerWidget {
   }
 }
 
-/// 展示服务端识别区间，并允许用户修正区间、日期和检测时段。
-class ConfirmResultScreen extends ConsumerWidget {
+/// 展示服务端识别区间，并上报用户对区间、日期和检测时段的确认操作。
+class ConfirmResultScreen extends ConsumerStatefulWidget {
   const ConfirmResultScreen({required this.onClose, super.key});
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConfirmResultScreen> createState() =>
+      _ConfirmResultScreenState();
+}
+
+class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
+  bool _viewReported = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reportView());
+  }
+
+  void _reportView() {
+    if (!mounted || _viewReported) return;
+    final state = ref.read(testFlowProvider);
+    final analysis = state.analysis;
+    if (analysis == null) return;
+    _viewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultConfirmView,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResultConfirm, state),
+          AnalyticsEventProperty.aiValue: analysis.aiValue,
+          AnalyticsEventProperty.aiValueResultLevel:
+              analysis.aiValueResultLevel,
+          AnalyticsEventProperty.detectionTimePeriods:
+              analysis.detectionTimePeriod,
+          AnalyticsEventProperty.unit: analysis.unit,
+          AnalyticsEventProperty.typicalRange: analysis.typicalRange,
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(testFlowProvider);
-    final controller = ref.read(testFlowProvider.notifier);
     final analysis = state.analysis;
     final config = state.effectiveConfig;
     final matchingPeriods = config.timePeriods.options.where(
@@ -992,7 +1540,7 @@ class ConfirmResultScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FlowTopBar(title: state.type.label, onClose: onClose),
+          FlowTopBar(title: state.type.label, onClose: widget.onClose),
           const SizedBox(height: 24),
           const Text(
             'Confirm your result.',
@@ -1108,7 +1656,11 @@ class ConfirmResultScreen extends ConsumerWidget {
                 for (final option in state.readingOptions.options) ...[
                   FlowChoiceTile(
                     selected: state.selectedLevel == option.value,
-                    onTap: () => controller.selectLevel(option.value),
+                    onTap: () => _selectLevel(
+                      state,
+                      option.value,
+                      state.readingOptions.options.indexOf(option) + 1,
+                    ),
                     child: Text(
                       option.label,
                       style: const TextStyle(
@@ -1144,7 +1696,7 @@ class ConfirmResultScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: InkWell(
-                        onTap: () => _selectDate(context, ref),
+                        onTap: () => _selectDate(context, state),
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
                           height: 44,
@@ -1184,7 +1736,11 @@ class ConfirmResultScreen extends ConsumerWidget {
                 for (final option in config.timePeriods.options) ...[
                   FlowChoiceTile(
                     selected: state.selectedTimePeriod == option.value,
-                    onTap: () => controller.selectTimePeriod(option.value),
+                    onTap: () => _selectTimePeriod(
+                      state,
+                      option.value,
+                      config.timePeriods.options.indexOf(option) + 1,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1237,7 +1793,7 @@ class ConfirmResultScreen extends ConsumerWidget {
                     state.selectedTimePeriod == null ||
                     state.isLoading
                 ? null
-                : controller.saveResult,
+                : () => _saveResult(state),
           ),
           if (state.errorMessage != null) ...[
             const SizedBox(height: 12),
@@ -1252,9 +1808,33 @@ class ConfirmResultScreen extends ConsumerWidget {
     );
   }
 
-  /// 仅选择年月日，并强制日期选择器使用英文区域格式。
-  Future<void> _selectDate(BuildContext context, WidgetRef ref) async {
-    final current = ref.read(testFlowProvider).sampledAt ?? DateTime.now();
+  /// 上报用户实际点击的读数区间，再同步当前选择。
+  void _selectLevel(TestFlowState state, String value, int position) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultLevelClick,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResultConfirm, state),
+          AnalyticsEventProperty.finalLevel: value,
+          AnalyticsEventProperty.position: position,
+        },
+      ),
+    );
+    ref.read(testFlowProvider.notifier).selectLevel(value);
+  }
+
+  /// 点击日期区域时先上报当前值，日期弹窗取消不撤销点击事件。
+  Future<void> _selectDate(BuildContext context, TestFlowState state) async {
+    final current = state.sampledAt ?? DateTime.now();
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultDateClick,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResultConfirm, state),
+          AnalyticsEventProperty.sampledAt: _analyticsDate(current),
+        },
+      ),
+    );
     final date = await showDatePicker(
       context: context,
       initialDate: current,
@@ -1265,6 +1845,37 @@ class ConfirmResultScreen extends ConsumerWidget {
     if (date != null) {
       ref.read(testFlowProvider.notifier).selectSampleDate(date);
     }
+  }
+
+  void _selectTimePeriod(TestFlowState state, String value, int position) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultTimePeriodClick,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResultConfirm, state),
+          AnalyticsEventProperty.timePeriod: value,
+          AnalyticsEventProperty.position: position,
+        },
+      ),
+    );
+    ref.read(testFlowProvider.notifier).selectTimePeriod(value);
+  }
+
+  void _saveResult(TestFlowState state) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultSaveClick,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResultConfirm, state),
+          AnalyticsEventProperty.finalLevel: state.selectedLevel ?? '',
+          AnalyticsEventProperty.sampledAt: state.sampledAt == null
+              ? ''
+              : _analyticsDate(state.sampledAt!),
+          AnalyticsEventProperty.timePeriod: state.selectedTimePeriod ?? '',
+        },
+      ),
+    );
+    unawaited(ref.read(testFlowProvider.notifier).saveResult());
   }
 }
 
@@ -1285,12 +1896,43 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     )..forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reportView());
   }
 
   @override
   void dispose() {
     _animation.dispose();
     super.dispose();
+  }
+
+  void _reportView() {
+    if (!mounted) return;
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testCelebrationView,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testCelebration, state),
+          AnalyticsEventProperty.title: 'MILESTONE REACHED',
+          AnalyticsEventProperty.desc: _celebrationDescription,
+        },
+      ),
+    );
+  }
+
+  void _continueToResult() {
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testCelebrationClick,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testCelebration, state),
+          AnalyticsEventProperty.action:
+              AnalyticsCelebrationAction.keepTesting.value,
+        },
+      ),
+    );
+    ref.read(testFlowProvider.notifier).showResult();
   }
 
   @override
@@ -1366,7 +2008,7 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen>
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Text(
-                        'Consistent testing is everything. Each result builds a clearer picture of your hormone patterns over time. Keep going — your data is working for you.',
+                        _celebrationDescription,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF2A6B8A),
@@ -1378,7 +2020,7 @@ class _MilestoneScreenState extends ConsumerState<MilestoneScreen>
                     const SizedBox(height: 20),
                     FlowPrimaryButton(
                       label: 'Keep testing',
-                      onPressed: ref.read(testFlowProvider.notifier).showResult,
+                      onPressed: _continueToResult,
                     ),
                   ],
                 ),
@@ -1439,12 +2081,181 @@ class _ConfettiPiece extends StatelessWidget {
   }
 }
 
-/// 展示服务端返回的最终读数、正常区间、说明和最近三次记录。
-class ResultDetailsScreen extends ConsumerWidget {
-  const ResultDetailsScreen({required this.onClose, super.key});
+/// 展示最终读数，并统一处理结果内容曝光、Referral 和返回首页事件。
+class ResultDetailsScreen extends ConsumerStatefulWidget {
+  const ResultDetailsScreen({
+    required this.onClose,
+    required this.onBackHome,
+    super.key,
+  });
   final VoidCallback onClose;
+  final VoidCallback onBackHome;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ResultDetailsScreen> createState() =>
+      _ResultDetailsScreenState();
+}
+
+class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
+  bool _resultViewReported = false;
+  bool _infoViewReported = false;
+  bool _sectionViewReported = false;
+  bool _reminderViewReported = false;
+  bool _referralViewReported = false;
+  final Set<String> _viewedItems = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reportResultView());
+  }
+
+  void _reportResultView() {
+    if (!mounted || _resultViewReported) return;
+    final state = ref.read(testFlowProvider);
+    final result = state.result;
+    if (result == null) return;
+    _resultViewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultView,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResult, state),
+          AnalyticsEventProperty.value: result.value ?? '',
+          AnalyticsEventProperty.unit: result.unit ?? '',
+          AnalyticsEventProperty.testTime: result.testTime ?? '',
+          AnalyticsEventProperty.typicalRange: result.typicalRange ?? '',
+          AnalyticsEventProperty.infoTitle: result.infoTitle ?? '',
+          AnalyticsEventProperty.infoContent: result.infoContent ?? '',
+        },
+      ),
+    );
+  }
+
+  void _reportInfoView(
+    TestFlowState state,
+    String title,
+    String desc,
+    double visibleFraction,
+  ) {
+    if (_infoViewReported || visibleFraction < _analyticsVisibleFraction) {
+      return;
+    }
+    _infoViewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultInfoView,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResult, state),
+          AnalyticsEventProperty.title: title,
+          AnalyticsEventProperty.desc: desc,
+        },
+      ),
+    );
+  }
+
+  void _reportSectionView(TestFlowState state, int itemCount, double fraction) {
+    if (_sectionViewReported || fraction < _analyticsVisibleFraction) return;
+    _sectionViewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultSectionView,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testResult, state.type),
+          AnalyticsEventProperty.itemCount: itemCount,
+          AnalyticsEventProperty.position: 1,
+        },
+      ),
+    );
+  }
+
+  void _reportItemView(
+    RecentDetection item,
+    DetectionType type,
+    int position,
+    double fraction,
+  ) {
+    if (fraction < _analyticsVisibleFraction) return;
+    final key = '${_analyticsDetectionType(type).value}:${item.id}';
+    if (!_viewedItems.add(key)) return;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultItemView,
+        properties: {
+          ..._testFlowProperties(AnalyticsPageName.testResult, type),
+          AnalyticsEventProperty.testId: item.id.toString(),
+          AnalyticsEventProperty.position: position,
+          AnalyticsEventProperty.date: item.date,
+          AnalyticsEventProperty.timePeriod: item.period,
+          AnalyticsEventProperty.value: item.value,
+          AnalyticsEventProperty.unit: item.unit,
+          AnalyticsEventProperty.typicalRange: item.typicalRange,
+        },
+      ),
+    );
+  }
+
+  void _reportReminderView(TestFlowState state, double fraction) {
+    if (_reminderViewReported || fraction < _analyticsVisibleFraction) return;
+    _reminderViewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testAgainReminderView,
+        properties: {
+          ..._testResultProperties(AnalyticsPageName.testResult, state),
+          AnalyticsEventProperty.title: 'Test again tomorrow',
+          AnalyticsEventProperty.desc: _testAgainDescription,
+        },
+      ),
+    );
+  }
+
+  void _reportReferralView(String url, double fraction) {
+    if (_referralViewReported || fraction < _analyticsVisibleFraction) return;
+    _referralViewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.referralView,
+        properties: _resultReferralProperties(url),
+      ),
+    );
+  }
+
+  void _openReferral(String url) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.referralClick,
+        properties: _resultReferralProperties(url),
+      ),
+    );
+    unawaited(_openReferralLink(url));
+  }
+
+  void _close(TestFlowState state) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testFlowExitClick,
+        properties: _testFlowProperties(
+          AnalyticsPageName.testResult,
+          state.type,
+        ),
+      ),
+    );
+    widget.onClose();
+  }
+
+  void _backHome(TestFlowState state) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testResultBackHomeClick,
+        properties: _testResultProperties(AnalyticsPageName.testResult, state),
+      ),
+    );
+    widget.onBackHome();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(testFlowProvider);
     final result = state.result;
     final infoTitle = result?.infoTitle ?? '';
@@ -1460,7 +2271,7 @@ class ResultDetailsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FlowTopBar(
-            onClose: onClose,
+            onClose: () => _close(state),
             center: const FlowNaloMark(),
             closeOnRight: true,
           ),
@@ -1542,132 +2353,39 @@ class ResultDetailsScreen extends ConsumerWidget {
           ),
           if (infoTitle.isNotEmpty && infoContent.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: flowSoftBlue.withValues(alpha: .3),
-                border: Border.all(color: flowBlue.withValues(alpha: .15)),
-                borderRadius: BorderRadius.circular(24),
+            VisibilityDetector(
+              key: const ValueKey('test-result-info'),
+              onVisibilityChanged: (info) => _reportInfoView(
+                state,
+                infoTitle,
+                infoContent,
+                info.visibleFraction,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    infoTitle,
-                    style: const TextStyle(
-                      color: Color(0xFF216B8F),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    infoContent,
-                    style: const TextStyle(
-                      color: Color(0xFF347C9C),
-                      fontSize: 14,
-                      height: 21 / 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-          FlowCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FlowSectionLabel(
-                  'Last 3 tests · ${state.type.label}',
-                  uppercase: false,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: flowSoftBlue.withValues(alpha: .3),
+                  border: Border.all(color: flowBlue.withValues(alpha: .15)),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: math
-                      .max(72, (result?.recent.length ?? 0) * 72)
-                      .toDouble(),
-                  child: RecentResultsList(
-                    items: result?.recent ?? const [],
-                    type: state.type,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          const FlowCard(
-            child: Row(
-              children: [
-                Icon(Icons.notifications_none, color: flowBlue, size: 18),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Test again tomorrow',
-                        style: TextStyle(
-                          color: flowInk,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text(
-                        'Patterns build over time. The more you test, the clearer the picture.',
-                        style: TextStyle(
-                          color: flowMuted,
-                          fontSize: 12,
-                          height: 16 / 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (referralOffer != null) ...[
-            const SizedBox(height: 20),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _openReferralLink(referralOffer.actionUrl),
-              child: FlowCard(
-                color: flowYellow,
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.card_giftcard, color: flowInk, size: 18),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            referralOffer.title,
-                            style: const TextStyle(
-                              color: flowInk,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            referralOffer.description,
-                            style: const TextStyle(
-                              color: Color(0xAA1A2433),
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            referralOffer.buttonText,
-                            style: const TextStyle(
-                              color: flowInk,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      infoTitle,
+                      style: const TextStyle(
+                        color: Color(0xFF216B8F),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      infoContent,
+                      style: const TextStyle(
+                        color: Color(0xFF347C9C),
+                        fontSize: 14,
+                        height: 21 / 14,
                       ),
                     ),
                   ],
@@ -1676,7 +2394,129 @@ class ResultDetailsScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 24),
-          FlowPrimaryButton(label: 'Back to home', onPressed: onClose),
+          VisibilityDetector(
+            key: const ValueKey('test-result-section'),
+            onVisibilityChanged: (info) => _reportSectionView(
+              state,
+              result?.recent.length ?? 0,
+              info.visibleFraction,
+            ),
+            child: FlowCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FlowSectionLabel(
+                    'Last 3 tests · ${state.type.label}',
+                    uppercase: false,
+                  ),
+                  const SizedBox(height: 12),
+                  RecentResultsList(
+                    items: result?.recent ?? const [],
+                    type: state.type,
+                    shrinkWrap: true,
+                    onItemVisibilityChanged: _reportItemView,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          VisibilityDetector(
+            key: const ValueKey('test-again-reminder'),
+            onVisibilityChanged: (info) =>
+                _reportReminderView(state, info.visibleFraction),
+            child: const FlowCard(
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_none, color: flowBlue, size: 18),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Test again tomorrow',
+                          style: TextStyle(
+                            color: flowInk,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          _testAgainDescription,
+                          style: TextStyle(
+                            color: flowMuted,
+                            fontSize: 12,
+                            height: 16 / 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (referralOffer != null) ...[
+            const SizedBox(height: 20),
+            VisibilityDetector(
+              key: const ValueKey('test-result-referral'),
+              onVisibilityChanged: (info) => _reportReferralView(
+                referralOffer.actionUrl,
+                info.visibleFraction,
+              ),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _openReferral(referralOffer.actionUrl),
+                child: FlowCard(
+                  color: flowYellow,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.card_giftcard, color: flowInk, size: 18),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              referralOffer.title,
+                              style: const TextStyle(
+                                color: flowInk,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              referralOffer.description,
+                              style: const TextStyle(
+                                color: Color(0xAA1A2433),
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              referralOffer.buttonText,
+                              style: const TextStyle(
+                                color: flowInk,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          FlowPrimaryButton(
+            label: 'Back to home',
+            onPressed: () => _backHome(state),
+          ),
           if (state.errorMessage != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -1724,6 +2564,61 @@ class _ResultMetric extends StatelessWidget {
       ),
     ],
   );
+}
+
+Map<AnalyticsEventProperty, Object> _testFlowProperties(
+  AnalyticsPageName pageName,
+  DetectionType type,
+) {
+  return {
+    AnalyticsEventProperty.pageName: pageName.value,
+    AnalyticsEventProperty.detectionType: _analyticsDetectionType(type).value,
+  };
+}
+
+Map<AnalyticsEventProperty, Object> _testResultProperties(
+  AnalyticsPageName pageName,
+  TestFlowState state,
+) {
+  return {
+    ..._testFlowProperties(pageName, state.type),
+    AnalyticsEventProperty.testId: state.analysis?.id.toString() ?? '',
+  };
+}
+
+Map<AnalyticsEventProperty, Object> _resultReferralProperties(String url) {
+  return {
+    AnalyticsEventProperty.pageName: AnalyticsPageName.testResult.value,
+    // TODO: <pf> 服务端提供结构化折扣比例后替换固定值 10。
+    AnalyticsEventProperty.discountPercent: 10,
+    AnalyticsEventProperty.url: url,
+  };
+}
+
+String _analyticsDate(DateTime value) {
+  return '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+}
+
+AnalyticsDetectionType _analyticsDetectionType(DetectionType type) {
+  return switch (type) {
+    DetectionType.cortisol => AnalyticsDetectionType.cortisol,
+    DetectionType.testosterone => AnalyticsDetectionType.testosterone,
+  };
+}
+
+AnalyticsPageName _timerPageName(TestFlowStep step) {
+  return switch (step) {
+    TestFlowStep.swab => AnalyticsPageName.testSwab,
+    TestFlowStep.dip => AnalyticsPageName.testDip,
+    TestFlowStep.develop => AnalyticsPageName.testDevelop,
+    _ => throw StateError('The current step is not a timer page.'),
+  };
+}
+
+int _remainingSeconds(Duration remaining) {
+  return (remaining.inMilliseconds / Duration.millisecondsPerSecond).ceil();
 }
 
 class _PaperPage extends StatelessWidget {

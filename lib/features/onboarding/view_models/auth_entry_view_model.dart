@@ -108,6 +108,8 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         .report(
           AnalyticsEvent.loginRequestResult,
           properties: {
+            AnalyticsEventProperty.pageName:
+                AnalyticsPageName.loginSignIn.value,
             AnalyticsEventProperty.loginMethod:
                 AnalyticsLoginMethod.shopify.value,
             AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,

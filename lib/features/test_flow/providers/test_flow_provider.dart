@@ -1,7 +1,8 @@
-// 检测状态层：驱动完整页面流程、基于结束时间计时，并串联 Repository 的接口操作。
+// 检测状态层：驱动页面流程与计时，并上报图片分析、结果确认和结果读取请求。
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/recent_tests_cache_provider.dart';
@@ -236,9 +237,28 @@ class TestFlowController extends Notifier<TestFlowState> {
     final remaining = _endsAt!.difference(DateTime.now());
     if (remaining <= Duration.zero) {
       _stopTicker();
+      final completedStep = state.step;
+      final completedDuration = state.timerDuration;
       state = state.copyWith(
         timerStatus: TimerStatus.complete,
         remaining: Duration.zero,
+      );
+      unawaited(
+        ref
+            .read(analyticsProvider)
+            .report(
+              AnalyticsEvent.testTimerComplete,
+              properties: {
+                AnalyticsEventProperty.pageName: _pageNameForStep(
+                  completedStep,
+                ).value,
+                AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+                  state.type,
+                ).value,
+                AnalyticsEventProperty.timerDurationSeconds:
+                    completedDuration.inSeconds,
+              },
+            ),
       );
       return;
     }
@@ -350,11 +370,30 @@ class TestFlowController extends Notifier<TestFlowState> {
       analysisError: null,
       errorMessage: null,
     );
+    var requestSucceeded = false;
     try {
       final repository = await ref.read(testFlowRepositoryProvider.future);
       final analysis = await repository.analyze(
         type: state.type,
         imagePath: path,
+      );
+      requestSucceeded = true;
+      unawaited(
+        ref
+            .read(analyticsProvider)
+            .report(
+              AnalyticsEvent.testPhotoAnalysisRequestResult,
+              properties: {
+                AnalyticsEventProperty.pageName:
+                    AnalyticsPageName.testPhotoPreview.value,
+                AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+                  state.type,
+                ).value,
+                AnalyticsEventProperty.testId: analysis.id.toString(),
+                AnalyticsEventProperty.isSuccess: 1,
+                AnalyticsEventProperty.failReason: '',
+              },
+            ),
       );
       final readingOptions = state.config.readingsFor(state.type).options;
       final selectedLevel =
@@ -380,6 +419,27 @@ class TestFlowController extends Notifier<TestFlowState> {
       );
       // TODO: <pf> 确认图片检测接口重复提交时是否会创建多个 detection_id。
     } catch (error) {
+      if (!requestSucceeded) {
+        unawaited(
+          ref
+              .read(analyticsProvider)
+              .report(
+                AnalyticsEvent.testPhotoAnalysisRequestResult,
+                properties: {
+                  AnalyticsEventProperty.pageName:
+                      AnalyticsPageName.testPhotoPreview.value,
+                  AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+                    state.type,
+                  ).value,
+                  AnalyticsEventProperty.testId: '',
+                  AnalyticsEventProperty.isSuccess: 0,
+                  AnalyticsEventProperty.failReason: _analyticsFailReason(
+                    error,
+                  ),
+                },
+              ),
+        );
+      }
       final analysisError = switch (error) {
         ApiException(code: 6000000) => DetectionAnalysisError.recognitionFailed,
         ApiException(code: 6000001) =>
@@ -419,24 +479,89 @@ class TestFlowController extends Notifier<TestFlowState> {
         state.isLoading) {
       return;
     }
+    final sampledAt = state.sampledAt;
+    final requestProperties = <AnalyticsEventProperty, Object>{
+      AnalyticsEventProperty.pageName:
+          AnalyticsPageName.testResultConfirm.value,
+      AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+        state.type,
+      ).value,
+      AnalyticsEventProperty.testId: analysis.id.toString(),
+      AnalyticsEventProperty.finalLevel: level,
+      AnalyticsEventProperty.sampledAt: sampledAt == null
+          ? ''
+          : _analyticsDate(sampledAt),
+      AnalyticsEventProperty.timePeriod: period,
+    };
     state = state.copyWith(isLoading: true, errorMessage: null);
+    var confirmRequestSucceeded = false;
     try {
       final repository = await ref.read(testFlowRepositoryProvider.future);
       final showPopup = await repository.confirm(
         type: state.type,
         finalLevel: level,
-        sampledAt: state.sampledAt,
+        sampledAt: sampledAt,
         timePeriod: period,
         detectionId: analysis.id,
+      );
+      confirmRequestSucceeded = true;
+      unawaited(
+        ref
+            .read(analyticsProvider)
+            .report(
+              AnalyticsEvent.testResultConfirmRequestResult,
+              properties: {
+                ...requestProperties,
+                AnalyticsEventProperty.showPopup: showPopup ? 1 : 0,
+                AnalyticsEventProperty.isSuccess: 1,
+                AnalyticsEventProperty.failReason: '',
+              },
+            ),
       );
       DetectionResult? result;
       String? resultError;
       try {
         result = await repository.fullResult(state.type);
+        unawaited(
+          ref
+              .read(analyticsProvider)
+              .report(
+                AnalyticsEvent.testResultRequestResult,
+                properties: {
+                  AnalyticsEventProperty.pageName:
+                      AnalyticsPageName.testResultConfirm.value,
+                  AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+                    state.type,
+                  ).value,
+                  AnalyticsEventProperty.testId: analysis.id.toString(),
+                  AnalyticsEventProperty.isSuccess: 1,
+                  AnalyticsEventProperty.failReason: '',
+                },
+              ),
+        );
         ref
             .read(recentTestsCacheProvider.notifier)
             .replace(state.type, result.recent);
       } catch (error) {
+        unawaited(
+          ref
+              .read(analyticsProvider)
+              .report(
+                AnalyticsEvent.testResultRequestResult,
+                properties: {
+                  AnalyticsEventProperty.pageName:
+                      AnalyticsPageName.testResultConfirm.value,
+                  AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+                    state.type,
+                  ).value,
+                  AnalyticsEventProperty.testId: analysis.id.toString(),
+                  AnalyticsEventProperty.isSuccess: 0,
+                  AnalyticsEventProperty.failReason: _analyticsFailReason(
+                    error,
+                  ),
+                },
+              ),
+        );
         resultError = _friendlyError(error);
       }
       state = state.copyWith(
@@ -449,6 +574,23 @@ class TestFlowController extends Notifier<TestFlowState> {
       // TODO: <pf> 确认结果确认接口重复提交是否会重复计入 cycle。
       // TODO: <pf> 确认 detections/result 始终返回刚完成确认的最新结果。
     } catch (error) {
+      if (!confirmRequestSucceeded) {
+        unawaited(
+          ref
+              .read(analyticsProvider)
+              .report(
+                AnalyticsEvent.testResultConfirmRequestResult,
+                properties: {
+                  ...requestProperties,
+                  AnalyticsEventProperty.showPopup: -1,
+                  AnalyticsEventProperty.isSuccess: 0,
+                  AnalyticsEventProperty.failReason: _analyticsFailReason(
+                    error,
+                  ),
+                },
+              ),
+        );
+      }
       state = state.copyWith(
         isLoading: false,
         errorMessage: _friendlyError(error),
@@ -488,6 +630,40 @@ class TestFlowController extends Notifier<TestFlowState> {
       _ => 'Something went wrong. Please try again.',
     };
   }
+}
+
+AnalyticsDetectionType _analyticsDetectionType(DetectionType type) {
+  return switch (type) {
+    DetectionType.cortisol => AnalyticsDetectionType.cortisol,
+    DetectionType.testosterone => AnalyticsDetectionType.testosterone,
+  };
+}
+
+AnalyticsPageName _pageNameForStep(TestFlowStep step) {
+  return switch (step) {
+    TestFlowStep.swab => AnalyticsPageName.testSwab,
+    TestFlowStep.dip => AnalyticsPageName.testDip,
+    TestFlowStep.develop => AnalyticsPageName.testDevelop,
+    _ => throw StateError('The current step is not a timer page.'),
+  };
+}
+
+String _analyticsFailReason(Object error) {
+  return switch (error) {
+    ApiException(:final code, :final message) => '$code: $message',
+    NetworkException(type: NetworkExceptionType.timeout) =>
+      'network_timeout: Request timed out',
+    NetworkException(type: NetworkExceptionType.connection) =>
+      'network_error: Request failed',
+    ResponseFormatException() => 'invalid_response: Response is invalid',
+    _ => 'unknown_error: Unknown request error',
+  };
+}
+
+String _analyticsDate(DateTime value) {
+  return '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 }
 
 /// 检测流程页面统一监听和调用的 Riverpod Provider。

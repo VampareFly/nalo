@@ -85,7 +85,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        name: AnalyticsPageName.testFlow.value,
         path: TestFlowPage.path,
         builder: (context, state) => const TestFlowPage(),
       ),

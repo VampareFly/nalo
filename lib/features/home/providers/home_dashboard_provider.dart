@@ -56,6 +56,7 @@ List<RecentDetection> _cachedResultsFor(HomeIndexData data, String type) {
       .expand((group) => group.items)
       .map(
         (item) => RecentDetection(
+          id: item.id,
           date: item.date,
           period: item.timePeriod,
           value: item.value,

@@ -249,6 +249,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
         .report(
           AnalyticsEvent.shopShopifyUrlRequest,
           properties: {
+            AnalyticsEventProperty.pageName: AnalyticsPageName.tabShop.value,
             AnalyticsEventProperty.productId: product.productId.toString(),
             AnalyticsEventProperty.variantId: product.variantId.toString(),
             AnalyticsEventProperty.url: url,

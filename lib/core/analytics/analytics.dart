@@ -31,7 +31,43 @@ enum AnalyticsEvent {
   under18AlertGoBackClick('under_18_alert_goback_click'),
   notificationEnableClick('notification_enable_click'),
   startJourney('start_journey'),
+  testStartEntryClick('test_start_entry_click'),
+  testTypeClick('test_type_click'),
   testStartClick('test_start_click'),
+  testFlowExitClick('test_flow_exit_click'),
+  testFlowBackClick('test_flow_back_click'),
+  testPreparationTipView('test_preparation_tip_view'),
+  testReadyClick('test_ready_click'),
+  testTimerView('test_timer_view'),
+  testTimerClick('test_timer_click'),
+  testTimerComplete('test_timer_complete'),
+  testExitAlertView('test_exit_alert_view'),
+  testExitAlertClick('test_exit_alert_click'),
+  testTimerAlertView('test_timer_alert_view'),
+  testTimerAlertClick('test_timer_alert_click'),
+  testCameraPermissionResult('test_camera_permission_result'),
+  testCameraPermissionClick('test_camera_permission_click'),
+  testCameraInitResult('test_camera_init_result'),
+  testCaptureGuideView('test_capture_guide_view'),
+  testPhotoCaptureClick('test_photo_capture_click'),
+  testPhotoCaptureResult('test_photo_capture_result'),
+  testPhotoPreviewView('test_photo_preview_view'),
+  testPhotoRetakeClick('test_photo_retake_click'),
+  testPhotoUseClick('test_photo_use_click'),
+  testPhotoAnalysisRequestResult('test_photo_analysis_request_result'),
+  testResultConfirmView('test_result_confirm_view'),
+  testResultLevelClick('test_result_level_click'),
+  testResultDateClick('test_result_date_click'),
+  testResultTimePeriodClick('test_result_time_period_click'),
+  testResultSaveClick('test_result_save_click'),
+  testResultConfirmRequestResult('test_result_confirm_request_result'),
+  testCelebrationView('test_celebration_view'),
+  testCelebrationClick('test_celebration_click'),
+  testResultRequestResult('test_result_request_result'),
+  testResultView('test_result_view'),
+  testResultInfoView('test_result_info_view'),
+  testAgainReminderView('test_again_reminder_view'),
+  testResultBackHomeClick('test_result_back_home_click'),
   testResultSectionView('test_result_section_view'),
   testResultItemView('test_result_item_view'),
   testHistoryEntryView('test_history_entry_view'),
@@ -59,7 +95,16 @@ enum AnalyticsPageName {
   welcome('welcome'),
   tabHome('tab_home'),
   tabShop('tab_shop'),
-  testFlow('test_flow'),
+  testAbout('test_about'),
+  testBeforeStart('test_before_start'),
+  testSwab('test_swab'),
+  testDip('test_dip'),
+  testDevelop('test_develop'),
+  testCapture('test_capture'),
+  testPhotoPreview('test_photo_preview'),
+  testResultConfirm('test_result_confirm'),
+  testCelebration('test_celebration'),
+  testResult('test_result'),
   testHistory('test_history'),
   profile('profile');
 
@@ -126,7 +171,21 @@ enum AnalyticsEventProperty {
   currentVersion('current_version'),
   targetVersion('target_version'),
   updateType('update_type'),
-  action('action');
+  action('action'),
+  timerDurationSeconds('timer_duration_seconds'),
+  remainingSeconds('remaining_seconds'),
+  timerStatus('timer_status'),
+  timerAction('timer_action'),
+  permissionStatus('permission_status'),
+  aiValue('ai_value'),
+  aiValueResultLevel('ai_value_result_level'),
+  detectionTimePeriods('detection_time_periods'),
+  finalLevel('final_level'),
+  sampledAt('sampled_at'),
+  showPopup('show_popup'),
+  testTime('test_time'),
+  infoTitle('info_title'),
+  infoContent('info_content');
 
   const AnalyticsEventProperty(this.propertyName);
 
@@ -176,12 +235,108 @@ enum AnalyticsGender {
   final String value;
 }
 
-/// `test_start_click.position` 的检测入口位置。
+/// `test_start_entry_click.position` 的检测入口位置。
 enum AnalyticsTestStartPosition {
   homeCard('1'),
   bottomScan('2');
 
   const AnalyticsTestStartPosition(this.value);
+
+  final String value;
+}
+
+/// 计时页面展示时的状态值。
+enum AnalyticsTimerStatus {
+  running('1'),
+  paused('2'),
+  complete('3');
+
+  const AnalyticsTimerStatus(this.value);
+
+  final String value;
+}
+
+/// `test_timer_click.action` 的计时操作。
+enum AnalyticsTimerAction {
+  pause('1'),
+  resume('2'),
+  skip('3'),
+  next('4');
+
+  const AnalyticsTimerAction(this.value);
+
+  final String value;
+}
+
+/// Develop 风险弹窗对应的计时操作。
+enum AnalyticsTimerAlertAction {
+  pause('1'),
+  skip('2');
+
+  const AnalyticsTimerAlertAction(this.value);
+
+  final String value;
+}
+
+/// 通用确认弹窗的用户选择。
+enum AnalyticsConfirmationAction {
+  confirm('1'),
+  cancel('2');
+
+  const AnalyticsConfirmationAction(this.value);
+
+  final String value;
+}
+
+/// 退出检测弹窗的用户选择。
+enum AnalyticsTestExitAction {
+  exit('1'),
+  keepTesting('2');
+
+  const AnalyticsTestExitAction(this.value);
+
+  final String value;
+}
+
+/// 相机权限检查完成后的状态。
+enum AnalyticsCameraPermissionStatus {
+  granted('1'),
+  denied('2'),
+  permanentlyDeniedOrRestricted('3'),
+  failed('4');
+
+  const AnalyticsCameraPermissionStatus(this.value);
+
+  final String value;
+}
+
+/// 相机权限或不可用状态页的按钮操作。
+enum AnalyticsCameraPermissionAction {
+  allow('1'),
+  openSettings('2'),
+  retry('3');
+
+  const AnalyticsCameraPermissionAction(this.value);
+
+  final String value;
+}
+
+/// 照片预览页触发重新拍照的入口。
+enum AnalyticsPhotoRetakeMethod {
+  topBack('1'),
+  retakeButton('2'),
+  systemBack('3');
+
+  const AnalyticsPhotoRetakeMethod(this.value);
+
+  final String value;
+}
+
+/// `test_celebration_click.action` 的庆祝页操作。
+enum AnalyticsCelebrationAction {
+  keepTesting('1');
+
+  const AnalyticsCelebrationAction(this.value);
 
   final String value;
 }

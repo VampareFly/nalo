@@ -227,12 +227,14 @@ class DetectionAnalysis {
 /// 最近一次检测列表中的摘要数据。
 class RecentDetection {
   const RecentDetection({
+    required this.id,
     required this.date,
     required this.period,
     required this.value,
     required this.unit,
     required this.typicalRange,
   });
+  final int id;
   final String date;
   final String period;
   final String value;
@@ -242,6 +244,7 @@ class RecentDetection {
   factory RecentDetection.fromJson(Object? raw) {
     final json = _map(raw);
     return RecentDetection(
+      id: _integer(json, 'id'),
       date: _string(json, 'date'),
       period: _string(json, 'time_period'),
       value: _string(json, 'value'),

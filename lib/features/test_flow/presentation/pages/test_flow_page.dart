@@ -1,6 +1,10 @@
-// 检测流程入口：根据 Provider 状态切换页面，并统一处理返回、退出确认和全局 Loading。
+// 检测流程入口：根据 Provider 状态切换页面，统一上报内部页面访问并处理返回、退出确认。
+// 页面组件上报具体业务行为；退出前屏蔽 reset 产生的伪页面访问。
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
 import 'package:nalo/features/test_flow/presentation/pages/test_flow_screens.dart';
@@ -17,13 +21,17 @@ class TestFlowPage extends ConsumerStatefulWidget {
 
 class _TestFlowPageState extends ConsumerState<TestFlowPage>
     with WidgetsBindingObserver {
+  bool _isExiting = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => ref.read(testFlowProvider.notifier).initialize(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _reportStepEntry(ref.read(testFlowProvider));
+      ref.read(testFlowProvider.notifier).initialize();
+    });
   }
 
   @override
@@ -43,6 +51,10 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(testFlowProvider);
+    ref.listen<TestFlowState>(testFlowProvider, (previous, next) {
+      if (_isExiting || previous?.step == next.step) return;
+      _reportStepEntry(next);
+    });
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -59,28 +71,23 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
           fit: StackFit.expand,
           children: [
             switch (state.step) {
-              TestFlowStep.about => AboutTestScreen(
-                onClose: _exitWithoutPrompt,
-              ),
+              TestFlowStep.about => AboutTestScreen(onClose: _exitFromAbout),
               TestFlowStep.beforeStart => BeforeStartScreen(
-                onBack: () => _setStep(TestFlowStep.about),
+                onBack: _backFromBeforeStart,
               ),
-              TestFlowStep.swab ||
-              TestFlowStep.dip ||
-              TestFlowStep.develop => TestTimerScreen(
-                onBack: ref.read(testFlowProvider.notifier).previousTimerStep,
-                onExit: _confirmExit,
-              ),
-              TestFlowStep.capture => CaptureScreen(onClose: _confirmExit),
+              TestFlowStep.swab || TestFlowStep.dip || TestFlowStep.develop =>
+                TestTimerScreen(onBack: _backFromTimer, onExit: _requestExit),
+              TestFlowStep.capture => CaptureScreen(onClose: _requestExit),
               TestFlowStep.preview => PhotoPreviewScreen(
-                onBack: ref.read(testFlowProvider.notifier).retake,
+                onBack: () => _retake(AnalyticsPhotoRetakeMethod.topBack),
               ),
               TestFlowStep.confirm => ConfirmResultScreen(
-                onClose: _confirmExit,
+                onClose: _requestExit,
               ),
               TestFlowStep.milestone => const MilestoneScreen(),
               TestFlowStep.result => ResultDetailsScreen(
                 onClose: _exitAfterCompletion,
+                onBackHome: _exitAfterCompletion,
               ),
             },
             if (state.isLoading) const _GlobalLoading(),
@@ -95,29 +102,118 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
     if (state.isLoading) return;
     switch (state.step) {
       case TestFlowStep.about:
-        _exitWithoutPrompt();
+        _exitFromAbout();
         return;
       case TestFlowStep.beforeStart:
-        _setStep(TestFlowStep.about);
+        _backFromBeforeStart();
         return;
       case TestFlowStep.swab:
       case TestFlowStep.dip:
       case TestFlowStep.develop:
-        ref.read(testFlowProvider.notifier).previousTimerStep();
+        _backFromTimer();
         return;
       case TestFlowStep.preview:
-        ref.read(testFlowProvider.notifier).retake();
+        _retake(AnalyticsPhotoRetakeMethod.systemBack);
         return;
       case TestFlowStep.confirm:
-        _confirmExit();
+        _requestExit();
         return;
       case TestFlowStep.result:
         _exitAfterCompletion();
         return;
       default:
-        _confirmExit();
+        _requestExit();
         return;
     }
+  }
+
+  void _reportStepEntry(TestFlowState state) {
+    final pageName = _analyticsPageName(state.step);
+    if (pageName == null) return;
+    unawaited(ref.reportAnalyticsPageView(pageName));
+    if (!_isTimerStep(state.step)) return;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testTimerView,
+        properties: {
+          AnalyticsEventProperty.pageName: pageName.value,
+          AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+            state.type,
+          ).value,
+          AnalyticsEventProperty.desc: _timerDescription(state.step),
+          AnalyticsEventProperty.timerDurationSeconds:
+              state.timerDuration.inSeconds,
+          AnalyticsEventProperty.remainingSeconds:
+              (state.remaining.inMilliseconds / 1000).ceil(),
+          AnalyticsEventProperty.timerStatus: _analyticsTimerStatus(
+            state.timerStatus,
+          ).value,
+        },
+      ),
+    );
+  }
+
+  void _exitFromAbout() {
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testFlowExitClick,
+        properties: _flowProperties(state),
+      ),
+    );
+    _exitWithoutPrompt();
+  }
+
+  void _backFromBeforeStart() {
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testFlowBackClick,
+        properties: _flowProperties(state),
+      ),
+    );
+    _setStep(TestFlowStep.about);
+  }
+
+  void _backFromTimer() {
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testFlowBackClick,
+        properties: _flowProperties(state),
+      ),
+    );
+    ref.read(testFlowProvider.notifier).previousTimerStep();
+  }
+
+  void _retake(AnalyticsPhotoRetakeMethod method) {
+    final state = ref.read(testFlowProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testPhotoRetakeClick,
+        properties: {
+          ..._flowProperties(state),
+          AnalyticsEventProperty.method: method.value,
+        },
+      ),
+    );
+    ref.read(testFlowProvider.notifier).retake();
+  }
+
+  void _requestExit() {
+    final state = ref.read(testFlowProvider);
+    if (_analyticsPageName(state.step) == null ||
+        state.step == TestFlowStep.milestone) {
+      unawaited(_confirmExit(reportAnalytics: false));
+      return;
+    }
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testFlowExitClick,
+        properties: _flowProperties(state),
+      ),
+    );
+    unawaited(_confirmExit());
   }
 
   /// 处理允许回退的页面节点，避免外部直接修改 Provider 状态。
@@ -133,8 +229,24 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   }
 
   /// 检测未完成时展示底部退出确认，确认后丢弃本次进度。
-  Future<void> _confirmExit() async {
+  Future<void> _confirmExit({bool reportAnalytics = true}) async {
     if (ref.read(testFlowProvider).isLoading) return;
+    final state = ref.read(testFlowProvider);
+    const title = 'Exit test?';
+    const desc =
+        'Your progress on this step will be lost. You can restart the test from the beginning.';
+    if (reportAnalytics) {
+      unawaited(
+        ref.report(
+          AnalyticsEvent.testExitAlertView,
+          properties: {
+            ..._flowProperties(state),
+            AnalyticsEventProperty.title: title,
+            AnalyticsEventProperty.desc: desc,
+          },
+        ),
+      );
+    }
     final shouldExit = await showModalBottomSheet<bool>(
       context: context,
       isDismissible: true,
@@ -146,18 +258,91 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
       ),
       builder: (_) => const _ExitTestSheet(),
     );
+    if (!mounted) return;
+    if (reportAnalytics) {
+      unawaited(
+        ref.report(
+          AnalyticsEvent.testExitAlertClick,
+          properties: {
+            ..._flowProperties(state),
+            AnalyticsEventProperty.action: shouldExit == true
+                ? AnalyticsTestExitAction.exit.value
+                : AnalyticsTestExitAction.keepTesting.value,
+          },
+        ),
+      );
+    }
     if (shouldExit == true && mounted) _exitWithoutPrompt();
   }
 
   void _exitWithoutPrompt() {
+    _isExiting = true;
     ref.read(testFlowProvider.notifier).reset();
     Navigator.of(context).pop();
   }
 
   void _exitAfterCompletion() {
+    _isExiting = true;
     ref.read(testFlowProvider.notifier).reset();
     Navigator.of(context).pop();
   }
+
+  Map<AnalyticsEventProperty, Object> _flowProperties(TestFlowState state) {
+    final pageName = _analyticsPageName(state.step);
+    return {
+      AnalyticsEventProperty.pageName: pageName?.value ?? '',
+      AnalyticsEventProperty.detectionType: _analyticsDetectionType(
+        state.type,
+      ).value,
+    };
+  }
+}
+
+AnalyticsPageName? _analyticsPageName(TestFlowStep step) {
+  return switch (step) {
+    TestFlowStep.about => AnalyticsPageName.testAbout,
+    TestFlowStep.beforeStart => AnalyticsPageName.testBeforeStart,
+    TestFlowStep.swab => AnalyticsPageName.testSwab,
+    TestFlowStep.dip => AnalyticsPageName.testDip,
+    TestFlowStep.develop => AnalyticsPageName.testDevelop,
+    TestFlowStep.capture => AnalyticsPageName.testCapture,
+    TestFlowStep.preview => AnalyticsPageName.testPhotoPreview,
+    TestFlowStep.confirm => AnalyticsPageName.testResultConfirm,
+    TestFlowStep.milestone => AnalyticsPageName.testCelebration,
+    TestFlowStep.result => AnalyticsPageName.testResult,
+    _ => null,
+  };
+}
+
+AnalyticsDetectionType _analyticsDetectionType(DetectionType type) {
+  return switch (type) {
+    DetectionType.cortisol => AnalyticsDetectionType.cortisol,
+    DetectionType.testosterone => AnalyticsDetectionType.testosterone,
+  };
+}
+
+bool _isTimerStep(TestFlowStep step) {
+  return step == TestFlowStep.swab ||
+      step == TestFlowStep.dip ||
+      step == TestFlowStep.develop;
+}
+
+String _timerDescription(TestFlowStep step) {
+  return switch (step) {
+    TestFlowStep.swab => 'Rub the swab under your tongue for 15 seconds.',
+    TestFlowStep.dip => 'Dip the strip into the saliva sample for 30 seconds.',
+    TestFlowStep.develop =>
+      'Wait 15 minutes while the strip develops. Knowledge incoming.',
+    _ => '',
+  };
+}
+
+AnalyticsTimerStatus _analyticsTimerStatus(TimerStatus status) {
+  return switch (status) {
+    TimerStatus.running => AnalyticsTimerStatus.running,
+    TimerStatus.paused => AnalyticsTimerStatus.paused,
+    TimerStatus.complete || TimerStatus.idle => AnalyticsTimerStatus.complete,
+  };
 }
 
 /// 按 Figma 样式展示检测中途退出确认，并保持底部安全区为白色。

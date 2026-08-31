@@ -220,7 +220,7 @@ class _HomePageState extends ConsumerState<HomePage>
   }) async {
     unawaited(
       ref.report(
-        AnalyticsEvent.testStartClick,
+        AnalyticsEvent.testStartEntryClick,
         properties: {
           AnalyticsEventProperty.pageName: _selectedPageName.value,
           AnalyticsEventProperty.position: position.value,
@@ -266,6 +266,9 @@ class _HomePageState extends ConsumerState<HomePage>
         AnalyticsEvent.referralClick,
         properties: {
           AnalyticsEventProperty.pageName: AnalyticsPageName.tabHome.value,
+          // TODO: <pf> 服务端提供结构化折扣比例后替换固定值 10。
+          AnalyticsEventProperty.discountPercent: 10,
+          AnalyticsEventProperty.url: offer.actionUrl,
         },
       ),
     );
