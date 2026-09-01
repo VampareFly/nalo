@@ -31,12 +31,33 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _configureGlobalLoading();
     WidgetsBinding.instance.addObserver(this);
     _authSessionSubscription = ref.listenManual(
       authSessionProvider,
       _handleAuthSessionChange,
       fireImmediately: true,
     );
+  }
+
+  /// 统一使用 Shop 页面相同的蓝色圆形进度动画。
+  void _configureGlobalLoading() {
+    EasyLoading.instance
+      ..loadingStyle = EasyLoadingStyle.custom
+      ..maskType = EasyLoadingMaskType.custom
+      ..maskColor = const Color(0x66000000)
+      ..userInteractions = false
+      ..dismissOnTap = false
+      ..backgroundColor = Colors.transparent
+      ..indicatorColor = const Color(0xFF008BC7)
+      ..progressColor = const Color(0xFF008BC7)
+      ..textColor = const Color(0xFF1A2433)
+      ..boxShadow = const []
+      ..contentPadding = EdgeInsets.zero
+      ..indicatorWidget = const SizedBox.square(
+        dimension: 36,
+        child: CircularProgressIndicator(color: Color(0xFF008BC7)),
+      );
   }
 
   @override
@@ -78,15 +99,14 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
     );
   }
 
-  /// 同时覆盖冷启动已恢复的 Session 与运行期间新登录成功两种配置加载时机。
+  /// 处理 Session 状态变化；每次失效事件均尝试弹窗，显示中的弹窗不会叠加。
   void _handleAuthSessionChange(
     AsyncValue<AuthSessionState>? previous,
     AsyncValue<AuthSessionState> next,
   ) {
     final previousStatus = previous?.value?.status;
     final nextStatus = next.value?.status;
-    if (nextStatus == AuthSessionStatus.sessionExpired &&
-        previousStatus != AuthSessionStatus.sessionExpired) {
+    if (nextStatus == AuthSessionStatus.sessionExpired) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showSessionExpiredDialog(
           next.value?.expirationMessage ??

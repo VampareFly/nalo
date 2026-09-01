@@ -1,17 +1,22 @@
 // 按 Figma 展示当前用户资料、检测统计、账号入口和账号操作。
-// 页面进入时由 ProfileViewModel 请求 user/info，退出与注销交给 ProfileAccountViewModel。
+// Widget 上报 Section 曝光与点击，账号请求结果由 ProfileAccountViewModel 上报。
+
+import 'dart:async';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:nalo/features/profile/view_models/profile_account_view_model.dart';
 import 'package:nalo/features/profile/view_models/profile_view_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// Nalo 个人中心主页。
 class ProfilePage extends ConsumerStatefulWidget {
@@ -24,10 +29,27 @@ class ProfilePage extends ConsumerStatefulWidget {
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
+  static const _deleteTitle = 'Delete account?';
+  static const _deleteDescription =
+      'This will permanently deactivate your Nalo account and sign you out. '
+      'This action cannot be undone.';
+
+  final Set<AnalyticsProfileSectionType> _viewedSections = {};
+  bool _referralViewReported = false;
+  int _exposureCycle = 0;
+  double _testsCompletedVisibleFraction = 0;
+  bool _ownsLoadingToast = false;
+
   @override
   void initState() {
     super.initState();
     Future.microtask(ref.read(profileViewModelProvider.notifier).load);
+  }
+
+  @override
+  void dispose() {
+    if (_ownsLoadingToast) EasyLoading.dismiss();
+    super.dispose();
   }
 
   void _showComingSoon(String feature) {
@@ -36,6 +58,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   void _openShopifyManage() {
+    _reportAction(AnalyticsProfileActionType.manageShopifyAccount);
     // TODO: <pf> Shopify Customer accounts 管理 URL 确认后使用外部浏览器打开。
     BotToast.showText(
       text: 'Shopify account management is coming soon',
@@ -44,6 +67,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _openReferralLink(String link) async {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.referralClick,
+        properties: _referralProperties(link),
+      ),
+    );
     final uri = Uri.tryParse(link);
     final opened =
         uri != null &&
@@ -57,6 +86,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _logout() async {
+    _reportAction(AnalyticsProfileActionType.signOut);
     final didLogout = await ref
         .read(profileAccountViewModelProvider.notifier)
         .logout();
@@ -65,22 +95,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _deactivate() async {
+    _reportAction(AnalyticsProfileActionType.deleteAccount);
+    await ref.report(
+      AnalyticsEvent.profileDeleteAccountAlertView,
+      properties: {
+        AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
+        AnalyticsEventProperty.title: _deleteTitle,
+        AnalyticsEventProperty.desc: _deleteDescription,
+      },
+    );
+    if (!mounted) return;
     final didConfirm = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-          'This will permanently deactivate your Nalo account and sign you out. '
-          'This action cannot be undone.',
-        ),
+        title: const Text(_deleteTitle),
+        content: const Text(_deleteDescription),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () {
+              unawaited(_reportDeleteAlertClick('2'));
+              Navigator.of(dialogContext).pop(false);
+            },
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () {
+              unawaited(_reportDeleteAlertClick('1'));
+              Navigator.of(dialogContext).pop(true);
+            },
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFD4183D),
             ),
@@ -105,11 +148,88 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
+  void _reportAction(AnalyticsProfileActionType action) {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.profileActionClick,
+        properties: {
+          AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
+          AnalyticsEventProperty.actionType: action.value,
+        },
+      ),
+    );
+  }
+
+  Future<void> _openEditProfile() async {
+    _reportAction(AnalyticsProfileActionType.editProfile);
+    await context.push(EditProfilePage.path);
+    if (!mounted) return;
+    _viewedSections.clear();
+    _referralViewReported = false;
+    _exposureCycle++;
+    setState(() {});
+  }
+
+  void _showTrackedComingSoon(
+    AnalyticsProfileActionType action,
+    String feature,
+  ) {
+    _reportAction(action);
+    _showComingSoon(feature);
+  }
+
+  void _reportSectionVisibility(
+    AnalyticsProfileSectionType section,
+    double visibleFraction, {
+    int? totalTestCount,
+  }) {
+    if (visibleFraction < 0.1 || !_viewedSections.add(section)) return;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.profileSectionView,
+        properties: {
+          AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
+          AnalyticsEventProperty.sectionType: section.value,
+          if (totalTestCount != null)
+            AnalyticsEventProperty.totalTestCount: totalTestCount,
+        },
+      ),
+    );
+  }
+
+  Future<void> _reportDeleteAlertClick(String action) {
+    return ref.report(
+      AnalyticsEvent.profileDeleteAccountAlertClick,
+      properties: {
+        AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
+        AnalyticsEventProperty.action: action,
+      },
+    );
+  }
+
+  Map<AnalyticsEventProperty, Object> _referralProperties(String url) => {
+    AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
+    // TODO: <pf> 服务端提供真实折扣比例后替换固定值。
+    AnalyticsEventProperty.discountPercent: 10,
+    AnalyticsEventProperty.url: url,
+  };
+
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileViewModelProvider);
-    final accountState = ref.watch(profileAccountViewModelProvider);
     final user = profileState.user;
+    ref.listen(
+      profileAccountViewModelProvider.select((state) => state.isLoading),
+      (previous, next) {
+        if (next) {
+          _ownsLoadingToast = true;
+          EasyLoading.show();
+        } else if (_ownsLoadingToast) {
+          _ownsLoadingToast = false;
+          EasyLoading.dismiss();
+        }
+      },
+    );
 
     ref.listen(profileViewModelProvider.select((state) => state.errorMessage), (
       previous,
@@ -119,6 +239,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         BotToast.showText(text: next, align: Alignment.center);
       }
     });
+    ref.listen(
+      profileViewModelProvider.select(
+        (state) => state.user?.testInfo?.sumCount,
+      ),
+      (previous, next) {
+        if (next == null) return;
+        _reportSectionVisibility(
+          AnalyticsProfileSectionType.testsCompleted,
+          _testsCompletedVisibleFraction,
+          totalTestCount: next,
+        );
+      },
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFEDE8E0),
@@ -133,64 +266,146 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     children: [
                       _Header(
                         onBack: () => context.pop(),
-                        onEdit: user == null
-                            ? null
-                            : () => context.push(EditProfilePage.path),
+                        onEdit: user == null ? null : _openEditProfile,
                       ),
                       const SizedBox(height: 30),
-                      _TestsCompletedCard(count: user?.testInfo?.sumCount ?? 0),
-                      const SizedBox(height: 18),
-                      _UserInfoCard(user: user),
-                      const SizedBox(height: 18),
-                      _ShopifyAccountCard(
-                        email: _displayValue(user?.email),
-                        onManage: _openShopifyManage,
+                      _ProfileExposure(
+                        keyName: 'tests-completed',
+                        exposureCycle: _exposureCycle,
+                        onVisibilityChanged: (fraction) {
+                          _testsCompletedVisibleFraction = fraction;
+                          final count = user?.testInfo?.sumCount;
+                          if (count == null) return;
+                          _reportSectionVisibility(
+                            AnalyticsProfileSectionType.testsCompleted,
+                            fraction,
+                            totalTestCount: count,
+                          );
+                        },
+                        child: _TestsCompletedCard(
+                          count: user?.testInfo?.sumCount ?? 0,
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      _MenuCard(
-                        items: [
-                          _MenuItem(
-                            label: 'Notification settings',
-                            onPressed: () =>
-                                _showComingSoon('Notification settings'),
-                          ),
-                          _MenuItem(
-                            label: 'Privacy policy',
-                            onPressed: () => _showComingSoon('Privacy policy'),
-                          ),
-                          _MenuItem(
-                            label: 'Terms of service',
-                            onPressed: () =>
-                                _showComingSoon('Terms of service'),
-                          ),
-                          _MenuItem(
-                            label: 'Help & support',
-                            onPressed: () => _showComingSoon('Help & support'),
-                          ),
-                        ],
+                      _ProfileExposure(
+                        keyName: 'personal-information',
+                        exposureCycle: _exposureCycle,
+                        onVisibilityChanged: (fraction) =>
+                            _reportSectionVisibility(
+                              AnalyticsProfileSectionType.personalInformation,
+                              fraction,
+                            ),
+                        child: _UserInfoCard(user: user),
+                      ),
+                      const SizedBox(height: 18),
+                      _ProfileExposure(
+                        keyName: 'shopify-account',
+                        exposureCycle: _exposureCycle,
+                        onVisibilityChanged: (fraction) =>
+                            _reportSectionVisibility(
+                              AnalyticsProfileSectionType.shopifyAccount,
+                              fraction,
+                            ),
+                        child: _ShopifyAccountCard(
+                          email: _displayValue(user?.email),
+                          onManage: _openShopifyManage,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _ProfileExposure(
+                        keyName: 'settings-menu',
+                        exposureCycle: _exposureCycle,
+                        onVisibilityChanged: (fraction) =>
+                            _reportSectionVisibility(
+                              AnalyticsProfileSectionType.settingsMenu,
+                              fraction,
+                            ),
+                        child: _MenuCard(
+                          items: [
+                            _MenuItem(
+                              label: 'Notification settings',
+                              onPressed: () => _showTrackedComingSoon(
+                                AnalyticsProfileActionType.notificationSettings,
+                                'Notification settings',
+                              ),
+                            ),
+                            _MenuItem(
+                              label: 'Privacy policy',
+                              onPressed: () => _showTrackedComingSoon(
+                                AnalyticsProfileActionType.privacyPolicy,
+                                'Privacy policy',
+                              ),
+                            ),
+                            _MenuItem(
+                              label: 'Terms of service',
+                              onPressed: () => _showTrackedComingSoon(
+                                AnalyticsProfileActionType.termsOfService,
+                                'Terms of service',
+                              ),
+                            ),
+                            _MenuItem(
+                              label: 'Help & support',
+                              onPressed: () => _showTrackedComingSoon(
+                                AnalyticsProfileActionType.helpAndSupport,
+                                'Help & support',
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       if (user?.referralCard case final referralCard?) ...[
                         const SizedBox(height: 18),
-                        _ReferralCard(
-                          referralCard: referralCard,
-                          onPressed: () =>
-                              _openReferralLink(referralCard.actionUrl),
+                        VisibilityDetector(
+                          key: ValueKey('profile-$_exposureCycle-referral'),
+                          onVisibilityChanged: (info) {
+                            if (_referralViewReported ||
+                                info.visibleFraction < 0.1) {
+                              return;
+                            }
+                            _referralViewReported = true;
+                            unawaited(
+                              ref.report(
+                                AnalyticsEvent.referralView,
+                                properties: _referralProperties(
+                                  referralCard.actionUrl,
+                                ),
+                              ),
+                            );
+                          },
+                          child: _ReferralCard(
+                            referralCard: referralCard,
+                            onPressed: () =>
+                                _openReferralLink(referralCard.actionUrl),
+                          ),
                         ),
                       ],
                       const SizedBox(height: 18),
-                      _SignOutButton(onPressed: _logout),
-                      const SizedBox(height: 14),
-                      TextButton(
-                        onPressed: _deactivate,
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF9FA89E),
-                          minimumSize: const Size.fromHeight(42),
-                          textStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      _ProfileExposure(
+                        keyName: 'account-actions',
+                        exposureCycle: _exposureCycle,
+                        onVisibilityChanged: (fraction) =>
+                            _reportSectionVisibility(
+                              AnalyticsProfileSectionType.accountActions,
+                              fraction,
+                            ),
+                        child: Column(
+                          children: [
+                            _SignOutButton(onPressed: _logout),
+                            const SizedBox(height: 14),
+                            TextButton(
+                              onPressed: _deactivate,
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFF9FA89E),
+                                minimumSize: const Size.fromHeight(42),
+                                textStyle: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              child: const Text('Delete account'),
+                            ),
+                          ],
                         ),
-                        child: const Text('Delete account'),
                       ),
                     ],
                   ),
@@ -198,7 +413,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ],
             ),
           ),
-          if (accountState.isLoading) const _LoadingOverlay(),
         ],
       ),
     );
@@ -585,16 +799,24 @@ class _SignOutButton extends StatelessWidget {
   );
 }
 
-class _LoadingOverlay extends StatelessWidget {
-  const _LoadingOverlay();
+/// 将 Profile 区域的可见比例交给页面统一去重和上报。
+class _ProfileExposure extends StatelessWidget {
+  const _ProfileExposure({
+    required this.keyName,
+    required this.exposureCycle,
+    required this.onVisibilityChanged,
+    required this.child,
+  });
+
+  final String keyName;
+  final int exposureCycle;
+  final ValueChanged<double> onVisibilityChanged;
+  final Widget child;
 
   @override
-  Widget build(BuildContext context) => const Positioned.fill(
-    child: Stack(
-      children: [
-        ModalBarrier(dismissible: false, color: Color(0x33000000)),
-        Center(child: CircularProgressIndicator()),
-      ],
-    ),
+  Widget build(BuildContext context) => VisibilityDetector(
+    key: ValueKey<String>('profile-$exposureCycle-$keyName'),
+    onVisibilityChanged: (info) => onVisibilityChanged(info.visibleFraction),
+    child: child,
   );
 }

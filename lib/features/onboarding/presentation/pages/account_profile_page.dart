@@ -3,7 +3,9 @@
 
 import 'dart:async';
 
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +14,7 @@ import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/onboarding/view_models/account_profile_view_model.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// 收集新用户资料并处理未成年与高龄边界。
 class AccountProfilePage extends ConsumerStatefulWidget {
@@ -54,9 +57,25 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
   static const _under18Title = 'Under 18';
   static const _under18Description =
       'Nalo is designed for adults 18 and over. Please check with a healthcare provider before testing.';
+  static const _over65Description =
+      'You are over 65. We recommend speaking with your doctor before testing. You can still continue.';
 
   final _nameController = TextEditingController();
   final _nameFocusNode = FocusNode();
+  bool _over65ViewReported = false;
+  bool _ownsLoadingToast = false;
+
+  /// 协议地址确认前提示 Privacy Policy 暂不可打开。
+  void _openPrivacyPolicy() {
+    // TODO: <pf> 接入正式 Privacy Policy 链接并使用外部浏览器打开。
+    BotToast.showText(text: 'Privacy Policy is not available yet.');
+  }
+
+  /// 协议地址确认前提示 Terms 暂不可打开。
+  void _openTerms() {
+    // TODO: <pf> 接入正式 Terms 链接并使用外部浏览器打开。
+    BotToast.showText(text: 'Terms are not available yet.');
+  }
 
   @override
   void initState() {
@@ -70,6 +89,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
 
   @override
   void dispose() {
+    if (_ownsLoadingToast) EasyLoading.dismiss();
     _nameController.dispose();
     _nameFocusNode.dispose();
     super.dispose();
@@ -79,6 +99,18 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
     _dismissKeyboard();
     final now = DateTime.now();
     final state = ref.read(accountProfileViewModelProvider);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.accountProfileBirthClick,
+        properties: {
+          AnalyticsEventProperty.pageName:
+              AnalyticsPageName.createAccount.value,
+          AnalyticsEventProperty.formType:
+              AnalyticsProfileFormType.register.value,
+          AnalyticsEventProperty.birth: analyticsBirthValue(state.dateOfBirth),
+        },
+      ),
+    );
     final value = await showDatePicker(
       context: context,
       locale: const Locale('en'),
@@ -99,6 +131,43 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
     }
   }
 
+  void _selectGender(BiologicalSex value) {
+    ref
+        .read(accountProfileViewModelProvider.notifier)
+        .selectBiologicalSex(value);
+    unawaited(
+      ref.report(
+        AnalyticsEvent.accountProfileGenderClick,
+        properties: {
+          AnalyticsEventProperty.pageName:
+              AnalyticsPageName.createAccount.value,
+          AnalyticsEventProperty.formType:
+              AnalyticsProfileFormType.register.value,
+          AnalyticsEventProperty.gender: value == BiologicalSex.female
+              ? AnalyticsGender.female.value
+              : AnalyticsGender.male.value,
+        },
+      ),
+    );
+  }
+
+  void _reportOver65View(double visibleFraction) {
+    if (_over65ViewReported || visibleFraction < 0.1) return;
+    _over65ViewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.accountProfileOver65NoticeView,
+        properties: {
+          AnalyticsEventProperty.pageName:
+              AnalyticsPageName.createAccount.value,
+          AnalyticsEventProperty.formType:
+              AnalyticsProfileFormType.register.value,
+          AnalyticsEventProperty.desc: _over65Description,
+        },
+      ),
+    );
+  }
+
   void _dismissKeyboard() {
     _nameFocusNode.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
@@ -110,16 +179,20 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
     unawaited(
       ref.report(
         AnalyticsEvent.createAccountClick,
-        properties: createAccountAnalyticsProperties(
-          email: state.email,
-          name: state.fullName,
-          birth: state.dateOfBirth,
-          gender: switch (state.biologicalSex) {
-            BiologicalSex.female => AnalyticsGender.female,
-            BiologicalSex.male => AnalyticsGender.male,
-            null => null,
-          },
-        ),
+        properties: {
+          AnalyticsEventProperty.pageName:
+              AnalyticsPageName.createAccount.value,
+          ...createAccountAnalyticsProperties(
+            email: state.email,
+            name: state.fullName,
+            birth: state.dateOfBirth,
+            gender: switch (state.biologicalSex) {
+              BiologicalSex.female => AnalyticsGender.female,
+              BiologicalSex.male => AnalyticsGender.male,
+              null => null,
+            },
+          ),
+        },
       ),
     );
     final result = await ref
@@ -150,6 +223,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
     await ref.report(
       AnalyticsEvent.under18AlertView,
       properties: const {
+        AnalyticsEventProperty.pageName: 'create_account',
         AnalyticsEventProperty.title: _under18Title,
         AnalyticsEventProperty.desc: _under18Description,
       },
@@ -189,7 +263,14 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () {
-                  unawaited(ref.report(AnalyticsEvent.under18AlertGoBackClick));
+                  unawaited(
+                    ref.report(
+                      AnalyticsEvent.under18AlertGoBackClick,
+                      properties: const {
+                        AnalyticsEventProperty.pageName: 'create_account',
+                      },
+                    ),
+                  );
                   Navigator.of(context).pop();
                 },
                 style: FilledButton.styleFrom(
@@ -209,6 +290,18 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(accountProfileViewModelProvider);
+    ref.listen(
+      accountProfileViewModelProvider.select((value) => value.isSubmitting),
+      (previous, next) {
+        if (next) {
+          _ownsLoadingToast = true;
+          EasyLoading.show();
+        } else if (_ownsLoadingToast) {
+          _ownsLoadingToast = false;
+          EasyLoading.dismiss();
+        }
+      },
+    );
     return Scaffold(
       backgroundColor: const Color(0xFFEDE8E0),
       body: GestureDetector(
@@ -262,11 +355,15 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                 ),
                 const SizedBox(height: 24),
                 if (state.isOver65) ...[
-                  const _NoticeBox(
-                    color: Color(0xFFFDDA7C),
-                    icon: Icons.warning_amber_rounded,
-                    text:
-                        'You are over 65. We recommend speaking with your doctor before testing. You can still continue.',
+                  VisibilityDetector(
+                    key: const ValueKey('register-over-65-notice'),
+                    onVisibilityChanged: (info) =>
+                        _reportOver65View(info.visibleFraction),
+                    child: const _NoticeBox(
+                      color: Color(0xFFFDDA7C),
+                      icon: Icons.warning_amber_rounded,
+                      text: _over65Description,
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -342,11 +439,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                         selected: state.biologicalSex == BiologicalSex.female,
                         onTap: state.isSubmitting
                             ? null
-                            : () => ref
-                                  .read(
-                                    accountProfileViewModelProvider.notifier,
-                                  )
-                                  .selectBiologicalSex(BiologicalSex.female),
+                            : () => _selectGender(BiologicalSex.female),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -356,11 +449,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                         selected: state.biologicalSex == BiologicalSex.male,
                         onTap: state.isSubmitting
                             ? null
-                            : () => ref
-                                  .read(
-                                    accountProfileViewModelProvider.notifier,
-                                  )
-                                  .selectBiologicalSex(BiologicalSex.male),
+                            : () => _selectGender(BiologicalSex.male),
                       ),
                     ),
                   ],
@@ -376,20 +465,59 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                       shape: const StadiumBorder(),
                     ),
                     child: Text(
-                      state.isSubmitting
-                          ? 'Creating account...'
-                          : state.isOver65
-                          ? 'Continue anyway'
-                          : 'Create account',
+                      state.isOver65 ? 'Continue anyway' : 'Create account',
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Center(
-                  child: Text(
-                    'By continuing you agree to our Privacy Policy and Terms.',
+                Center(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(
+                          text: 'By continuing you agree to our ',
+                        ),
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.baseline,
+                          baseline: TextBaseline.alphabetic,
+                          child: GestureDetector(
+                            onTap: _openPrivacyPolicy,
+                            child: const Text(
+                              'Privacy Policy',
+                              style: TextStyle(
+                                color: Color(0xFF9FA89E),
+                                fontSize: 12,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Color(0xFF008BC7),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const TextSpan(text: ' and '),
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.baseline,
+                          baseline: TextBaseline.alphabetic,
+                          child: GestureDetector(
+                            onTap: _openTerms,
+                            child: const Text(
+                              'Terms',
+                              style: TextStyle(
+                                color: Color(0xFF9FA89E),
+                                fontSize: 12,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Color(0xFF008BC7),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const TextSpan(text: '.'),
+                      ],
+                    ),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0xFF9FA89E), fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFF9FA89E),
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

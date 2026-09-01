@@ -101,6 +101,7 @@ class ApiClient {
     queryParameters: queryParameters,
     decoder: decoder,
     requiresAuth: requiresAuth,
+    handlesSessionExpiration: true,
   );
 
   /// 发送 POST 请求并解析统一响应。
@@ -110,6 +111,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     T Function(Object? data)? decoder,
     bool requiresAuth = true,
+    bool handlesSessionExpiration = true,
   }) => _request(
     path,
     method: 'POST',
@@ -117,6 +119,7 @@ class ApiClient {
     queryParameters: queryParameters,
     decoder: decoder,
     requiresAuth: requiresAuth,
+    handlesSessionExpiration: handlesSessionExpiration,
   );
 
   /// 发送 PUT 请求并解析统一响应。
@@ -131,6 +134,7 @@ class ApiClient {
     data: data,
     decoder: decoder,
     requiresAuth: requiresAuth,
+    handlesSessionExpiration: true,
   );
 
   /// 发送 DELETE 请求并解析统一响应。
@@ -145,6 +149,7 @@ class ApiClient {
     data: data,
     decoder: decoder,
     requiresAuth: requiresAuth,
+    handlesSessionExpiration: true,
   );
 
   Future<T?> _request<T>(
@@ -154,6 +159,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     T Function(Object? data)? decoder,
     required bool requiresAuth,
+    required bool handlesSessionExpiration,
   }) async {
     try {
       final response = await _dio.request<Object?>(
@@ -174,7 +180,8 @@ class ApiClient {
         if (rawData == null || decoder == null) return null;
         return decoder(rawData);
       }
-      if (_sessionExpiredCodes.contains(envelope.code)) {
+      if (handlesSessionExpiration &&
+          _sessionExpiredCodes.contains(envelope.code)) {
         await _onSessionExpired(envelope.message);
         throw SessionExpiredException(envelope.message);
       }
@@ -190,11 +197,9 @@ class ApiClient {
 
   static const _sessionExpiredCodes = {
     1000001,
-    1000002,
     1000010,
     1000011,
     1000013,
-    1000016,
   };
 
   NetworkException _mapDioException(DioException error) {

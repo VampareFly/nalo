@@ -1,10 +1,11 @@
-// 新登录注册入口页，展示正式服务端认证入口及客户端直连测试按钮。
-// 正式入口由 ViewModel 编排，客户端直连仅用于过渡期联调。
+// 新登录注册入口页，展示正式服务端认证入口。
+// 客户端直连测试代码暂以注释保留，恢复入口时需同步恢复对应状态监听。
 
 import 'dart:async';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -16,7 +17,7 @@ import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_p
 import 'package:nalo/features/onboarding/presentation/widgets/nalo_brand.dart';
 import 'package:nalo/features/onboarding/services/shopify_backend_auth_service.dart';
 import 'package:nalo/features/onboarding/view_models/auth_entry_view_model.dart';
-import 'package:nalo/features/onboarding/view_models/shopify_auth_view_model.dart';
+// import 'package:nalo/features/onboarding/view_models/shopify_auth_view_model.dart';
 
 /// Figma 登录注册流程的统一入口页面。
 class AuthEntryPage extends ConsumerStatefulWidget {
@@ -42,8 +43,8 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authEntryViewModelProvider);
-    final testState = ref.watch(shopifyAuthViewModelProvider);
-    final isAnyAuthenticationBusy = state.isLoading || testState.isBusy;
+    // final testState = ref.watch(shopifyAuthViewModelProvider);
+    final isAnyAuthenticationBusy = state.isLoading;
 
     Future<void> authorize(ShopifyAuthIntent intent) async {
       switch (intent) {
@@ -73,9 +74,11 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
           unawaited(ref.report(AnalyticsEvent.iNeedKitClick));
           break;
       }
+      EasyLoading.show();
       final result = await ref
           .read(authEntryViewModelProvider.notifier)
           .authorize(intent);
+      EasyLoading.dismiss();
       if (!context.mounted) return;
       if (result == null) {
         final message = ref.read(authEntryViewModelProvider).errorMessage;
@@ -207,49 +210,21 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  // TODO: <pf> 服务端 Shopify 认证稳定后删除客户端直连测试按钮。
-                  _PillButton(
-                    label: testState.isLoading
-                        ? 'Testing Shopify login...'
-                        : 'Test direct Shopify login',
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.16),
-                    onPressed: isAnyAuthenticationBusy
-                        ? null
-                        : () async {
-                            final message = await ref
-                                .read(shopifyAuthViewModelProvider.notifier)
-                                .login();
-                            if (!context.mounted) return;
-                            BotToast.showText(
-                              text:
-                                  message ?? 'Direct Shopify login successful',
-                              align: Alignment.center,
-                            );
-                          },
-                  ),
-                  const SizedBox(height: 12),
-                  // TODO: <pf> 客户端直连测试删除时一并删除此退出入口。
-                  _PillButton(
-                    label: testState.isLoggingOut
-                        ? 'Logging out from Shopify...'
-                        : 'Logout from Shopify',
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.16),
-                    onPressed: isAnyAuthenticationBusy
-                        ? null
-                        : () async {
-                            final message = await ref
-                                .read(shopifyAuthViewModelProvider.notifier)
-                                .logout();
-                            if (!context.mounted) return;
-                            BotToast.showText(
-                              text: message ?? 'Shopify logout successful',
-                              align: Alignment.center,
-                            );
-                          },
-                  ),
+                  // TODO: <pf> 需要继续验证客户端直连 Shopify 时恢复以下测试入口及顶部状态监听。
+                  // const SizedBox(height: 16),
+                  // _PillButton(
+                  //   label: 'Test direct Shopify login',
+                  //   foregroundColor: Colors.white,
+                  //   backgroundColor: Colors.white.withValues(alpha: 0.16),
+                  //   onPressed: ...,
+                  // ),
+                  // const SizedBox(height: 12),
+                  // _PillButton(
+                  //   label: 'Logout from Shopify',
+                  //   foregroundColor: Colors.white,
+                  //   backgroundColor: Colors.white.withValues(alpha: 0.16),
+                  //   onPressed: ...,
+                  // ),
                   const Spacer(),
                   TextButton(
                     onPressed: isAnyAuthenticationBusy
@@ -278,31 +253,6 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-          if (state.isLoading) const _GlobalLoadingOverlay(),
-        ],
-      ),
-    );
-  }
-}
-
-class _GlobalLoadingOverlay extends StatelessWidget {
-  const _GlobalLoadingOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Positioned.fill(
-      child: Stack(
-        children: [
-          ModalBarrier(dismissible: false, color: Color(0x52000000)),
-          Center(
-            child: SizedBox.square(
-              dimension: 36,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: Colors.white,
               ),
             ),
           ),

@@ -17,14 +17,12 @@ class TestKitPurchaseCard extends StatelessWidget {
     super.key,
     required this.product,
     required this.imageBackgroundColor,
-    required this.isPurchasing,
     required this.isPurchaseEnabled,
     required this.onPurchasePressed,
   });
 
   final TestKitProduct product;
   final Color imageBackgroundColor;
-  final bool isPurchasing;
   final bool isPurchaseEnabled;
   final VoidCallback onPurchasePressed;
 
@@ -91,15 +89,7 @@ class TestKitPurchaseCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                child: isPurchasing
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('Get kit'),
+                child: const Text('Get kit'),
               ),
             ],
           ),

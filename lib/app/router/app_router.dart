@@ -48,6 +48,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfilePage(),
       ),
       GoRoute(
+        name: AnalyticsPageName.profileEdit.value,
         path: EditProfilePage.path,
         builder: (context, state) => const EditProfilePage(),
       ),

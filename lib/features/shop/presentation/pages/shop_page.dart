@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
@@ -49,6 +50,7 @@ class ShopPage extends ConsumerStatefulWidget {
 class _ShopPageState extends ConsumerState<ShopPage> {
   late final ScrollController _scrollController;
   final Set<String> _viewedSkuKeys = {};
+  bool _ownsLoadingToast = false;
 
   @override
   void initState() {
@@ -58,6 +60,7 @@ class _ShopPageState extends ConsumerState<ShopPage> {
 
   @override
   void dispose() {
+    if (_ownsLoadingToast) EasyLoading.dismiss();
     _scrollController
       ..removeListener(_loadMoreIfNeeded)
       ..dispose();
@@ -157,6 +160,20 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     final dashboard = ref.watch(homeDashboardProvider);
     final initial = dashboard.asData?.value.userInitial ?? 'N';
     final referralOffer = dashboard.asData?.value.referralOffer;
+    ref.listen(
+      shopViewModelProvider.select(
+        (value) => value.asData?.value.loadingProductId != null,
+      ),
+      (previous, next) {
+        if (next) {
+          _ownsLoadingToast = true;
+          EasyLoading.show();
+        } else if (_ownsLoadingToast) {
+          _ownsLoadingToast = false;
+          EasyLoading.dismiss();
+        }
+      },
+    );
 
     return ColoredBox(
       color: _pageBackground,
@@ -208,9 +225,6 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                                   imageBackgroundColor:
                                       _productBackgrounds[index %
                                           _productBackgrounds.length],
-                                  isPurchasing:
-                                      state.loadingProductId ==
-                                      state.products[index].productId,
                                   isPurchaseEnabled:
                                       state.loadingProductId == null,
                                   onPurchasePressed: () =>

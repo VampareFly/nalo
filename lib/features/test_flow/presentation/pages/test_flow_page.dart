@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
@@ -22,6 +23,7 @@ class TestFlowPage extends ConsumerStatefulWidget {
 class _TestFlowPageState extends ConsumerState<TestFlowPage>
     with WidgetsBindingObserver {
   bool _isExiting = false;
+  bool _ownsLoadingToast = false;
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
 
   @override
   void dispose() {
+    if (_ownsLoadingToast) EasyLoading.dismiss();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -54,6 +57,18 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
     ref.listen<TestFlowState>(testFlowProvider, (previous, next) {
       if (_isExiting || previous?.step == next.step) return;
       _reportStepEntry(next);
+    });
+    ref.listen(testFlowProvider.select((value) => value.isLoading), (
+      previous,
+      next,
+    ) {
+      if (next) {
+        _ownsLoadingToast = true;
+        EasyLoading.show();
+      } else if (_ownsLoadingToast) {
+        _ownsLoadingToast = false;
+        EasyLoading.dismiss();
+      }
     });
     return PopScope(
       canPop: false,
@@ -90,7 +105,6 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
                 onBackHome: _exitAfterCompletion,
               ),
             },
-            if (state.isLoading) const _GlobalLoading(),
           ],
         ),
       ),
@@ -434,17 +448,6 @@ class _ExitTestSheet extends StatelessWidget {
           ),
         ],
       ),
-    ),
-  );
-}
-
-class _GlobalLoading extends StatelessWidget {
-  const _GlobalLoading();
-  @override
-  Widget build(BuildContext context) => const AbsorbPointer(
-    child: ColoredBox(
-      color: Color(0x99000000),
-      child: Center(child: CircularProgressIndicator(color: Colors.white)),
     ),
   );
 }

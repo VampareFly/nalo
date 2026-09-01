@@ -27,6 +27,9 @@ enum AnalyticsEvent {
   loginRequestResult('login_request_result'),
   createAccountClick('create_account_click'),
   createAccountRequestResult('create_account_request_result'),
+  accountProfileGenderClick('account_profile_gender_click'),
+  accountProfileBirthClick('account_profile_birth_click'),
+  accountProfileOver65NoticeView('account_profile_over_65_notice_view'),
   under18AlertView('under_18_alert_view'),
   under18AlertGoBackClick('under_18_alert_goback_click'),
   notificationEnableClick('notification_enable_click'),
@@ -79,6 +82,14 @@ enum AnalyticsEvent {
   appUpdateAlertView('app_update_alert_view'),
   appUpdateClick('app_update_click'),
   profileClick('profile_click'),
+  profileSectionView('profile_section_view'),
+  profileActionClick('profile_action_click'),
+  profileDeleteAccountAlertView('profile_delete_account_alert_view'),
+  profileDeleteAccountAlertClick('profile_delete_account_alert_click'),
+  profileDeleteAccountRequestResult('profile_delete_account_request_result'),
+  profileEditBackClick('profile_edit_back_click'),
+  profileEditSaveClick('profile_edit_save_click'),
+  profileEditRequestResult('profile_edit_request_result'),
   skuView('sku_view'),
   skuClick('sku_click'),
   shopShopifyUrlRequest('shop_shopify_url_request');
@@ -106,7 +117,8 @@ enum AnalyticsPageName {
   testCelebration('test_celebration'),
   testResult('test_result'),
   testHistory('test_history'),
-  profile('profile');
+  profile('profile'),
+  profileEdit('profile_edit');
 
   const AnalyticsPageName(this.value);
 
@@ -147,6 +159,9 @@ enum AnalyticsEventProperty {
   name('name'),
   birth('birth'),
   gender('gender'),
+  formType('form_type'),
+  sectionType('section_type'),
+  actionType('action_type'),
   title('title'),
   desc('desc'),
   description('description'),
@@ -231,6 +246,45 @@ enum AnalyticsGender {
   male('2');
 
   const AnalyticsGender(this.value);
+
+  final String value;
+}
+
+/// 注册与编辑资料共用事件的表单来源。
+enum AnalyticsProfileFormType {
+  register('register'),
+  editProfile('edit_profile');
+
+  const AnalyticsProfileFormType(this.value);
+
+  final String value;
+}
+
+/// `profile_section_view.section_type` 的区域类型。
+enum AnalyticsProfileSectionType {
+  testsCompleted('tests_completed'),
+  personalInformation('personal_information'),
+  shopifyAccount('shopify_account'),
+  settingsMenu('settings_menu'),
+  accountActions('account_actions');
+
+  const AnalyticsProfileSectionType(this.value);
+
+  final String value;
+}
+
+/// `profile_action_click.action_type` 的个人中心操作。
+enum AnalyticsProfileActionType {
+  editProfile('edit_profile'),
+  manageShopifyAccount('manage_shopify_account'),
+  notificationSettings('notification_settings'),
+  privacyPolicy('privacy_policy'),
+  termsOfService('terms_of_service'),
+  helpAndSupport('help_and_support'),
+  signOut('sign_out'),
+  deleteAccount('delete_account');
+
+  const AnalyticsProfileActionType(this.value);
 
   final String value;
 }
@@ -379,16 +433,19 @@ Map<AnalyticsEventProperty, Object> createAccountAnalyticsProperties({
   required DateTime? birth,
   required AnalyticsGender? gender,
 }) {
-  final birthValue = birth == null
-      ? ''
-      : '${birth.year}-${birth.month.toString().padLeft(2, '0')}-'
-            '${birth.day.toString().padLeft(2, '0')}';
   return {
     AnalyticsEventProperty.email: email.trim(),
     AnalyticsEventProperty.name: name.trim(),
-    AnalyticsEventProperty.birth: birthValue,
+    AnalyticsEventProperty.birth: analyticsBirthValue(birth),
     AnalyticsEventProperty.gender: gender?.value ?? '',
   };
+}
+
+/// 将生日统一转换为埋点要求的 yyyy-MM-dd，无值返回空字符串。
+String analyticsBirthValue(DateTime? birth) {
+  if (birth == null) return '';
+  return '${birth.year}-${birth.month.toString().padLeft(2, '0')}-'
+      '${birth.day.toString().padLeft(2, '0')}';
 }
 
 /// 按埋点文档构造 Shop 商品事件属性，并统一转换美分金额。

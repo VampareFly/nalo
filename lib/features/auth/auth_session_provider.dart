@@ -1,9 +1,10 @@
-// 管理应用级认证会话、冷启动 Token 恢复和分析身份清理。
-// Token 失效、主动退出或账号注销后清理业务会话并重置 Amplitude 身份。
+// 管理应用级认证会话、冷启动 Token 恢复和后台静默刷新。
+// 有效 Session 先恢复页面流程，刷新结果仅在会话未变化时写回。
+
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
-import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/auth/auth_repository.dart';
 import 'package:nalo/features/auth/auth_token.dart';
 import 'package:nalo/features/auth/current_user_storage.dart';
@@ -57,31 +58,37 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     }
 
     if (expiresAt.difference(now) < _refreshThreshold) {
-      try {
-        final refreshedToken = await repository.refresh(token);
-        return AuthSessionState(
-          status: AuthSessionStatus.authenticated,
-          token: refreshedToken,
-        );
-      } on SessionExpiredException catch (error) {
-        await repository.clearSession();
-        await ref.read(analyticsProvider).resetIdentity();
-        return AuthSessionState(
-          status: AuthSessionStatus.sessionExpired,
-          expirationMessage: error.message,
-        );
-      } catch (_) {
-        return AuthSessionState(
-          status: AuthSessionStatus.authenticated,
-          token: token,
-        );
-      }
+      unawaited(_refreshInBackground(repository, token));
     }
 
     return AuthSessionState(
       status: AuthSessionStatus.authenticated,
       token: token,
     );
+  }
+
+  /// 后台静默刷新临近过期的 Token，任何失败都不影响当前有效 Session。
+  Future<void> _refreshInBackground(
+    AuthRepository repository,
+    AuthToken currentToken,
+  ) async {
+    try {
+      final refreshedToken = await repository.refresh(currentToken);
+      if (refreshedToken == null) return;
+      final currentSession = state.value;
+      if (currentSession?.status != AuthSessionStatus.authenticated ||
+          currentSession?.token != currentToken) {
+        return;
+      }
+      state = AsyncData(
+        AuthSessionState(
+          status: AuthSessionStatus.authenticated,
+          token: refreshedToken,
+        ),
+      );
+    } catch (_) {
+      // Refresh 是可降级能力，旧 Access Token 有效时不阻塞用户或展示错误。
+    }
   }
 
   /// 登录成功后同步内存会话状态。
@@ -91,13 +98,8 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     );
   }
 
-  /// 服务端判定 Token 过期后统一切换为未登录会话。
+  /// 每次收到登录失效响应都幂等清理会话，并重新发布失效状态供全局弹窗消费。
   Future<void> markExpired(String message) async {
-    final currentStatus = state.value?.status;
-    if (currentStatus == AuthSessionStatus.sessionExpired ||
-        currentStatus == AuthSessionStatus.unauthenticated) {
-      return;
-    }
     final repository = await ref.read(authRepositoryProvider.future);
     await repository.clearSession();
     await ref.read(analyticsProvider).resetIdentity();
@@ -124,8 +126,10 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     }
   }
 
-  /// 注销成功后清理该用户 Welcome 状态并结束当前会话。
-  Future<void> deactivate() async {
+  /// 注销成功后清理 Welcome 状态，并在身份重置前执行可选回调。
+  Future<void> deactivate({
+    Future<void> Function()? beforeIdentityReset,
+  }) async {
     final userStorage = await ref.read(currentUserStorageProvider.future);
     final currentUser = await userStorage.read();
     final repository = await ref.read(authRepositoryProvider.future);
@@ -140,6 +144,7 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
         // TODO: <pf> 增加本地用户状态清理失败的统一重试机制。
       }
     }
+    await beforeIdentityReset?.call();
     try {
       await ref.read(analyticsProvider).resetIdentity();
     } finally {

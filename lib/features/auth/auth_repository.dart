@@ -19,11 +19,13 @@ class AuthRepository {
   final TokenStorage _tokenStorage;
   final CurrentUserStorage _currentUserStorage;
 
-  /// 刷新成功后替换完整 Token；失败时保留旧值。
-  Future<AuthToken> refresh(AuthToken currentToken) async {
+  /// 仅在当前 Session 未变化时保存刷新结果；退出或重新登录后丢弃旧结果。
+  Future<AuthToken?> refresh(AuthToken currentToken) async {
     final token = (await _service.refresh(
       refreshToken: currentToken.refreshToken,
     )).toModel();
+    final storedToken = await _tokenStorage.read();
+    if (storedToken != currentToken) return null;
     await _tokenStorage.save(token);
     return token;
   }

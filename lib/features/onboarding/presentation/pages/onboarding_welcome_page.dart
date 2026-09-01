@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
@@ -66,6 +67,7 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
       return;
     }
     setState(() => _isCompleting = true);
+    EasyLoading.show();
     try {
       final repository = await ref.read(
         welcomeCompletionRepositoryProvider.future,
@@ -81,6 +83,8 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
       if (!mounted) return;
       setState(() => _isCompleting = false);
       BotToast.showText(text: 'Unable to continue. Please try again.');
+    } finally {
+      EasyLoading.dismiss();
     }
   }
 
@@ -228,9 +232,9 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
                     foregroundColor: const Color(0xFF1A2433),
                     shape: const StadiumBorder(),
                   ),
-                  child: Text(
-                    _isCompleting ? 'Saving...' : 'Start your Nalo journey',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  child: const Text(
+                    'Start your Nalo journey',
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),

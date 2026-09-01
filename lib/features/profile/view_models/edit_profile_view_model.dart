@@ -2,6 +2,7 @@
 // 初始状态直接读取 Profile Provider，页面生命周期不再命令式修改 Provider。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
@@ -124,6 +125,7 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
     if (state.isSubmitting) return EditProfileSubmitResult.missingFields;
 
     state = state.copyWith(isSubmitting: true, clearError: true);
+    final submittedProfile = state;
     try {
       final repository = await ref.read(userProfileRepositoryProvider.future);
       final user = await repository.update(
@@ -131,17 +133,43 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
         birthDay: state.dateOfBirth!,
         gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
       );
+      await _reportRequestResult(submittedProfile, isSuccess: true);
       state = state.copyWith(isSubmitting: false, updatedUser: user);
       return EditProfileSubmitResult.completed;
     } on ApiException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: '${error.code}: ${error.message}',
+      );
       _setFailure(error.message);
     } on SessionExpiredException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: 'session_expired: ${error.message}',
+      );
       _setFailure(error.message);
     } on NetworkException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: '${error.type.name}: ${error.message}',
+      );
       _setFailure(error.message);
     } on ResponseFormatException catch (error) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: 'response_format_error: ${error.message}',
+      );
       _setFailure(error.message);
     } catch (_) {
+      await _reportRequestResult(
+        submittedProfile,
+        isSuccess: false,
+        failReason: 'unknown_error: Unable to update user profile',
+      );
       _setFailure('Unable to update your profile. Please try again.');
     }
     return EditProfileSubmitResult.submissionFailed;
@@ -149,6 +177,34 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
 
   void _setFailure(String message) {
     state = state.copyWith(isSubmitting: false, errorMessage: message);
+  }
+
+  Future<void> _reportRequestResult(
+    EditProfileState profile, {
+    required bool isSuccess,
+    String failReason = '',
+  }) {
+    return ref
+        .read(analyticsProvider)
+        .report(
+          AnalyticsEvent.profileEditRequestResult,
+          properties: {
+            AnalyticsEventProperty.pageName:
+                AnalyticsPageName.profileEdit.value,
+            ...createAccountAnalyticsProperties(
+              email: profile.email,
+              name: profile.fullName,
+              birth: profile.dateOfBirth,
+              gender: switch (profile.biologicalSex) {
+                BiologicalSex.female => AnalyticsGender.female,
+                BiologicalSex.male => AnalyticsGender.male,
+                null => null,
+              },
+            ),
+            AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
+            AnalyticsEventProperty.failReason: failReason,
+          },
+        );
   }
 
   DateTime? _parseDate(String? value) {

@@ -1,7 +1,8 @@
-// 管理 Profile 页的退出登录和账号注销状态。
-// Widget 只处理确认弹窗、Toast 和导航，会话生命周期交由 AuthSessionNotifier 编排。
+// 管理 Profile 页的退出登录、账号注销状态和注销请求结果。
+// Widget 处理确认弹窗与导航，成功事件在 AuthSession 重置身份前上报。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
 
@@ -37,23 +38,63 @@ class ProfileAccountViewModel extends Notifier<ProfileAccountState> {
     if (state.isLoading) return false;
     state = const ProfileAccountState(isLoading: true);
     try {
-      await ref.read(authSessionProvider.notifier).deactivate();
+      await ref
+          .read(authSessionProvider.notifier)
+          .deactivate(
+            beforeIdentityReset: () => _reportDeactivateResult(isSuccess: true),
+          );
       state = const ProfileAccountState();
       return true;
     } on ApiException catch (error) {
+      await _reportDeactivateResult(
+        isSuccess: false,
+        failReason: '${error.code}: ${error.message}',
+      );
       state = ProfileAccountState(errorMessage: error.message);
     } on SessionExpiredException catch (error) {
+      await _reportDeactivateResult(
+        isSuccess: false,
+        failReason: 'session_expired: ${error.message}',
+      );
       state = ProfileAccountState(errorMessage: error.message);
     } on NetworkException catch (error) {
+      await _reportDeactivateResult(
+        isSuccess: false,
+        failReason: '${error.type.name}: ${error.message}',
+      );
       state = ProfileAccountState(errorMessage: error.message);
     } on ResponseFormatException catch (error) {
+      await _reportDeactivateResult(
+        isSuccess: false,
+        failReason: 'response_format_error: ${error.message}',
+      );
       state = ProfileAccountState(errorMessage: error.message);
     } catch (_) {
+      await _reportDeactivateResult(
+        isSuccess: false,
+        failReason: 'unknown_error: Unable to delete account',
+      );
       state = const ProfileAccountState(
         errorMessage: 'Unable to delete your account. Please try again.',
       );
     }
     return false;
+  }
+
+  Future<void> _reportDeactivateResult({
+    required bool isSuccess,
+    String failReason = '',
+  }) {
+    return ref
+        .read(analyticsProvider)
+        .report(
+          AnalyticsEvent.profileDeleteAccountRequestResult,
+          properties: {
+            AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
+            AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
+            AnalyticsEventProperty.failReason: failReason,
+          },
+        );
   }
 }
 
