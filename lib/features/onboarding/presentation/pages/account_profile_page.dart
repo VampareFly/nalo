@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/widgets/nalo_back_button.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
@@ -99,18 +100,6 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
     _dismissKeyboard();
     final now = DateTime.now();
     final state = ref.read(accountProfileViewModelProvider);
-    unawaited(
-      ref.report(
-        AnalyticsEvent.accountProfileBirthClick,
-        properties: {
-          AnalyticsEventProperty.pageName:
-              AnalyticsPageName.createAccount.value,
-          AnalyticsEventProperty.formType:
-              AnalyticsProfileFormType.register.value,
-          AnalyticsEventProperty.birth: analyticsBirthValue(state.dateOfBirth),
-        },
-      ),
-    );
     final value = await showDatePicker(
       context: context,
       locale: const Locale('en'),
@@ -128,6 +117,18 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
       ref
           .read(accountProfileViewModelProvider.notifier)
           .updateDateOfBirth(value);
+      unawaited(
+        ref.report(
+          AnalyticsEvent.accountProfileBirthClick,
+          properties: {
+            AnalyticsEventProperty.pageName:
+                AnalyticsPageName.createAccount.value,
+            AnalyticsEventProperty.formType:
+                AnalyticsProfileFormType.register.value,
+            AnalyticsEventProperty.birth: analyticsBirthValue(value),
+          },
+        ),
+      );
     }
   }
 
@@ -313,18 +314,19 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                IconButton(
-                  onPressed: state.isSubmitting
-                      ? null
-                      : () {
-                          if (context.canPop()) {
-                            context.pop();
-                          } else {
-                            context.go(AuthEntryPage.path);
-                          }
-                        },
-                  icon: const Icon(Icons.arrow_back),
-                  style: IconButton.styleFrom(overlayColor: Colors.transparent),
+                Transform.translate(
+                  offset: const Offset(-10, 0),
+                  child: NaloBackButton(
+                    onPressed: state.isSubmitting
+                        ? null
+                        : () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go(AuthEntryPage.path);
+                            }
+                          },
+                  ),
                 ),
                 const SizedBox(height: 12),
                 const Text(
@@ -474,9 +476,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                   child: Text.rich(
                     TextSpan(
                       children: [
-                        const TextSpan(
-                          text: 'By continuing you agree to our ',
-                        ),
+                        const TextSpan(text: 'By continuing you agree to our '),
                         WidgetSpan(
                           alignment: PlaceholderAlignment.baseline,
                           baseline: TextBaseline.alphabetic,

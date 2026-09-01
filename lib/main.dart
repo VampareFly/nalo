@@ -1,8 +1,10 @@
+// 应用启动入口，依次完成系统 UI、基础服务与全局 Provider 初始化。
 import 'package:amplitude_flutter/amplitude.dart';
 import 'package:amplitude_flutter/configuration.dart';
 import 'package:amplitude_flutter/constants.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nalo/app/app.dart';
@@ -15,6 +17,15 @@ import 'package:nalo/core/network/provider_retry_policy.dart';
 Future<void> main() async {
   /// 确保flutter framework与底层引擎的链接
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemStatusBarContrastEnforced: false,
+    ),
+  );
 
   await initializeDebugSystemProxy();
 

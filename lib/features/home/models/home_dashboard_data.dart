@@ -36,12 +36,14 @@ class HomeReferralOffer {
     required this.description,
     required this.buttonText,
     required this.actionUrl,
+    this.shareText,
   });
 
   final String title;
   final String description;
   final String buttonText;
   final String actionUrl;
+  final String? shareText;
 }
 
 /// 首页一次渲染所需的聚合数据。

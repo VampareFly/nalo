@@ -8,13 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/sharing/platform_share_service.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
 import 'package:nalo/features/test_flow/presentation/widgets/native_camera_view.dart';
 import 'package:nalo/features/test_flow/presentation/widgets/test_flow_widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 const _analyticsVisibleFraction = 0.1;
@@ -23,18 +23,6 @@ const _celebrationDescription =
     'of your hormone patterns over time. Keep going — your data is working for you.';
 const _testAgainDescription =
     'Patterns build over time. The more you test, the clearer the picture.';
-
-Future<void> _openReferralLink(String link) async {
-  final uri = Uri.tryParse(link);
-  final didOpen =
-      uri != null && await launchUrl(uri, mode: LaunchMode.externalApplication);
-  if (!didOpen) {
-    BotToast.showText(
-      text: 'Unable to open referral link',
-      align: Alignment.center,
-    );
-  }
-}
 
 /// 展示检测类型选择、注意事项和最近三次结果。
 class AboutTestScreen extends ConsumerStatefulWidget {
@@ -2221,14 +2209,28 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
     );
   }
 
-  void _openReferral(String url) {
+  void _shareReferral(String url, String? shareText) {
     unawaited(
       ref.report(
         AnalyticsEvent.referralClick,
         properties: _resultReferralProperties(url),
       ),
     );
-    unawaited(_openReferralLink(url));
+    unawaited(_showReferralShare(url, shareText));
+  }
+
+  Future<void> _showReferralShare(String url, String? shareText) async {
+    try {
+      await ref
+          .read(platformShareServiceProvider)
+          .shareLink(url, message: shareText);
+    } on Object {
+      if (!mounted) return;
+      BotToast.showText(
+        text: 'Unable to share referral link',
+        align: Alignment.center,
+      );
+    }
   }
 
   void _close(TestFlowState state) {
@@ -2467,7 +2469,10 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
               ),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => _openReferral(referralOffer.actionUrl),
+                onTap: () => _shareReferral(
+                  referralOffer.actionUrl,
+                  referralOffer.shareText,
+                ),
                 child: FlowCard(
                   color: flowYellow,
                   child: Row(

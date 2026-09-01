@@ -1,5 +1,6 @@
 // 检测流程共享 UI：集中维护颜色、顶部栏、步骤标识、按钮、卡片和选择项样式。
 import 'package:flutter/material.dart';
+import 'package:nalo/core/widgets/nalo_back_button.dart';
 
 /// 检测流程使用的页面背景色。
 const flowPaper = Color(0xFFEDE8E0);
@@ -65,13 +66,16 @@ class FlowTopBar extends StatelessWidget {
             width: 44,
             child: onBack == null && (onClose == null || closeOnRight)
                 ? null
-                : IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: onBack ?? onClose,
-                    icon: Icon(
-                      onBack != null ? Icons.arrow_back : Icons.close,
+                : Transform.translate(
+                    offset: const Offset(-6, 0),
+                    child: NaloBackButton(
+                      onPressed: onBack ?? onClose,
                       color: color,
-                      size: 24,
+                      icon: Icon(
+                        onBack != null ? Icons.arrow_back : Icons.close,
+                        color: color,
+                        size: 24,
+                      ),
                     ),
                   ),
           ),

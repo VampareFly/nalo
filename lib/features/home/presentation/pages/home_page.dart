@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/app/config/app_version_provider.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/sharing/platform_share_service.dart';
 import 'package:nalo/features/app_update/models/app_version_update.dart';
 import 'package:nalo/features/app_update/presentation/widgets/version_update_dialog.dart';
 import 'package:nalo/features/app_update/view_models/app_version_view_model.dart';
@@ -258,7 +259,7 @@ class _HomePageState extends ConsumerState<HomePage>
     if (mounted) _resumeSelectedTabAfterChild();
   }
 
-  Future<void> _openReferral() async {
+  Future<void> _shareReferral() async {
     final offer = ref.read(homeDashboardProvider).asData?.value.referralOffer;
     if (offer == null) return;
     unawaited(
@@ -272,13 +273,14 @@ class _HomePageState extends ConsumerState<HomePage>
         },
       ),
     );
-    final uri = Uri.tryParse(offer.actionUrl);
-    final didOpen =
-        uri != null &&
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!didOpen && mounted) {
+    try {
+      await ref
+          .read(platformShareServiceProvider)
+          .shareLink(offer.actionUrl, message: offer.shareText);
+    } on Object {
+      if (!mounted) return;
       BotToast.showText(
-        text: 'Unable to open referral link',
+        text: 'Unable to share referral link',
         align: Alignment.center,
       );
     }
@@ -317,7 +319,7 @@ class _HomePageState extends ConsumerState<HomePage>
               totalTestCount: totalTestCount,
             ),
             onHistoryPressed: _openTestHistory,
-            onReferralPressed: _openReferral,
+            onReferralPressed: _shareReferral,
           ),
           _hasOpenedShop
               ? ShopPage(

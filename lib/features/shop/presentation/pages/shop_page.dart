@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/sharing/platform_share_service.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/shop/models/test_kit_product.dart';
 import 'package:nalo/features/shop/presentation/widgets/shop_referral_card.dart';
@@ -141,14 +142,15 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     );
   }
 
-  Future<void> _openReferral(String link) async {
-    final uri = Uri.tryParse(link);
-    final didOpen =
-        uri != null &&
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!didOpen && mounted) {
+  Future<void> _shareReferral(String link, String? shareText) async {
+    try {
+      await ref
+          .read(platformShareServiceProvider)
+          .shareLink(link, message: shareText);
+    } on Object {
+      if (!mounted) return;
       BotToast.showText(
-        text: 'Unable to open referral link',
+        text: 'Unable to share referral link',
         align: Alignment.center,
       );
     }
@@ -236,8 +238,10 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                           if (referralOffer != null)
                             ShopReferralCard(
                               offer: referralOffer,
-                              onSharePressed: () =>
-                                  _openReferral(referralOffer.actionUrl),
+                              onSharePressed: () => _shareReferral(
+                                referralOffer.actionUrl,
+                                referralOffer.shareText,
+                              ),
                             ),
                           if (state.isLoadingMore) ...[
                             const SizedBox(height: 20),

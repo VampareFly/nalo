@@ -14,9 +14,8 @@ const _fallbackGreeting = 'Hello,';
 
 /// 加载首页用户名、服务端问候语、检测总数和两类最近结果。
 final homeDashboardProvider = FutureProvider<HomeDashboardData>((ref) async {
-  final storageFuture = ref.watch(currentUserStorageProvider.future);
+  final user = ref.watch(currentUserSnapshotProvider).value;
   final repositoryFuture = ref.watch(homeRepositoryProvider.future);
-  final user = await _loadCurrentUser(storageFuture);
   final displayName = _displayName(user);
   final initial = _firstVisibleCharacter(displayName);
   HomeIndexData? indexData;
@@ -67,17 +66,6 @@ List<RecentDetection> _cachedResultsFor(HomeIndexData data, String type) {
       .toList(growable: false);
 }
 
-Future<AppUserInfo?> _loadCurrentUser(
-  Future<CurrentUserStorage> storageFuture,
-) async {
-  try {
-    final storage = await storageFuture;
-    return storage.read();
-  } catch (_) {
-    return null;
-  }
-}
-
 String _displayName(AppUserInfo? user) {
   final userName = user?.fullName?.trim();
   return userName == null || userName.isEmpty ? 'Nalo' : userName;
@@ -91,6 +79,7 @@ HomeReferralOffer? _referralOffer(AppUserInfo? user) {
     description: card.description,
     buttonText: card.buttonText,
     actionUrl: card.actionUrl,
+    shareText: card.shareText,
   );
 }
 

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/widgets/nalo_back_button.dart';
 import 'package:nalo/features/home/models/test_history_models.dart';
 import 'package:nalo/features/home/view_models/test_history_view_model.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -191,14 +192,15 @@ class _HistoryAppBar extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.centerLeft,
-            child: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-              icon: SvgPicture.asset(
-                'assets/icons/history_back.svg',
-                width: 24,
-                height: 24,
+            child: Transform.translate(
+              offset: const Offset(-6, 0),
+              child: NaloBackButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: SvgPicture.asset(
+                  'assets/icons/history_back.svg',
+                  width: 24,
+                  height: 24,
+                ),
               ),
             ),
           ),

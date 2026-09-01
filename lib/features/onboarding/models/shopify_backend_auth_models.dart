@@ -185,12 +185,16 @@ class UserReferralCard {
     required this.description,
     required this.buttonText,
     required this.actionUrl,
+    this.shareText,
   });
 
   final String title;
   final String description;
   final String buttonText;
   final String actionUrl;
+
+  /// 系统分享时展示的服务端文案；缺失或为空时仅分享链接。
+  final String? shareText;
 
   /// 解析 referral_card；任一必填字段为空时隐藏卡片。
   static UserReferralCard? tryParse(Object? value) {
@@ -210,6 +214,7 @@ class UserReferralCard {
       description: description,
       buttonText: buttonText,
       actionUrl: actionUrl,
+      shareText: _nonEmptyString(value['share_text']),
     );
   }
 
@@ -219,6 +224,7 @@ class UserReferralCard {
     'description': description,
     'button_text': buttonText,
     'action_url': actionUrl,
+    if (shareText != null) 'share_text': shareText,
   };
 
   static String? _nonEmptyString(Object? value) {

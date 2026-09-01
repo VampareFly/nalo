@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/widgets/nalo_back_button.dart';
 import 'package:nalo/features/onboarding/view_models/account_profile_view_model.dart';
 import 'package:nalo/features/profile/view_models/edit_profile_view_model.dart';
 import 'package:nalo/features/profile/view_models/profile_view_model.dart';
@@ -60,17 +61,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     _dismissKeyboard();
     final now = DateTime.now();
     final state = ref.read(editProfileViewModelProvider);
-    unawaited(
-      ref.report(
-        AnalyticsEvent.accountProfileBirthClick,
-        properties: {
-          AnalyticsEventProperty.pageName: AnalyticsPageName.profileEdit.value,
-          AnalyticsEventProperty.formType:
-              AnalyticsProfileFormType.editProfile.value,
-          AnalyticsEventProperty.birth: analyticsBirthValue(state.dateOfBirth),
-        },
-      ),
-    );
     final value = await showDatePicker(
       context: context,
       locale: const Locale('en'),
@@ -81,6 +71,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
     if (value != null && mounted) {
       ref.read(editProfileViewModelProvider.notifier).updateDateOfBirth(value);
+      unawaited(
+        ref.report(
+          AnalyticsEvent.accountProfileBirthClick,
+          properties: {
+            AnalyticsEventProperty.pageName:
+                AnalyticsPageName.profileEdit.value,
+            AnalyticsEventProperty.formType:
+                AnalyticsProfileFormType.editProfile.value,
+            AnalyticsEventProperty.birth: analyticsBirthValue(value),
+          },
+        ),
+      );
     }
   }
 
@@ -284,14 +286,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    onPressed: state.isSubmitting ? null : _handleTopBack,
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: Color(0xFF008BC7),
-                    ),
-                    style: IconButton.styleFrom(
-                      overlayColor: Colors.transparent,
+                  Transform.translate(
+                    offset: const Offset(-10, 0),
+                    child: NaloBackButton(
+                      onPressed: state.isSubmitting ? null : _handleTopBack,
                     ),
                   ),
                   const SizedBox(height: 12),

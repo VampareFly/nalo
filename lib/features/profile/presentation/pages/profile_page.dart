@@ -10,12 +10,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/sharing/platform_share_service.dart';
+import 'package:nalo/core/widgets/nalo_back_button.dart';
+import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:nalo/features/profile/view_models/profile_account_view_model.dart';
 import 'package:nalo/features/profile/view_models/profile_view_model.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 /// Nalo 个人中心主页。
@@ -66,20 +68,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  Future<void> _openReferralLink(String link) async {
+  Future<void> _shareReferralLink(
+    String link,
+    String? shareText,
+    Rect? shareOrigin,
+  ) async {
     unawaited(
       ref.report(
         AnalyticsEvent.referralClick,
         properties: _referralProperties(link),
       ),
     );
-    final uri = Uri.tryParse(link);
-    final opened =
-        uri != null &&
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened) {
+    try {
+      await ref
+          .read(platformShareServiceProvider)
+          .shareLink(
+            link,
+            message: shareText,
+            sharePositionOrigin: shareOrigin,
+          );
+    } on Object {
       BotToast.showText(
-        text: 'Unable to open referral link',
+        text: 'Unable to share referral link',
         align: Alignment.center,
       );
     }
@@ -217,7 +227,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileViewModelProvider);
-    final user = profileState.user;
+    final user =
+        ref.watch(currentUserSnapshotProvider).value ?? profileState.user;
     ref.listen(
       profileAccountViewModelProvider.select((state) => state.isLoading),
       (previous, next) {
@@ -374,8 +385,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           },
                           child: _ReferralCard(
                             referralCard: referralCard,
-                            onPressed: () =>
-                                _openReferralLink(referralCard.actionUrl),
+                            onPressed: (shareOrigin) => _shareReferralLink(
+                              referralCard.actionUrl,
+                              referralCard.shareText,
+                              shareOrigin,
+                            ),
                           ),
                         ),
                       ],
@@ -433,13 +447,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      IconButton.filled(
-        onPressed: onBack,
-        style: IconButton.styleFrom(
+      Transform.translate(
+        offset: const Offset(-4, 0),
+        child: NaloBackButton(
+          onPressed: onBack,
+          color: const Color(0xFF1A2433),
           backgroundColor: Colors.black.withValues(alpha: 0.07),
-          foregroundColor: const Color(0xFF1A2433),
         ),
-        icon: const Icon(Icons.arrow_back, size: 20),
       ),
       const Expanded(
         child: Text(
@@ -727,7 +741,7 @@ class _ReferralCard extends StatelessWidget {
   const _ReferralCard({required this.referralCard, required this.onPressed});
 
   final UserReferralCard referralCard;
-  final VoidCallback onPressed;
+  final ValueChanged<Rect?> onPressed;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -759,22 +773,30 @@ class _ReferralCard extends StatelessWidget {
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
-          child: FilledButton(
-            onPressed: onPressed,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF1A2433),
-              foregroundColor: const Color(0xFFFDDA7C),
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          child: Builder(
+            builder: (buttonContext) => FilledButton(
+              onPressed: () => onPressed(_globalBounds(buttonContext)),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1A2433),
+                foregroundColor: const Color(0xFFFDDA7C),
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
+              child: Text(referralCard.buttonText),
             ),
-            child: Text(referralCard.buttonText),
           ),
         ),
       ],
     ),
   );
+
+  Rect? _globalBounds(BuildContext context) {
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
+  }
 }
 
 class _SignOutButton extends StatelessWidget {
