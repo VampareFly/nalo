@@ -1,5 +1,5 @@
-// 管理新登录注册入口页的正式服务端认证状态。
-// 完整认证结束后绑定 Amplitude 用户并上报结果；临时直连状态保持独立。
+// 管理新登录注册入口页的服务端 Shopify 认证状态。
+// 完整认证结束后绑定 Amplitude 用户并上报结果。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';

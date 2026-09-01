@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -379,6 +380,16 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                   ),
                   const SizedBox(height: 12),
                 ],
+                if (state.showFullNameLengthError) ...[
+                  const Text(
+                    'Name must be 50 characters or fewer.',
+                    style: TextStyle(
+                      color: Color(0xFFD4183D),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 if (state.submissionError != null) ...[
                   Text(
                     state.submissionError!,
@@ -400,6 +411,17 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                     controller: _nameController,
                     focusNode: _nameFocusNode,
                     enabled: !state.isSubmitting,
+                    inputFormatters: [
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        if (isProfileFullNameTooLong(newValue.text)) {
+                          ref
+                              .read(accountProfileViewModelProvider.notifier)
+                              .showFullNameLengthError();
+                          return oldValue;
+                        }
+                        return newValue;
+                      }),
+                    ],
                     onChanged: ref
                         .read(accountProfileViewModelProvider.notifier)
                         .updateFullName,

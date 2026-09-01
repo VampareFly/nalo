@@ -1,5 +1,4 @@
-// 新登录注册入口页，展示正式服务端认证入口。
-// 客户端直连测试代码暂以注释保留，恢复入口时需同步恢复对应状态监听。
+// 新登录注册入口页，展示正式服务端 Shopify 认证入口。
 
 import 'dart:async';
 
@@ -17,7 +16,6 @@ import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_p
 import 'package:nalo/features/onboarding/presentation/widgets/nalo_brand.dart';
 import 'package:nalo/features/onboarding/services/shopify_backend_auth_service.dart';
 import 'package:nalo/features/onboarding/view_models/auth_entry_view_model.dart';
-// import 'package:nalo/features/onboarding/view_models/shopify_auth_view_model.dart';
 
 /// Figma 登录注册流程的统一入口页面。
 class AuthEntryPage extends ConsumerStatefulWidget {
@@ -43,7 +41,6 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authEntryViewModelProvider);
-    // final testState = ref.watch(shopifyAuthViewModelProvider);
     final isAnyAuthenticationBusy = state.isLoading;
 
     Future<void> authorize(ShopifyAuthIntent intent) async {
@@ -210,21 +207,6 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
                       ),
                     ),
                   ),
-                  // TODO: <pf> 需要继续验证客户端直连 Shopify 时恢复以下测试入口及顶部状态监听。
-                  // const SizedBox(height: 16),
-                  // _PillButton(
-                  //   label: 'Test direct Shopify login',
-                  //   foregroundColor: Colors.white,
-                  //   backgroundColor: Colors.white.withValues(alpha: 0.16),
-                  //   onPressed: ...,
-                  // ),
-                  // const SizedBox(height: 12),
-                  // _PillButton(
-                  //   label: 'Logout from Shopify',
-                  //   foregroundColor: Colors.white,
-                  //   backgroundColor: Colors.white.withValues(alpha: 0.16),
-                  //   onPressed: ...,
-                  // ),
                   const Spacer(),
                   TextButton(
                     onPressed: isAnyAuthenticationBusy

@@ -25,6 +25,7 @@ class EditProfileState {
     this.dateOfBirth,
     this.biologicalSex,
     this.showMissingFieldsError = false,
+    this.showFullNameLengthError = false,
     this.isSubmitting = false,
     this.errorMessage,
     this.updatedUser,
@@ -35,6 +36,7 @@ class EditProfileState {
   final DateTime? dateOfBirth;
   final BiologicalSex? biologicalSex;
   final bool showMissingFieldsError;
+  final bool showFullNameLengthError;
   final bool isSubmitting;
   final String? errorMessage;
   final AppUserInfo? updatedUser;
@@ -62,6 +64,7 @@ class EditProfileState {
     DateTime? dateOfBirth,
     BiologicalSex? biologicalSex,
     bool? showMissingFieldsError,
+    bool? showFullNameLengthError,
     bool? isSubmitting,
     String? errorMessage,
     AppUserInfo? updatedUser,
@@ -73,6 +76,8 @@ class EditProfileState {
     biologicalSex: biologicalSex ?? this.biologicalSex,
     showMissingFieldsError:
         showMissingFieldsError ?? this.showMissingFieldsError,
+    showFullNameLengthError:
+        showFullNameLengthError ?? this.showFullNameLengthError,
     isSubmitting: isSubmitting ?? this.isSubmitting,
     errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     updatedUser: updatedUser ?? this.updatedUser,
@@ -99,7 +104,17 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
 
   /// 更新完整姓名输入。
   void updateFullName(String value) {
-    state = state.copyWith(fullName: value, clearError: true);
+    state = state.copyWith(
+      fullName: value,
+      showFullNameLengthError: isProfileFullNameTooLong(value),
+      clearError: true,
+    );
+  }
+
+  /// 用户尝试输入第 51 个字符时展示长度错误。
+  void showFullNameLengthError() {
+    if (state.showFullNameLengthError) return;
+    state = state.copyWith(showFullNameLengthError: true);
   }
 
   /// 更新生日并重新计算年龄状态。
@@ -114,13 +129,21 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
 
   /// 校验年龄和必填项，并提交服务端更新资料。
   Future<EditProfileSubmitResult> submit() async {
+    if (isProfileFullNameTooLong(state.fullName)) {
+      state = state.copyWith(showFullNameLengthError: true);
+      return EditProfileSubmitResult.missingFields;
+    }
     if (state.fullName.trim().isEmpty ||
         state.dateOfBirth == null ||
         state.biologicalSex == null) {
       state = state.copyWith(showMissingFieldsError: true);
       return EditProfileSubmitResult.missingFields;
     }
-    state = state.copyWith(showMissingFieldsError: false, clearError: true);
+    state = state.copyWith(
+      showMissingFieldsError: false,
+      showFullNameLengthError: false,
+      clearError: true,
+    );
     if ((state.age ?? 0) < 18) return EditProfileSubmitResult.under18;
     if (state.isSubmitting) return EditProfileSubmitResult.missingFields;
 

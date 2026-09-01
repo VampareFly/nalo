@@ -4,6 +4,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -343,6 +344,16 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ),
                     const SizedBox(height: 12),
                   ],
+                  if (state.showFullNameLengthError) ...[
+                    const Text(
+                      'Name must be 50 characters or fewer.',
+                      style: TextStyle(
+                        color: Color(0xFFD4183D),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   if (state.errorMessage != null) ...[
                     Text(
                       state.errorMessage!,
@@ -365,6 +376,17 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       controller: _nameController,
                       focusNode: _nameFocusNode,
                       enabled: !state.isSubmitting,
+                      inputFormatters: [
+                        TextInputFormatter.withFunction((oldValue, newValue) {
+                          if (isProfileFullNameTooLong(newValue.text)) {
+                            ref
+                                .read(editProfileViewModelProvider.notifier)
+                                .showFullNameLengthError();
+                            return oldValue;
+                          }
+                          return newValue;
+                        }),
+                      ],
                       onChanged: ref
                           .read(editProfileViewModelProvider.notifier)
                           .updateFullName,

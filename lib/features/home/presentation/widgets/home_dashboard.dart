@@ -156,7 +156,7 @@ class _HomeDashboardState extends ConsumerState<HomeDashboard> {
             loading: () =>
                 const Center(child: CircularProgressIndicator(color: _blue)),
             error: (_, _) => _HomeLoadError(
-              onRetry: () => ref.invalidate(homeDashboardProvider),
+              onRetry: () => ref.invalidate(homeIndexProvider),
             ),
             data: (data) => _HomeDashboardBody(
               data: data,

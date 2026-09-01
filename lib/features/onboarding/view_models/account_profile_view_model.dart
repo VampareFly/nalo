@@ -16,6 +16,9 @@ enum AccountProfileSubmitResult {
   completed,
 }
 
+/// 判断完整姓名是否超过 50 个字符，用于输入限制和提交校验。
+bool isProfileFullNameTooLong(String value) => value.runes.length > 50;
+
 /// 注册资料页面状态。
 class AccountProfileState {
   const AccountProfileState({
@@ -24,6 +27,7 @@ class AccountProfileState {
     this.dateOfBirth,
     this.biologicalSex,
     this.showMissingFieldsError = false,
+    this.showFullNameLengthError = false,
     this.isSubmitting = false,
     this.submissionError,
   });
@@ -33,6 +37,7 @@ class AccountProfileState {
   final DateTime? dateOfBirth;
   final BiologicalSex? biologicalSex;
   final bool showMissingFieldsError;
+  final bool showFullNameLengthError;
   final bool isSubmitting;
   final String? submissionError;
 
@@ -56,6 +61,7 @@ class AccountProfileState {
     DateTime? dateOfBirth,
     BiologicalSex? biologicalSex,
     bool? showMissingFieldsError,
+    bool? showFullNameLengthError,
     bool? isSubmitting,
     String? submissionError,
     bool clearSubmissionError = false,
@@ -67,6 +73,8 @@ class AccountProfileState {
       biologicalSex: biologicalSex ?? this.biologicalSex,
       showMissingFieldsError:
           showMissingFieldsError ?? this.showMissingFieldsError,
+      showFullNameLengthError:
+          showFullNameLengthError ?? this.showFullNameLengthError,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       submissionError: clearSubmissionError
           ? null
@@ -94,9 +102,16 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
   void updateFullName(String value) {
     state = state.copyWith(
       fullName: value,
+      showFullNameLengthError: isProfileFullNameTooLong(value),
       showMissingFieldsError: _shouldKeepMissingFieldsError(fullName: value),
       clearSubmissionError: true,
     );
+  }
+
+  /// 用户尝试输入第 51 个字符时展示长度错误。
+  void showFullNameLengthError() {
+    if (state.showFullNameLengthError) return;
+    state = state.copyWith(showFullNameLengthError: true);
   }
 
   /// 保存生日并重新计算年龄提示状态。
@@ -107,6 +122,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       dateOfBirth: value,
       biologicalSex: state.biologicalSex,
       showMissingFieldsError: _shouldKeepMissingFieldsError(dateOfBirth: value),
+      showFullNameLengthError: state.showFullNameLengthError,
       isSubmitting: state.isSubmitting,
       submissionError: null,
     );
@@ -138,6 +154,10 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
 
   /// 仅在用户点击主按钮时校验并提交资料。
   Future<AccountProfileSubmitResult> submit() async {
+    if (isProfileFullNameTooLong(state.fullName)) {
+      state = state.copyWith(showFullNameLengthError: true);
+      return AccountProfileSubmitResult.missingFields;
+    }
     if (state.email.trim().isEmpty ||
         state.fullName.trim().isEmpty ||
         state.dateOfBirth == null ||
@@ -145,7 +165,10 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       state = state.copyWith(showMissingFieldsError: true);
       return AccountProfileSubmitResult.missingFields;
     }
-    state = state.copyWith(showMissingFieldsError: false);
+    state = state.copyWith(
+      showMissingFieldsError: false,
+      showFullNameLengthError: false,
+    );
     if ((state.age ?? 0) < 18) return AccountProfileSubmitResult.under18;
     if (state.isSubmitting) return AccountProfileSubmitResult.missingFields;
     state = state.copyWith(isSubmitting: true, clearSubmissionError: true);

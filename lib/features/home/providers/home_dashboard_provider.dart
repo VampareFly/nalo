@@ -1,5 +1,5 @@
-// 组合当前用户与首页聚合接口数据，向首页提供单一展示状态。
-// 远端接口失败时保留用户信息和页面入口，并对检测内容统一降级。
+// 分别管理首页网络数据与当前用户快照，再组合为单一展示状态。
+// 用户或 Referral 变化只重新组合本地数据，不触发首页网络请求。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/features/auth/current_user_storage.dart';
@@ -12,31 +12,37 @@ import 'package:nalo/features/test_flow/providers/recent_tests_cache_provider.da
 
 const _fallbackGreeting = 'Hello,';
 
-/// 加载首页用户名、服务端问候语、检测总数和两类最近结果。
-final homeDashboardProvider = FutureProvider<HomeDashboardData>((ref) async {
+/// 请求首页聚合数据；失败时返回空值供页面降级展示。
+final homeIndexProvider = FutureProvider<HomeIndexData?>((ref) async {
+  try {
+    final repository = await ref.watch(homeRepositoryProvider.future);
+    final data = await repository.fetchIndex();
+    _updateRecentCache(ref, data);
+    return data;
+  } catch (_) {
+    // 首页聚合接口失败时保留 Scan、Profile 和 Shop 等入口。
+    return null;
+  }
+});
+
+/// 组合用户快照与首页网络数据，不在用户变更时重新请求接口。
+final homeDashboardProvider = Provider<AsyncValue<HomeDashboardData>>((ref) {
   final user = ref.watch(currentUserSnapshotProvider).value;
-  final repositoryFuture = ref.watch(homeRepositoryProvider.future);
+  final indexData = ref.watch(homeIndexProvider);
   final displayName = _displayName(user);
   final initial = _firstVisibleCharacter(displayName);
-  HomeIndexData? indexData;
 
-  try {
-    final repository = await repositoryFuture;
-    indexData = await repository.fetchIndex();
-    _updateRecentCache(ref, indexData);
-  } catch (_) {
-    // 首页聚合接口失败时只降级远端内容，Scan、Profile、Shop 等入口仍可使用。
-  }
-
-  return HomeDashboardData(
-    greeting: _greetingFrom(indexData),
-    userName: displayName,
-    userInitial: initial ?? 'N',
-    hasIndexData: indexData != null,
-    totalTestCount: indexData?.historyTotal ?? 0,
-    cortisolResults: _resultsFor(indexData, HomeTestType.cortisol),
-    testosteroneResults: _resultsFor(indexData, HomeTestType.testosterone),
-    referralOffer: _referralOffer(user),
+  return indexData.whenData(
+    (data) => HomeDashboardData(
+      greeting: _greetingFrom(data),
+      userName: displayName,
+      userInitial: initial ?? 'N',
+      hasIndexData: data != null,
+      totalTestCount: data?.historyTotal ?? 0,
+      cortisolResults: _resultsFor(data, HomeTestType.cortisol),
+      testosteroneResults: _resultsFor(data, HomeTestType.testosterone),
+      referralOffer: _referralOffer(user),
+    ),
   );
 });
 

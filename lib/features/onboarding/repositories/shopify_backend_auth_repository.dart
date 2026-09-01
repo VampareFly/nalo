@@ -28,7 +28,6 @@ class ShopifyBackendAuthRepository {
 
   /// 按 prepare → AppAuth → exchange 完成一次登录并使用响应用户分流。
   Future<OnboardingAuthResult> authorize(ShopifyAuthIntent intent) async {
-    // TODO: <pf> 服务端确认登录与注册 intent 参数后传入 prepare。
     final preparation = await _backendService.prepare();
     final authorization = await _shopifyService.authorizeForBackend(
       clientId: preparation.clientId,

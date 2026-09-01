@@ -213,7 +213,7 @@ class _HomePageState extends ConsumerState<HomePage>
     };
   }
 
-  void _refreshHome() => ref.invalidate(homeDashboardProvider);
+  void _refreshHome() => ref.invalidate(homeIndexProvider);
 
   Future<void> _openTestFlow(
     AnalyticsTestStartPosition position, {
