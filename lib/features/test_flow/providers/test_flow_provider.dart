@@ -417,7 +417,6 @@ class TestFlowController extends Notifier<TestFlowState> {
         selectedTimePeriod: selectedTimePeriod,
         isLoading: false,
       );
-      // TODO: <pf> 确认图片检测接口重复提交时是否会创建多个 detection_id。
     } catch (error) {
       if (!requestSucceeded) {
         unawaited(
@@ -571,8 +570,6 @@ class TestFlowController extends Notifier<TestFlowState> {
         isLoading: false,
         errorMessage: resultError,
       );
-      // TODO: <pf> 确认结果确认接口重复提交是否会重复计入 cycle。
-      // TODO: <pf> 确认 detections/result 始终返回刚完成确认的最新结果。
     } catch (error) {
       if (!confirmRequestSucceeded) {
         unawaited(

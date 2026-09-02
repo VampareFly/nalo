@@ -189,10 +189,9 @@ class _ProductPrice extends StatelessWidget {
   String _formatPrice(String value, String currency) {
     final amount = num.tryParse(value);
     if (amount == null) return '$currency $value';
-    final decimalDigits = amount == amount.roundToDouble() ? 0 : 2;
     return NumberFormat.simpleCurrency(
       name: currency,
-      decimalDigits: decimalDigits,
+      decimalDigits: 2,
     ).format(amount);
   }
 }

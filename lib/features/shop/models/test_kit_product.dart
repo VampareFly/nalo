@@ -94,28 +94,23 @@ class TestKitProductPage {
   }
 }
 
-/// 服务端生成的短期 Shopify 购买链接。
+/// 服务端生成的 Shopify 购买链接。
 @immutable
 class ShopifyProductLink {
-  const ShopifyProductLink({required this.url, required this.expiresAt});
+  const ShopifyProductLink({required this.url});
 
   final Uri url;
-  final DateTime expiresAt;
 
-  /// 解析购买 URL，并将服务端秒级时间戳转为 DateTime。
+  /// 解析可供外部浏览器打开的 HTTPS 购买 URL。
   factory ShopifyProductLink.fromJson(Map<String, dynamic> json) {
     final rawUrl = _requiredString(json, 'product_url');
-    final expiresAt = _requiredInt(json, 'expires_at');
     final uri = Uri.tryParse(rawUrl);
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
       throw const ResponseFormatException(
         'The Shopify product URL is not a valid HTTPS URL.',
       );
     }
-    return ShopifyProductLink(
-      url: uri,
-      expiresAt: DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000),
-    );
+    return ShopifyProductLink(url: uri);
   }
 }
 

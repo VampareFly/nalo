@@ -205,11 +205,6 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
     try {
       final repository = await ref.read(shopRepositoryProvider.future);
       final link = await repository.createPurchaseLink(product);
-      if (!link.expiresAt.isAfter(DateTime.now())) {
-        throw const ResponseFormatException(
-          'The Shopify product URL has already expired.',
-        );
-      }
       await _reportPurchaseLinkResult(
         product,
         url: link.url.toString(),

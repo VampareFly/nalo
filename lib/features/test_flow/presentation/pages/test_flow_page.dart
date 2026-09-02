@@ -5,7 +5,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
 import 'package:nalo/features/test_flow/presentation/pages/test_flow_screens.dart';
@@ -102,7 +104,7 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
               TestFlowStep.milestone => const MilestoneScreen(),
               TestFlowStep.result => ResultDetailsScreen(
                 onClose: _exitAfterCompletion,
-                onBackHome: _exitAfterCompletion,
+                onBackHome: _backToHomeAfterCompletion,
               ),
             },
           ],
@@ -299,6 +301,20 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
     _isExiting = true;
     ref.read(testFlowProvider.notifier).reset();
     Navigator.of(context).pop();
+  }
+
+  /// 完成检测后清空流程，并将整个导航栈明确切换到首页 Tab。
+  void _backToHomeAfterCompletion() {
+    _isExiting = true;
+    ref.read(testFlowProvider.notifier).reset();
+    final homeLocation = Uri(
+      path: HomePage.path,
+      queryParameters: {
+        'tab': 'home',
+        'completedTest': DateTime.now().microsecondsSinceEpoch.toString(),
+      },
+    );
+    context.go(homeLocation.toString());
   }
 
   Map<AnalyticsEventProperty, Object> _flowProperties(TestFlowState state) {

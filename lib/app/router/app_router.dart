@@ -32,6 +32,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: HomePage.path,
         pageBuilder: (context, state) => NoTransitionPage(
+          key: ValueKey(state.uri),
           child: HomePage(
             initialIndex: state.uri.queryParameters['tab'] == 'shop' ? 1 : 0,
           ),
