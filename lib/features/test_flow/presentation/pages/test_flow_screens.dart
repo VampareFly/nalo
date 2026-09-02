@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/sharing/platform_share_service.dart';
+import 'package:nalo/features/home/models/home_dashboard_data.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
@@ -2198,25 +2199,25 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
     );
   }
 
-  void _reportReferralView(String url, double fraction) {
+  void _reportReferralView(HomeReferralOffer offer, double fraction) {
     if (_referralViewReported || fraction < _analyticsVisibleFraction) return;
     _referralViewReported = true;
     unawaited(
       ref.report(
         AnalyticsEvent.referralView,
-        properties: _resultReferralProperties(url),
+        properties: _resultReferralProperties(offer),
       ),
     );
   }
 
-  void _shareReferral(String url, String? shareText) {
+  void _shareReferral(HomeReferralOffer offer) {
     unawaited(
       ref.report(
         AnalyticsEvent.referralClick,
-        properties: _resultReferralProperties(url),
+        properties: _resultReferralProperties(offer),
       ),
     );
-    unawaited(_showReferralShare(url, shareText));
+    unawaited(_showReferralShare(offer.actionUrl, offer.shareText));
   }
 
   Future<void> _showReferralShare(String url, String? shareText) async {
@@ -2463,16 +2464,11 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
             const SizedBox(height: 20),
             VisibilityDetector(
               key: const ValueKey('test-result-referral'),
-              onVisibilityChanged: (info) => _reportReferralView(
-                referralOffer.actionUrl,
-                info.visibleFraction,
-              ),
+              onVisibilityChanged: (info) =>
+                  _reportReferralView(referralOffer, info.visibleFraction),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => _shareReferral(
-                  referralOffer.actionUrl,
-                  referralOffer.shareText,
-                ),
+                onTap: () => _shareReferral(referralOffer),
                 child: FlowCard(
                   color: flowYellow,
                   child: Row(
@@ -2591,14 +2587,18 @@ Map<AnalyticsEventProperty, Object> _testResultProperties(
   };
 }
 
-Map<AnalyticsEventProperty, Object> _resultReferralProperties(String url) {
-  return {
-    AnalyticsEventProperty.pageName: AnalyticsPageName.testResult.value,
-    // TODO: <pf> 服务端提供结构化折扣比例后替换固定值 10。
-    AnalyticsEventProperty.discountPercent: 10,
-    AnalyticsEventProperty.url: url,
-  };
-}
+Map<AnalyticsEventProperty, Object> _resultReferralProperties(
+  HomeReferralOffer offer,
+) => referralAnalyticsProperties(
+  pageName: AnalyticsPageName.testResult,
+  url: offer.actionUrl,
+  advocateRewardType: offer.advocateRewardType,
+  advocateRewardValue: offer.advocateRewardValue,
+  advocateRewardUnit: offer.advocateRewardUnit,
+  friendRewardType: offer.friendRewardType,
+  friendRewardValue: offer.friendRewardValue,
+  friendRewardUnit: offer.friendRewardUnit,
+);
 
 String _analyticsDate(DateTime value) {
   return '${value.year.toString().padLeft(4, '0')}-'

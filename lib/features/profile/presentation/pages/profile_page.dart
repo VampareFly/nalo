@@ -69,22 +69,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _shareReferralLink(
-    String link,
-    String? shareText,
+    UserReferralCard referralCard,
     Rect? shareOrigin,
   ) async {
     unawaited(
       ref.report(
         AnalyticsEvent.referralClick,
-        properties: _referralProperties(link),
+        properties: _referralProperties(referralCard),
       ),
     );
     try {
       await ref
           .read(platformShareServiceProvider)
           .shareLink(
-            link,
-            message: shareText,
+            referralCard.actionUrl,
+            message: referralCard.shareText,
             sharePositionOrigin: shareOrigin,
           );
     } on Object {
@@ -217,12 +216,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  Map<AnalyticsEventProperty, Object> _referralProperties(String url) => {
-    AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
-    // TODO: <pf> 服务端提供真实折扣比例后替换固定值。
-    AnalyticsEventProperty.discountPercent: 10,
-    AnalyticsEventProperty.url: url,
-  };
+  Map<AnalyticsEventProperty, Object> _referralProperties(
+    UserReferralCard referralCard,
+  ) => referralAnalyticsProperties(
+    pageName: AnalyticsPageName.profile,
+    url: referralCard.actionUrl,
+    advocateRewardType: referralCard.rewardsAdvocate?.rewardType,
+    advocateRewardValue: referralCard.rewardsAdvocate?.rewardValue,
+    advocateRewardUnit: referralCard.rewardsAdvocate?.rewardUnit,
+    friendRewardType: referralCard.rewardsFriend?.rewardType,
+    friendRewardValue: referralCard.rewardsFriend?.rewardValue,
+    friendRewardUnit: referralCard.rewardsFriend?.rewardUnit,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -377,19 +382,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             unawaited(
                               ref.report(
                                 AnalyticsEvent.referralView,
-                                properties: _referralProperties(
-                                  referralCard.actionUrl,
-                                ),
+                                properties: _referralProperties(referralCard),
                               ),
                             );
                           },
                           child: _ReferralCard(
                             referralCard: referralCard,
-                            onPressed: (shareOrigin) => _shareReferralLink(
-                              referralCard.actionUrl,
-                              referralCard.shareText,
-                              shareOrigin,
-                            ),
+                            onPressed: (shareOrigin) =>
+                                _shareReferralLink(referralCard, shareOrigin),
                           ),
                         ),
                       ],

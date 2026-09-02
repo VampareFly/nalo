@@ -172,6 +172,12 @@ enum AnalyticsEventProperty {
   compareAtPrice('compare_at_price'),
   currency('currency'),
   url('url'),
+  advocateRewardType('advocate_reward_type'),
+  advocateRewardValue('advocate_reward_value'),
+  advocateRewardUnit('advocate_reward_unit'),
+  friendRewardType('friend_reward_type'),
+  friendRewardValue('friend_reward_value'),
+  friendRewardUnit('friend_reward_unit'),
   position('position'),
   totalTestCount('total_test_count'),
   detectionType('detection_type'),
@@ -182,7 +188,6 @@ enum AnalyticsEventProperty {
   value('value'),
   unit('unit'),
   typicalRange('typical_range'),
-  discountPercent('discount_percent'),
   currentVersion('current_version'),
   targetVersion('target_version'),
   updateType('update_type'),
@@ -446,6 +451,31 @@ String analyticsBirthValue(DateTime? birth) {
   if (birth == null) return '';
   return '${birth.year}-${birth.month.toString().padLeft(2, '0')}-'
       '${birth.day.toString().padLeft(2, '0')}';
+}
+
+/// 构造所有页面统一使用的 Referral 事件属性。
+Map<AnalyticsEventProperty, Object> referralAnalyticsProperties({
+  required AnalyticsPageName pageName,
+  required String url,
+  required String? advocateRewardType,
+  required num? advocateRewardValue,
+  required String? advocateRewardUnit,
+  required String? friendRewardType,
+  required num? friendRewardValue,
+  required String? friendRewardUnit,
+}) {
+  return {
+    AnalyticsEventProperty.pageName: pageName.value,
+    AnalyticsEventProperty.url: url,
+    AnalyticsEventProperty.advocateRewardType: advocateRewardType ?? '',
+    AnalyticsEventProperty.advocateRewardValue:
+        advocateRewardValue?.toString() ?? '',
+    AnalyticsEventProperty.advocateRewardUnit: advocateRewardUnit ?? '',
+    AnalyticsEventProperty.friendRewardType: friendRewardType ?? '',
+    AnalyticsEventProperty.friendRewardValue:
+        friendRewardValue?.toString() ?? '',
+    AnalyticsEventProperty.friendRewardUnit: friendRewardUnit ?? '',
+  };
 }
 
 /// 按埋点文档构造 Shop 商品事件属性，并统一转换美分金额。

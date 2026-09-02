@@ -186,6 +186,8 @@ class UserReferralCard {
     required this.buttonText,
     required this.actionUrl,
     this.shareText,
+    this.rewardsAdvocate,
+    this.rewardsFriend,
   });
 
   final String title;
@@ -195,6 +197,8 @@ class UserReferralCard {
 
   /// 系统分享时展示的服务端文案；缺失或为空时仅分享链接。
   final String? shareText;
+  final UserReferralReward? rewardsAdvocate;
+  final UserReferralReward? rewardsFriend;
 
   /// 解析 referral_card；任一必填字段为空时隐藏卡片。
   static UserReferralCard? tryParse(Object? value) {
@@ -215,6 +219,8 @@ class UserReferralCard {
       buttonText: buttonText,
       actionUrl: actionUrl,
       shareText: _nonEmptyString(value['share_text']),
+      rewardsAdvocate: UserReferralReward.tryParse(value['rewards_advocate']),
+      rewardsFriend: UserReferralReward.tryParse(value['rewards_friend']),
     );
   }
 
@@ -225,6 +231,8 @@ class UserReferralCard {
     'button_text': buttonText,
     'action_url': actionUrl,
     if (shareText != null) 'share_text': shareText,
+    if (rewardsAdvocate != null) 'rewards_advocate': rewardsAdvocate!.toJson(),
+    if (rewardsFriend != null) 'rewards_friend': rewardsFriend!.toJson(),
   };
 
   static String? _nonEmptyString(Object? value) {
@@ -232,4 +240,43 @@ class UserReferralCard {
     final text = value.trim();
     return text.isEmpty ? null : text;
   }
+}
+
+/// Referral 邀请人或被邀请人的可选奖励配置。
+class UserReferralReward {
+  const UserReferralReward({
+    required this.rewardType,
+    required this.rewardValue,
+    required this.rewardUnit,
+  });
+
+  final String rewardType;
+  final num rewardValue;
+  final String rewardUnit;
+
+  /// 解析完整奖励对象；字段无效时返回空且不影响卡片展示。
+  static UserReferralReward? tryParse(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final rewardType = UserReferralCard._nonEmptyString(value['reward_type']);
+    final rewardValue = value['reward_value'];
+    final rewardUnit = UserReferralCard._nonEmptyString(value['reward_unit']);
+    if (rewardType == null ||
+        rewardValue is! num ||
+        !rewardValue.isFinite ||
+        rewardUnit == null) {
+      return null;
+    }
+    return UserReferralReward(
+      rewardType: rewardType,
+      rewardValue: rewardValue,
+      rewardUnit: rewardUnit,
+    );
+  }
+
+  /// 转换为本地用户快照奖励字段。
+  Map<String, dynamic> toJson() => {
+    'reward_type': rewardType,
+    'reward_value': rewardValue,
+    'reward_unit': rewardUnit,
+  };
 }

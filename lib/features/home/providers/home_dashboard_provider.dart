@@ -86,6 +86,12 @@ HomeReferralOffer? _referralOffer(AppUserInfo? user) {
     buttonText: card.buttonText,
     actionUrl: card.actionUrl,
     shareText: card.shareText,
+    advocateRewardType: card.rewardsAdvocate?.rewardType,
+    advocateRewardValue: card.rewardsAdvocate?.rewardValue,
+    advocateRewardUnit: card.rewardsAdvocate?.rewardUnit,
+    friendRewardType: card.rewardsFriend?.rewardType,
+    friendRewardValue: card.rewardsFriend?.rewardValue,
+    friendRewardUnit: card.rewardsFriend?.rewardUnit,
   );
 }
 

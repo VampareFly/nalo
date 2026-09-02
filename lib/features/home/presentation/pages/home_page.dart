@@ -265,12 +265,16 @@ class _HomePageState extends ConsumerState<HomePage>
     unawaited(
       ref.report(
         AnalyticsEvent.referralClick,
-        properties: {
-          AnalyticsEventProperty.pageName: AnalyticsPageName.tabHome.value,
-          // TODO: <pf> 服务端提供结构化折扣比例后替换固定值 10。
-          AnalyticsEventProperty.discountPercent: 10,
-          AnalyticsEventProperty.url: offer.actionUrl,
-        },
+        properties: referralAnalyticsProperties(
+          pageName: AnalyticsPageName.tabHome,
+          url: offer.actionUrl,
+          advocateRewardType: offer.advocateRewardType,
+          advocateRewardValue: offer.advocateRewardValue,
+          advocateRewardUnit: offer.advocateRewardUnit,
+          friendRewardType: offer.friendRewardType,
+          friendRewardValue: offer.friendRewardValue,
+          friendRewardUnit: offer.friendRewardUnit,
+        ),
       ),
     );
     try {

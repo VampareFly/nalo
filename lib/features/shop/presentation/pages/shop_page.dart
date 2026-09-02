@@ -9,6 +9,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/sharing/platform_share_service.dart';
+import 'package:nalo/features/home/models/home_dashboard_data.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/shop/models/test_kit_product.dart';
 import 'package:nalo/features/shop/presentation/widgets/shop_referral_card.dart';
@@ -51,6 +52,7 @@ class ShopPage extends ConsumerStatefulWidget {
 class _ShopPageState extends ConsumerState<ShopPage> {
   late final ScrollController _scrollController;
   final Set<String> _viewedSkuKeys = {};
+  bool _referralViewReported = false;
   bool _ownsLoadingToast = false;
 
   @override
@@ -74,6 +76,7 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     if (oldWidget.exposureCycle != widget.exposureCycle ||
         (oldWidget.isActive && !widget.isActive)) {
       _viewedSkuKeys.clear();
+      _referralViewReported = false;
     }
   }
 
@@ -142,11 +145,32 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     );
   }
 
-  Future<void> _shareReferral(String link, String? shareText) async {
+  void _reportReferralView(HomeReferralOffer offer, double visibleFraction) {
+    if (!widget.isActive ||
+        _referralViewReported ||
+        visibleFraction < _skuVisibleFraction) {
+      return;
+    }
+    _referralViewReported = true;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.referralView,
+        properties: _referralProperties(offer),
+      ),
+    );
+  }
+
+  Future<void> _shareReferral(HomeReferralOffer offer) async {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.referralClick,
+        properties: _referralProperties(offer),
+      ),
+    );
     try {
       await ref
           .read(platformShareServiceProvider)
-          .shareLink(link, message: shareText);
+          .shareLink(offer.actionUrl, message: offer.shareText);
     } on Object {
       if (!mounted) return;
       BotToast.showText(
@@ -155,6 +179,19 @@ class _ShopPageState extends ConsumerState<ShopPage> {
       );
     }
   }
+
+  Map<AnalyticsEventProperty, Object> _referralProperties(
+    HomeReferralOffer offer,
+  ) => referralAnalyticsProperties(
+    pageName: AnalyticsPageName.tabShop,
+    url: offer.actionUrl,
+    advocateRewardType: offer.advocateRewardType,
+    advocateRewardValue: offer.advocateRewardValue,
+    advocateRewardUnit: offer.advocateRewardUnit,
+    friendRewardType: offer.friendRewardType,
+    friendRewardValue: offer.friendRewardValue,
+    friendRewardUnit: offer.friendRewardUnit,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -236,11 +273,19 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                               const SizedBox(height: 20),
                             ],
                           if (referralOffer != null)
-                            ShopReferralCard(
-                              offer: referralOffer,
-                              onSharePressed: () => _shareReferral(
-                                referralOffer.actionUrl,
-                                referralOffer.shareText,
+                            VisibilityDetector(
+                              key: ValueKey(
+                                'shop-referral-${widget.exposureCycle}',
+                              ),
+                              onVisibilityChanged: (info) =>
+                                  _reportReferralView(
+                                    referralOffer,
+                                    info.visibleFraction,
+                                  ),
+                              child: ShopReferralCard(
+                                offer: referralOffer,
+                                onSharePressed: () =>
+                                    _shareReferral(referralOffer),
                               ),
                             ),
                           if (state.isLoadingMore) ...[

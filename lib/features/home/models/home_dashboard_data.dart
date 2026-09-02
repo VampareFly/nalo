@@ -37,6 +37,12 @@ class HomeReferralOffer {
     required this.buttonText,
     required this.actionUrl,
     this.shareText,
+    this.advocateRewardType,
+    this.advocateRewardValue,
+    this.advocateRewardUnit,
+    this.friendRewardType,
+    this.friendRewardValue,
+    this.friendRewardUnit,
   });
 
   final String title;
@@ -44,6 +50,12 @@ class HomeReferralOffer {
   final String buttonText;
   final String actionUrl;
   final String? shareText;
+  final String? advocateRewardType;
+  final num? advocateRewardValue;
+  final String? advocateRewardUnit;
+  final String? friendRewardType;
+  final num? friendRewardValue;
+  final String? friendRewardUnit;
 }
 
 /// 首页一次渲染所需的聚合数据。
