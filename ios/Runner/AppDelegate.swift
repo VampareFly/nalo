@@ -23,7 +23,7 @@ import UIKit
             binaryMessenger: engineBridge.applicationRegistrar.messenger()
         )
         if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NativeCameraPlugin") {
-            NativeCameraPlugin.register(with: registrar)
+            NativeCamer·    aPlugin.register(with: registrar)
         }
     }
 }

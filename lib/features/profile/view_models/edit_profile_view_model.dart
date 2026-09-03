@@ -1,8 +1,9 @@
-// 管理 Edit profile 的派生初始值、表单校验、年龄边界和更新请求。
+// 管理 Edit profile 的派生初始值、基础校验、服务端年龄确认和更新请求。
 // 初始状态直接读取 Profile Provider，页面生命周期不再命令式修改 Provider。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/network/api_business_code.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
@@ -13,6 +14,7 @@ import 'package:nalo/features/profile/view_models/profile_view_model.dart';
 enum EditProfileSubmitResult {
   missingFields,
   under18,
+  over65ConfirmationRequired,
   submissionFailed,
   completed,
 }
@@ -26,6 +28,7 @@ class EditProfileState {
     this.biologicalSex,
     this.showMissingFieldsError = false,
     this.showFullNameLengthError = false,
+    this.requiresAgeConfirmation = false,
     this.isSubmitting = false,
     this.errorMessage,
     this.updatedUser,
@@ -37,25 +40,10 @@ class EditProfileState {
   final BiologicalSex? biologicalSex;
   final bool showMissingFieldsError;
   final bool showFullNameLengthError;
+  final bool requiresAgeConfirmation;
   final bool isSubmitting;
   final String? errorMessage;
   final AppUserInfo? updatedUser;
-
-  /// 根据完整年月日计算当前周岁。
-  int? get age {
-    final birthday = dateOfBirth;
-    if (birthday == null) return null;
-    final today = DateTime.now();
-    var value = today.year - birthday.year;
-    if (today.month < birthday.month ||
-        (today.month == birthday.month && today.day < birthday.day)) {
-      value--;
-    }
-    return value;
-  }
-
-  /// 是否展示超过 65 岁的风险提示和继续按钮。
-  bool get isOver65 => (age ?? 0) > 65;
 
   /// 生成保留未修改字段的新页面状态。
   EditProfileState copyWith({
@@ -65,6 +53,7 @@ class EditProfileState {
     BiologicalSex? biologicalSex,
     bool? showMissingFieldsError,
     bool? showFullNameLengthError,
+    bool? requiresAgeConfirmation,
     bool? isSubmitting,
     String? errorMessage,
     AppUserInfo? updatedUser,
@@ -78,6 +67,8 @@ class EditProfileState {
         showMissingFieldsError ?? this.showMissingFieldsError,
     showFullNameLengthError:
         showFullNameLengthError ?? this.showFullNameLengthError,
+    requiresAgeConfirmation:
+        requiresAgeConfirmation ?? this.requiresAgeConfirmation,
     isSubmitting: isSubmitting ?? this.isSubmitting,
     errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     updatedUser: updatedUser ?? this.updatedUser,
@@ -117,9 +108,13 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
     state = state.copyWith(showFullNameLengthError: true);
   }
 
-  /// 更新生日并重新计算年龄状态。
+  /// 更新生日并清除上一份生日对应的服务端高龄确认状态。
   void updateDateOfBirth(DateTime value) {
-    state = state.copyWith(dateOfBirth: value, clearError: true);
+    state = state.copyWith(
+      dateOfBirth: value,
+      requiresAgeConfirmation: false,
+      clearError: true,
+    );
   }
 
   /// 更新生理性别单选值。
@@ -127,7 +122,7 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
     state = state.copyWith(biologicalSex: value, clearError: true);
   }
 
-  /// 校验年龄和必填项，并提交服务端更新资料。
+  /// 校验必填项并提交资料，年龄限制根据服务端错误码处理。
   Future<EditProfileSubmitResult> submit() async {
     if (isProfileFullNameTooLong(state.fullName)) {
       state = state.copyWith(showFullNameLengthError: true);
@@ -144,7 +139,6 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
       showFullNameLengthError: false,
       clearError: true,
     );
-    if ((state.age ?? 0) < 18) return EditProfileSubmitResult.under18;
     if (state.isSubmitting) return EditProfileSubmitResult.missingFields;
 
     state = state.copyWith(isSubmitting: true, clearError: true);
@@ -155,9 +149,14 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
         fullName: state.fullName,
         birthDay: state.dateOfBirth!,
         gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
+        ageConfirmed: state.requiresAgeConfirmation,
       );
       await _reportRequestResult(submittedProfile, isSuccess: true);
-      state = state.copyWith(isSubmitting: false, updatedUser: user);
+      state = state.copyWith(
+        isSubmitting: false,
+        requiresAgeConfirmation: false,
+        updatedUser: user,
+      );
       return EditProfileSubmitResult.completed;
     } on ApiException catch (error) {
       await _reportRequestResult(
@@ -165,7 +164,27 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
         isSuccess: false,
         failReason: '${error.code}: ${error.message}',
       );
-      _setFailure(error.message);
+      if (error.code == ApiBusinessCode.ageUnder18) {
+        state = state.copyWith(
+          isSubmitting: false,
+          requiresAgeConfirmation: false,
+          clearError: true,
+        );
+        return EditProfileSubmitResult.under18;
+      }
+      if (error.code == ApiBusinessCode.ageOver65ConfirmationRequired) {
+        state = state.copyWith(
+          isSubmitting: false,
+          requiresAgeConfirmation: true,
+          clearError: true,
+        );
+        return EditProfileSubmitResult.over65ConfirmationRequired;
+      }
+      state = state.copyWith(
+        isSubmitting: false,
+        requiresAgeConfirmation: false,
+        errorMessage: error.message,
+      );
     } on SessionExpiredException catch (error) {
       await _reportRequestResult(
         submittedProfile,

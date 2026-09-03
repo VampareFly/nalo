@@ -175,6 +175,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       case EditProfileSubmitResult.under18:
         await _showUnderageDialog();
         return;
+      case EditProfileSubmitResult.over65ConfirmationRequired:
+        return;
       case EditProfileSubmitResult.completed:
         final user = ref.read(editProfileViewModelProvider).updatedUser;
         if (user != null) {
@@ -321,7 +323,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  if (state.isOver65) ...[
+                  if (state.requiresAgeConfirmation) ...[
                     VisibilityDetector(
                       key: const ValueKey('edit-profile-over-65-notice'),
                       onVisibilityChanged: (info) =>
@@ -452,7 +454,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         shape: const StadiumBorder(),
                       ),
                       child: Text(
-                        state.isOver65 ? 'Continue anyway' : 'Save changes',
+                        state.requiresAgeConfirmation
+                            ? 'Continue anyway'
+                            : 'Save changes',
                       ),
                     ),
                   ),

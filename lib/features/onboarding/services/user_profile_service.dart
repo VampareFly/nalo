@@ -22,11 +22,12 @@ class UserProfileService {
     return user;
   }
 
-  /// 更新当前用户资料并返回服务端最新用户。
+  /// 更新用户资料；服务端要求高龄确认后才按需携带 age_confirm。
   Future<AppUserInfo> update({
     required String fullName,
     required DateTime birthDay,
     required int gender,
+    bool ageConfirmed = false,
   }) async {
     final user = await _apiClient.post<AppUserInfo>(
       '/api/v1/app/user/update',
@@ -34,6 +35,7 @@ class UserProfileService {
         'full_name': fullName.trim(),
         'birth_day': _formatDate(birthDay),
         'gender': gender,
+        if (ageConfirmed) 'age_confirm': 1,
       },
       decoder: _decodeUser,
     );

@@ -2,6 +2,7 @@
 // 负责统一响应解析、异常映射和脱敏日志，不处理业务 Model、Toast 或导航。
 
 import 'package:dio/dio.dart';
+import 'package:nalo/core/network/api_business_code.dart';
 import 'package:logger/logger.dart';
 
 /// 服务端返回非零业务码时的异常。
@@ -175,13 +176,13 @@ class ApiClient {
         );
       }
       final envelope = ApiResponse<Object?>.fromJson(body);
-      if (envelope.code == 0) {
+      if (envelope.code == ApiBusinessCode.success) {
         final rawData = body['data'];
         if (rawData == null || decoder == null) return null;
         return decoder(rawData);
       }
       if (handlesSessionExpiration &&
-          _sessionExpiredCodes.contains(envelope.code)) {
+          ApiBusinessCode.sessionExpiredCodes.contains(envelope.code)) {
         await _onSessionExpired(envelope.message);
         throw SessionExpiredException(envelope.message);
       }
@@ -194,13 +195,6 @@ class ApiClient {
       throw _mapDioException(error);
     }
   }
-
-  static const _sessionExpiredCodes = {
-    1000001,
-    1000010,
-    1000011,
-    1000013,
-  };
 
   NetworkException _mapDioException(DioException error) {
     final type = switch (error.type) {

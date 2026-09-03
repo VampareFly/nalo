@@ -207,6 +207,8 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
       case AccountProfileSubmitResult.under18:
         await _showUnderageDialog();
         return;
+      case AccountProfileSubmitResult.over65ConfirmationRequired:
+        return;
       case AccountProfileSubmitResult.submissionFailed:
         return;
       case AccountProfileSubmitResult.completed:
@@ -357,7 +359,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                if (state.isOver65) ...[
+                if (state.requiresAgeConfirmation) ...[
                   VisibilityDetector(
                     key: const ValueKey('register-over-65-notice'),
                     onVisibilityChanged: (info) =>
@@ -489,7 +491,9 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                       shape: const StadiumBorder(),
                     ),
                     child: Text(
-                      state.isOver65 ? 'Continue anyway' : 'Create account',
+                      state.requiresAgeConfirmation
+                          ? 'Continue anyway'
+                          : 'Create account',
                     ),
                   ),
                 ),

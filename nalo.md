@@ -1,291 +1,291 @@
 # Nalo Flutter 项目说明
 
-## 项目定位
+## 基本信息
 
-这是一个基于 Flutter 的 Nalo App，当前主要包含用户引导、登录注册、测试流程、首页报告、商品展示、通知权限和个人资料等模块。
+- 更新日期：2026-09-03
+- 当前状态：持续开发和接口联调中
+- 技术栈：Flutter、Dart、Riverpod、GoRouter、Dio
+- 架构：MVVM，调用方向为 `View → ViewModel/Provider → Repository → Service → 外部系统`
+- 测试环境：`https://api-test.naloresults.com`
+- 生产环境：`https://api.naloresults.com`
 
-项目使用 Dart 3.12.2，采用 Flutter 官方推荐的响应式 Widget 架构，并使用 Riverpod 管理状态和依赖注入。
+## 项目范围
+
+Nalo App当前包含 Shopify登录注册、Token生命周期、Welcome与通知权限、Home仪表盘、历史记录、Shop、试纸检测、Profile、版本更新、Amplitude埋点和 Crashlytics崩溃收集。
 
 ## 启动入口
 
-应用入口为：
+应用入口为 `lib/main.dart`：
 
 ```text
-lib/main.dart
+Flutter Binding
+→ 系统状态栏配置
+→ Debug系统代理初始化
+→ Crash Reporting初始化
+→ Hive初始化
+→ Amplitude初始化
+→ ProviderScope
+→ NaloApp
 ```
 
-启动时主要完成：
-
-1. 初始化 Flutter Framework。
-2. 初始化 Hive。
-3. 初始化 Amplitude，并根据当前环境选择 API Key。
-4. 通过 Riverpod ProviderScope 注入全局依赖。
-5. 启动 `NaloApp`。
-
-Amplitude 在应用生命周期中只初始化一次。
-
-Amplitude SDK 日志在 Debug 构建中使用 `LogLevel.debug`，便于从开发控制台观察事件入队和上传；Profile/Release 构建保持 `LogLevel.warn`。`minIdLength` 设置为 `1`，用于支持服务端的短数字用户 ID。
+根 `ProviderScope` 使用统一重试策略。Amplitude只初始化一次，Debug使用详细日志，非 Debug使用警告日志。
 
 ## 目录结构
 
 ```text
 lib/
-├── app/
-│   ├── app.dart                 应用根 Widget
-│   ├── config/                  环境和应用配置
-│   ├── router/                  GoRouter 路由
-│   └── theme/                   Material 主题
+├── app/                         App、配置、路由和主题
 ├── core/
-│   ├── analytics/               Amplitude 埋点封装
-│   ├── database/                数据库初始化
-│   ├── device/                  设备 ID 获取
-│   ├── logging/                 Logger 配置
-│   ├── network/                 Dio 网络依赖
-│   └── storage/                 SharedPreferences 等本地存储
+│   ├── analytics/               Amplitude埋点
+│   ├── crash_reporting/         Crashlytics封装
+│   ├── database/                本地数据库初始化
+│   ├── device/                  原生设备ID
+│   ├── logging/                 Logger
+│   ├── network/                 Dio、公共Header、错误码和网络异常
+│   ├── sharing/                 系统分享
+│   ├── storage/                 基础存储
+│   └── widgets/                 跨模块通用Widget
 ├── features/
-│   ├── full_tend/               完整趋势
-│   ├── home/                    首页和测试报告
+│   ├── app_update/              版本检查和更新弹窗
+│   ├── auth/                    Nalo Session和Token生命周期
+│   ├── home/                    首页、报告和历史记录
 │   ├── notifications/           通知权限
-│   ├── onboarding/              Shopify 登录注册、资料补充和欢迎流程
-│   ├── profile/                 用户资料
-│   ├── shop/                    商品和测试套装
-│   └── test_flow/               测试流程状态
-├── l10n/                        国际化资源和生成代码
-└── main.dart                   应用入口
+│   ├── onboarding/              Shopify认证、资料完善和Welcome
+│   ├── profile/                 Profile和资料编辑
+│   ├── shop/                    商品和购买链接
+│   └── test_flow/               试纸检测流程
+├── l10n/                        国际化基础设施
+└── main.dart                    应用入口
 ```
 
-## 架构约定
-
-业务调用方向保持为：
+## 架构职责
 
 ```text
-Widget → ViewModel / Provider → Repository / Service → 外部系统
+View
+  ↓ 用户操作与状态渲染
+ViewModel / Provider
+  ↓ 业务编排
+Repository
+  ↓ 远端数据与本地快照协调
+Service
+  ↓ HTTP、平台API或第三方SDK
+Nalo服务端 / Shopify / 原生平台
 ```
 
-- Widget 负责展示 UI 和转发用户操作。
-- ViewModel 负责页面状态和业务流程编排。
-- Provider 负责状态管理和依赖注入。
-- Repository 负责业务数据访问。
-- Service 负责网络、平台能力或第三方 SDK。
-- 不在 Widget 中直接请求接口或编写复杂业务逻辑。
+View不直接请求接口或解析响应；业务状态放在 ViewModel；Repository协调数据；Service处理协议；Provider负责状态和依赖注入。
 
-## Riverpod 使用方式
-
-项目统一使用 Riverpod。
-
-- 简单依赖使用 `Provider`。
-- 页面状态使用 `NotifierProvider` 或已有项目采用的 Provider 类型。
-- Widget 中通过 `ref.watch` 监听状态，通过 `ref.read` 执行操作。
-- ViewModel / Notifier 中直接使用自身的 `ref`。
-- 普通 Dart 类通过构造函数注入依赖，不直接查找全局 Provider。
-
-## 路由
-
-路由集中维护在：
-
-```text
-lib/app/router/app_router.dart
-```
-
-页面通过静态 `path` 定义路径，例如：
-
-```dart
-static const path = '/auth';
-```
-
-页面跳转统一使用项目现有的 GoRouter 方式。
-
-当前登录注册流程以 Shopify 认证为统一入口：
+## 登录注册流程
 
 ```text
 AuthEntryPage
-→ Nalo 服务端 Shopify 认证
-→ AccountProfilePage（新用户）
-→ OnboardingWelcomePage
-→ HomePage
+→ POST /api/v1/app/auth/shopify/prepare
+→ Flutter AppAuth打开 Shopify授权
+→ App获得 authorization code和 code_verifier
+→ POST /api/v1/app/auth/shopify/exchange
+→ 保存 Nalo Token和 User快照
+→ 根据 is_profile_completed与 Welcome状态分流
 ```
 
-服务端协议联调期间，新入口页保留客户端直连 Shopify 的测试按钮。该按钮不参与正式 Session 和账号创建，后续需要删除。
-
-当前 Profile 流程为：
+登录后分流：
 
 ```text
-HomePage
-→ ProfilePage（进入时请求 user/info）
-→ EditProfilePage（user/update 成功后直接刷新 Profile 快照）
+is_profile_completed = 0 → AccountProfilePage
+is_profile_completed = 1且Welcome未完成 → OnboardingWelcomePage
+is_profile_completed = 1且Welcome已完成 → HomePage
+I need a kit → 完成相同资料和Welcome流程后进入Shop Tab
 ```
 
-Profile 使用 `test_info.sum_count` 展示累计检测数；Email 暂时只读。Notification、Privacy、Terms、Help 和 Shopify Manage 在目标地址确认前只展示临时 Toast。
+`exchange` 直接返回 `data.user` 和 `data.token`，登录成功后不追加请求 `user/info`。
 
-## 环境配置
+登录页保留客户端直连 Shopify登录/退出测试能力，通过 `_showShopifyTestButtons` 控制，默认关闭。测试 Token只保存在内存，不参与 Nalo Session、分流或账号创建；正式发布前删除。
 
-当前环境在以下文件手动切换：
+## Session与本地数据
+
+Token通过 `TokenStorage` 保存，目前使用 SharedPreferences：
 
 ```text
-lib/app/config/app_environment.dart
+auth_access_token
+auth_refresh_token
+auth_expires_at
 ```
 
-当前支持：
-
-```dart
-enum AppEnvironment { test, production }
-```
-
-Amplitude API Key 根据 `currentEnvironment` 自动选择：
+当前 User快照通过 `CurrentUserStorage` 保存：
 
 ```text
-lib/core/analytics/amplitude_config.dart
+key：auth_current_user
+内容：id、email、full_name、birth_day、gender、is_profile_completed等字段
 ```
 
-后续接口环境也计划复用同一套环境枚举，但 API 环境和 Amplitude 项目切换仍应分别维护。
+Welcome状态按 `userId` 独立保存：
 
-## Amplitude 埋点
+- 退出登录或 Session失效：清除 Token和 User快照，保留该用户的 Welcome状态。
+- 注销账号：清除 Token、User快照以及该用户的 Welcome状态。
+- 卸载重装：本地状态随应用数据清除。
 
-统一封装在：
+冷启动不调用 `user/info`：
 
 ```text
-lib/core/analytics/analytics.dart
+无Token → 登录注册入口
+Token已过期 → 清Session并进入登录失效流程
+Token有效但无User快照 → 登录注册入口
+Token有效且User未完善 → 完善资料页
+Token有效且User已完善 → Welcome或首页
 ```
 
-调用流转：
+## Token刷新
 
 ```text
-Widget / ViewModel → AnalyticsService → Amplitude SDK
+Access Token剩余时间 >= 1天
+→ 直接恢复Session，不刷新
+
+Access Token有效且剩余时间 < 1天
+→ 立即恢复Session和页面
+→ 后台调用POST /api/v1/app/auth/refresh
+   ├─ 成功：替换双Token和expires_at
+   └─ 任意失败：保留旧Token，不Toast、不弹窗、不阻塞
+
+Access Token已过期
+→ 不调用Refresh
+→ 清Session并要求重新登录
 ```
 
-事件分为四类定义：
+后台 Refresh写入前检查是否仍是同一 Session，避免旧请求覆盖退出、注销或重新登录后的状态。`1000002`、`1000016` 只属于 Refresh接口，不触发全局登录失效弹窗。
 
-- `AnalyticsEvent`：事件名称。
-- `AnalyticsCommonProperty`：自动添加的公共事件属性。
-- `AnalyticsEventProperty`：具体事件按需传入的属性。
-- `AnalyticsUserProperty`：用户画像属性。
+## 登录失效与业务错误码
 
-客户端埋点设计、字段和值域以以下文档为准：
+以下 code每次都会幂等清理本地双Token、User快照和内存 Session：
 
 ```text
-docs/requirements/2026-08-20-客户端埋点设计.md
+1000001  Access Token已过期
+1000010  未授权访问
+1000011  登录状态无效
+1000013  账号不存在或已注销
 ```
 
-页面、业务层和 SDK 的职责分别为：
+全局同一时刻只展示一个登录失效弹窗。用户确认后无动画进入登录注册入口；弹窗关闭后再次收到失效 code仍会重新显示。
+
+所有已确认服务端业务码统一维护在 `lib/core/network/api_business_code.dart`，业务代码不得直接写错误码数字。
+
+## 用户资料与年龄确认
+
+首次完善资料和 Profile编辑资料都调用：
+
+```http
+POST /api/v1/app/user/update
+```
+
+基础字段为 `full_name`、`birth_day`（`yyyy-MM-dd`）和 `gender`（`1=Male`、`2=Female`）。年龄最终由服务端判断：
 
 ```text
-Widget 上报点击和商品可视曝光
-ViewModel 上报请求结果
-AnalyticsNavigatorObserver 上报页面曝光
-HomePage 上报 Home / Shop Tab 页面访问
-AnalyticsService 补充公共属性并调用 Amplitude SDK
+首次提交：不传age_confirm
+├─ 4000105 → 只显示Under 18弹窗，不Toast、不显示页面错误文字
+├─ 4000106 → 黄色提示，按钮变为Continue anyway
+└─ 成功 → 使用响应User覆盖本地快照
+
+收到4000106后再次点击Continue anyway
+→ 同一份资料传age_confirm: 1
 ```
 
-每次事件上报自动添加：
+客户端不传 `age_confirm: 0`，也不能仅根据本地年龄主动传 `1`。修改生日、离开页面、重新登录或提交成功后清除高龄确认状态。
+
+## 退出与注销
 
 ```text
-notification_enabled
-platform
-app_version
-os_version
-user_id
-kc_id
+POST /api/v1/app/auth/logout
+POST /api/v1/app/auth/deactivate
 ```
 
-测试和生产数据通过不同 Amplitude API Key 隔离，不额外上报 `app_environment`。`kc_id` 从现有 `DeviceIdService` 获取，并持久化在钥匙串中。
+- Log out无确认弹窗；即使服务端失败，也完成本地退出。
+- Delete account先显示不可逆确认弹窗；仅在服务端成功后清理本地数据。
+- 注销成功不显示成功 Toast，无动画进入登录注册入口。
+- Nalo退出不会自动清除浏览器或 Shop App中的 Shopify登录 Cookie。
 
-Widget 中可以使用：
+## 网络层
 
-```dart
-ref.report(
-  AnalyticsEvent.loginClick,
-  properties: {
-    AnalyticsEventProperty.method:
-        AnalyticsLoginClickMethod.continueWithShopify.value,
-  },
-);
-```
+自有业务API统一使用 `ApiClient + Dio`：
 
-ViewModel 或 Notifier 中使用：
+- Base URL由 `AppEnvironment` 提供，当前默认测试环境。
+- 连接、发送和接收超时均为30秒。
+- 默认注入 `Authorization: Bearer <access_token>`；公开接口设置 `requiresAuth: false`。
+- 统一解析 `{code, msg, data}`，用户提示使用服务端 `msg`。
+- 动态注入 App版本、Build、平台、设备ID、Request ID、系统语言和时区Header。
+- Authorization、双Token、OAuth code、code_verifier、state和 attempt ID必须脱敏。
+- 当前所有构建模式为联调抓包临时绕过TLS证书校验；正式发布前必须按照 `RELEASE_CHECKLIST.md` 恢复。
 
-```dart
-ref.read(analyticsProvider).report(
-  AnalyticsEvent.loginRequestResult,
-  properties: {
-    AnalyticsEventProperty.loginMethod: AnalyticsLoginMethod.shopify.value,
-    AnalyticsEventProperty.isSuccess: 1,
-    AnalyticsEventProperty.failReason: '',
-  },
-);
-```
+环境配置位于 `lib/app/config/app_environment.dart`。
 
-普通 Dart 类通过构造函数注入 `AnalyticsService`。
-
-Shop 商品卡片使用 `visibility_detector` 判断可视比例：达到 10% 后上报 `sku_view`，每次进入 Shop 或从 Flutter 子页面返回时开启新曝光周期，并按 `product_id + variant_id` 去重；App 前后台切换和外部 Shopify 返回不重置曝光。点击 Get kit 时立即上报 `sku_click`，链接请求和校验完成后由 ViewModel 上报 `shop_shopify_url_request`。
-
-用户身份生命周期：
+## 主要业务接口
 
 ```text
-登录成功：identifyUser → 设置用户属性 → 上报登录事件
-退出登录：业务会话清理 → resetIdentity
-Token 失效：业务会话清理 → resetIdentity
-注销账号：上报注销请求 → 后端注销成功 → resetIdentity
+POST /api/v1/app/auth/shopify/prepare
+POST /api/v1/app/auth/shopify/exchange
+POST /api/v1/app/auth/refresh
+POST /api/v1/app/auth/logout
+POST /api/v1/app/auth/deactivate
+GET  /api/v1/app/user/info
+POST /api/v1/app/user/update
+GET  /api/v1/app/index
+GET  /api/v1/app/detections/history
+GET  /api/v1/app/products
+GET  /api/v1/app/products/shopify-url
+GET  /api/v1/app/configs/list
+POST /api/v1/app/detections
+POST /api/v1/app/detections/confirm
+GET  /api/v1/app/detections/result
+GET  /api/v1/app/configs/version/check
 ```
 
-Amplitude 的 `resetIdentity` 会清空 Amplitude `userId` 并生成新的 Amplitude `deviceId`，但不会删除钥匙串中的自有设备 ID。
+## 首页、Shop与检测
 
-iOS 在登录入口页展示后请求 ATT：授权时将真实 IDFA 写入用户属性 `x-idfa`，拒绝或受限时写入全 0 IDFA；Android 不设置该属性。通知权限状态确定或变化后会同步用户属性 `notification_permission`。
+`HomePage` 是登录后的主容器，包含 Home和 Shop两个 Tab并提供 Scan入口。
 
-## 设备 ID
+- Home通过 `/index` 获取仪表盘数据。
+- Test history通过 `/detections/history` 获取历史记录。
+- Shop通过 `/products` 获取商品，通过 `/products/shopify-url` 获取购买地址。
+- Test flow根据 `/configs/list` 配置调用检测创建、确认和结果接口。
 
-设备 ID 相关代码位于：
+## 版本更新
 
-```text
-lib/core/device/device_id_service.dart
-lib/core/device/device_id_provider.dart
-```
+每次冷启动首次进入 Home Tab时，后台调用 `GET /api/v1/app/configs/version/check`：
 
-设备 ID 由原生平台能力获取，并通过 MethodChannel 提供给 Flutter。业务代码不应直接调用 MethodChannel，应使用 `DeviceIdService`。
+- 每次进程生命周期最多检查一次。
+- 不显示 Loading，不阻塞首页。
+- 请求或解析失败只记录日志。
+- 普通更新可稍后处理或关闭。
+- 强制更新不能通过遮罩或系统返回关闭。
+- 更新地址优先使用 `market_url`，其次使用 `download_url`。
+
+详细需求见 `docs/requirements/2026-09-02-版本更新弹窗需求.md`。
+
+## 通知权限
+
+- App启动时读取并按现有策略请求通知权限。
+- Welcome仅在没有通知权限时显示提醒入口。
+- 点击启用通知时，根据权限状态请求权限或进入系统设置。
+- App恢复前台后刷新通知权限状态。
 
 ## 国际化
 
-新增用户可见文案需要放入：
+项目保留 `lib/l10n/*.arb` 和 `lib/l10n/generated/` 国际化基础设施。当前登录注册等新增页面按阶段性要求直接在 Widget中填写设计稿英文原文，暂不通过 l10n key引用；后续恢复国际化时不手动编辑生成文件。
+
+## Amplitude、日志与设备ID
+
+埋点统一封装在 `lib/core/analytics/analytics.dart`：
 
 ```text
-lib/l10n/app_en.arb
-lib/l10n/app_zh.arb
+登录成功 → identifyUser
+退出登录 → resetIdentity
+Session失效 → resetIdentity
+注销成功 → resetIdentity
 ```
 
-生成文件位于 `lib/l10n/generated/`，不要手动修改生成文件。
+埋点失败不得阻塞核心业务。日志统一使用项目 Logger，不新增 `print`，敏感字段必须脱敏。
 
-## 日志和错误处理
+Flutter通过 MethodChannel `com.sanjiang.nalo/device_id` 获取 iOS或 Android设备ID。业务代码只依赖 `DeviceIdService`，不直接调用 MethodChannel。
 
-项目统一使用已有 Logger：
+## 开发与验证约定
 
-```text
-lib/core/logging/logger_provider.dart
-```
-
-不要新增 `print`。第三方 SDK 或埋点失败通常只记录日志，不应阻断主要业务流程；登录、支付、账号注销等关键业务仍需由业务层明确处理失败结果。
-
-## 主要依赖
-
-- Flutter / Flutter Localizations
-- Riverpod：状态管理和依赖注入
-- GoRouter：路由
-- Dio：网络请求
-- Hive / Drift：本地数据和数据库
-- Firebase Core / Crashlytics：崩溃监控
-- Amplitude Flutter：产品分析和埋点
-- Visibility Detector：商品卡片可视曝光判断
-- Flutter AppAuth：认证流程
-- Logger：日志
-
-具体版本以 `pubspec.yaml` 为准。
-
-## 修改代码时的文档要求
-
-- 新增模块或核心文件时，同步更新本文件的目录和架构说明。
-- 修改调用流转、环境切换、埋点身份流程或生命周期时，同步更新对应章节。
-- 新增公开类、枚举、Provider、Service 或方法时，添加简短中文注释。
-- 代码实现与注释、本文档必须保持一致。
-- 本文件描述项目事实和使用方式；开发规范以 `AGENTS.md` 为准。
-
-## 验证约定
-
-除非用户明确要求，不自动执行 Flutter 运行、测试、分析、构建或 Xcode/Gradle 验证。代码修改完成后，交由项目维护者自行运行验证。
+- 依赖版本以 `pubspec.yaml` 为准，未确认前不调整依赖。
+- 除非用户明确要求，不运行 Test、Analyze、Build、模拟器、真机或 Xcode/Gradle验证。
+- 修改模块职责、流程、接口或生命周期时，同步更新代码注释、模块需求文档和本文件。
+- 开发规范以 `AGENTS.md` 为准。

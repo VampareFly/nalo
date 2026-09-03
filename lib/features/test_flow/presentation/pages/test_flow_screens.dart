@@ -1520,6 +1520,12 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
     final state = ref.watch(testFlowProvider);
     final analysis = state.analysis;
     final config = state.effectiveConfig;
+    final matchingLevels = state.readingOptions.options.where(
+      (option) => option.value == state.selectedLevel,
+    );
+    final selectedReading = matchingLevels.isEmpty
+        ? null
+        : matchingLevels.first;
     final matchingPeriods = config.timePeriods.options.where(
       (option) => option.value == state.selectedTimePeriod,
     );
@@ -1564,7 +1570,8 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        '${analysis?.aiValue ?? '—'} ${analysis?.unit ?? ''}',
+                        selectedReading?.label ??
+                            '${analysis?.aiValue ?? '—'} ${analysis?.unit ?? ''}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 36,

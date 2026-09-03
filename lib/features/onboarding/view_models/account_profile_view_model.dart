@@ -1,7 +1,8 @@
-// 管理注册资料、提交校验和年龄边界，并上报资料请求结果。
+// 管理注册资料、基础校验及服务端年龄确认状态，并上报资料请求结果。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/core/network/api_business_code.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
 
@@ -12,6 +13,7 @@ enum BiologicalSex { female, male }
 enum AccountProfileSubmitResult {
   missingFields,
   under18,
+  over65ConfirmationRequired,
   submissionFailed,
   completed,
 }
@@ -28,6 +30,7 @@ class AccountProfileState {
     this.biologicalSex,
     this.showMissingFieldsError = false,
     this.showFullNameLengthError = false,
+    this.requiresAgeConfirmation = false,
     this.isSubmitting = false,
     this.submissionError,
   });
@@ -38,22 +41,9 @@ class AccountProfileState {
   final BiologicalSex? biologicalSex;
   final bool showMissingFieldsError;
   final bool showFullNameLengthError;
+  final bool requiresAgeConfirmation;
   final bool isSubmitting;
   final String? submissionError;
-
-  int? get age {
-    final birthday = dateOfBirth;
-    if (birthday == null) return null;
-    final today = DateTime.now();
-    var value = today.year - birthday.year;
-    if (today.month < birthday.month ||
-        (today.month == birthday.month && today.day < birthday.day)) {
-      value--;
-    }
-    return value;
-  }
-
-  bool get isOver65 => (age ?? 0) > 65;
 
   AccountProfileState copyWith({
     String? email,
@@ -62,6 +52,7 @@ class AccountProfileState {
     BiologicalSex? biologicalSex,
     bool? showMissingFieldsError,
     bool? showFullNameLengthError,
+    bool? requiresAgeConfirmation,
     bool? isSubmitting,
     String? submissionError,
     bool clearSubmissionError = false,
@@ -75,6 +66,8 @@ class AccountProfileState {
           showMissingFieldsError ?? this.showMissingFieldsError,
       showFullNameLengthError:
           showFullNameLengthError ?? this.showFullNameLengthError,
+      requiresAgeConfirmation:
+          requiresAgeConfirmation ?? this.requiresAgeConfirmation,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       submissionError: clearSubmissionError
           ? null
@@ -83,7 +76,7 @@ class AccountProfileState {
   }
 }
 
-/// 编排资料输入、年龄判断和创建账号。
+/// 编排资料输入、服务端年龄错误码处理和创建账号。
 class AccountProfileViewModel extends Notifier<AccountProfileState> {
   @override
   AccountProfileState build() => const AccountProfileState();
@@ -114,7 +107,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
     state = state.copyWith(showFullNameLengthError: true);
   }
 
-  /// 保存生日并重新计算年龄提示状态。
+  /// 保存生日并清除上一份生日对应的服务端高龄确认状态。
   void updateDateOfBirth(DateTime value) {
     state = AccountProfileState(
       email: state.email,
@@ -123,6 +116,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       biologicalSex: state.biologicalSex,
       showMissingFieldsError: _shouldKeepMissingFieldsError(dateOfBirth: value),
       showFullNameLengthError: state.showFullNameLengthError,
+      requiresAgeConfirmation: false,
       isSubmitting: state.isSubmitting,
       submissionError: null,
     );
@@ -169,7 +163,6 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       showMissingFieldsError: false,
       showFullNameLengthError: false,
     );
-    if ((state.age ?? 0) < 18) return AccountProfileSubmitResult.under18;
     if (state.isSubmitting) return AccountProfileSubmitResult.missingFields;
     state = state.copyWith(isSubmitting: true, clearSubmissionError: true);
     final submittedProfile = state;
@@ -179,9 +172,13 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
         fullName: state.fullName,
         birthDay: state.dateOfBirth!,
         gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
+        ageConfirmed: state.requiresAgeConfirmation,
       );
       await _reportRequestResult(submittedProfile, isSuccess: true);
-      state = state.copyWith(isSubmitting: false);
+      state = state.copyWith(
+        isSubmitting: false,
+        requiresAgeConfirmation: false,
+      );
       return AccountProfileSubmitResult.completed;
     } on ApiException catch (error) {
       await _reportRequestResult(
@@ -189,8 +186,25 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
         isSuccess: false,
         failReason: '${error.code}: ${error.message}',
       );
+      if (error.code == ApiBusinessCode.ageUnder18) {
+        state = state.copyWith(
+          isSubmitting: false,
+          requiresAgeConfirmation: false,
+          clearSubmissionError: true,
+        );
+        return AccountProfileSubmitResult.under18;
+      }
+      if (error.code == ApiBusinessCode.ageOver65ConfirmationRequired) {
+        state = state.copyWith(
+          isSubmitting: false,
+          requiresAgeConfirmation: true,
+          clearSubmissionError: true,
+        );
+        return AccountProfileSubmitResult.over65ConfirmationRequired;
+      }
       state = state.copyWith(
         isSubmitting: false,
+        requiresAgeConfirmation: false,
         submissionError: error.message,
       );
       return AccountProfileSubmitResult.submissionFailed;

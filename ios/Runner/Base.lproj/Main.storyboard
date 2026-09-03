@@ -1,8 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="10117" systemVersion="15F34" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="BYZ-38-t0r">
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="24765" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24743"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
         <!--Flutter View Controller-->
@@ -14,25 +16,26 @@
                         <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
                     </layoutGuides>
                     <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
-                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView opaque="NO" clipsSubviews="YES" contentMode="scaleAspectFill" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="NQf-LA-uNc"/>
+                            <imageView opaque="NO" clipsSubviews="YES" contentMode="scaleAspectFill" misplaced="YES" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="NQf-LA-uNc"/>
                         </subviews>
-                        <color key="backgroundColor" red="0.945" green="0.941" blue="0.827" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.93125545978546143" green="0.93048590421676636" blue="0.78805768489837646" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
+                            <constraint firstAttribute="bottom" secondItem="NQf-LA-uNc" secondAttribute="bottom" id="0pZ-1xC-2vB"/>
                             <constraint firstItem="NQf-LA-uNc" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leading" id="1qA-2wS-3eD"/>
                             <constraint firstAttribute="trailing" secondItem="NQf-LA-uNc" secondAttribute="trailing" id="4rF-5tG-6yH"/>
                             <constraint firstItem="NQf-LA-uNc" firstAttribute="top" secondItem="8bC-Xf-vdC" secondAttribute="top" id="7uJ-8iK-9oL"/>
-                            <constraint firstAttribute="bottom" secondItem="NQf-LA-uNc" secondAttribute="bottom" id="0pZ-1xC-2vB"/>
                         </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
+            <point key="canvasLocation" x="-341" y="7"/>
         </scene>
     </scenes>
     <resources>
-        <image name="LaunchImage" width="1179" height="2556"/>
+        <image name="LaunchImage" width="393" height="852"/>
     </resources>
 </document>
