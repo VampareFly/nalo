@@ -877,12 +877,19 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 用户从系统设置返回时重新读取相机权限并恢复预览。
-    if (state == AppLifecycleState.resumed) _initialize();
+    // 首次授权弹窗返回也会触发 resumed；只在无初始化任务且相机未就绪时重试，
+    // 避免销毁刚创建的 iOS Platform View 并与原生会话启动产生竞争。
+    if (state != AppLifecycleState.resumed ||
+        _initializing ||
+        _permission == CameraPermissionState.loading ||
+        _permission == CameraPermissionState.ready) {
+      return;
+    }
+    _initialize(recreateCameraView: true);
   }
 
   /// 请求系统相机权限；权限通过后由原生 Platform View 启动相机会话。
-  Future<void> _initialize() async {
+  Future<void> _initialize({bool recreateCameraView = false}) async {
     if (_initializing) return;
     _initializing = true;
     if (mounted) {
@@ -890,7 +897,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         _permission = CameraPermissionState.loading;
         _cameraReady = false;
         _cameraInitResultReported = false;
-        _cameraViewKey = UniqueKey();
+        if (recreateCameraView) _cameraViewKey = UniqueKey();
       });
     }
     try {
@@ -1194,7 +1201,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           button: 'Allow camera access',
           onPressed: () {
             _reportPermissionClick(AnalyticsCameraPermissionAction.allow);
-            return _initialize();
+            return _initialize(recreateCameraView: true);
           },
         );
       case CameraPermissionState.permanentlyDenied:
@@ -1216,7 +1223,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           button: 'Try again',
           onPressed: () {
             _reportPermissionClick(AnalyticsCameraPermissionAction.retry);
-            return _initialize();
+            return _initialize(recreateCameraView: true);
           },
         );
       case CameraPermissionState.ready:
