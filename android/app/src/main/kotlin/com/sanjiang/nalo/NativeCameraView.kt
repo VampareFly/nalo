@@ -25,7 +25,9 @@ import io.flutter.plugin.platform.PlatformViewFactory
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executors
+import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 
 /** 创建使用 CameraX 的原生预览实例，并为每个视图建立独立拍照通道。 */
 class NativeCameraViewFactory(
@@ -36,7 +38,7 @@ class NativeCameraViewFactory(
         NativeCameraView(context, viewId, messenger, lifecycleOwner)
 }
 
-/** 使用 CameraX 质量优先模式管理 Android 相机预览和照片输出。 */
+/** 使用 CameraX 管理预览，并将 Flutter 取景框映射到高清成片后裁剪输出。 */
 private class NativeCameraView(
     private val context: Context,
     viewId: Int,
@@ -64,7 +66,7 @@ private class NativeCameraView(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "isReady" -> result.success(ready)
-            "capture" -> capture(result)
+            "capture" -> capture(call, result)
             "dispose" -> {
                 release()
                 result.success(null)
@@ -102,12 +104,15 @@ private class NativeCameraView(
         }, ContextCompat.getMainExecutor(context))
     }
 
-    private fun capture(result: MethodChannel.Result) {
+    private fun capture(call: MethodCall, result: MethodChannel.Result) {
         val capture = imageCapture
         if (!ready || capture == null) {
             result.error("camera_not_ready", "Native camera is not ready.", null)
             return
         }
+        val cropRect = normalizedCropRect(call.arguments as? Map<*, *>)
+        val previewWidth = previewView.width
+        val previewHeight = previewView.height
         val file = File(context.cacheDir, "nalo_test_${System.currentTimeMillis()}.jpg")
         val options = ImageCapture.OutputFileOptions.Builder(file).build()
         capture.takePicture(
@@ -117,7 +122,12 @@ private class NativeCameraView(
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     processingExecutor.execute {
                         try {
-                            val optimized = optimizePhoto(file)
+                            val optimized = optimizePhoto(
+                                file,
+                                cropRect,
+                                previewWidth,
+                                previewHeight,
+                            )
                             ContextCompat.getMainExecutor(context).execute {
                                 result.success(optimized.absolutePath)
                             }
@@ -136,8 +146,13 @@ private class NativeCameraView(
         )
     }
 
-    /** 将系统高清成片缩放并压缩到适合移动网络上传的尺寸。 */
-    private fun optimizePhoto(source: File): File {
+    /** 将系统高清成片映射到取景框、裁剪安全边距，再缩放压缩供预览和上传。 */
+    private fun optimizePhoto(
+        source: File,
+        cropRect: NormalizedRect?,
+        previewWidth: Int,
+        previewHeight: Int,
+    ): File {
         val debugId = System.currentTimeMillis()
         val isDebugBuild = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         val debugDirectory = if (isDebugBuild) {
@@ -165,17 +180,23 @@ private class NativeCameraView(
             BitmapFactory.Options().apply { inSampleSize = sampleSize },
         ) ?: error("Unable to decode captured photo.")
         val oriented = applyExifOrientation(decoded, source)
-        val longestSide = max(oriented.width, oriented.height)
+        val cropped = cropToPreviewFrame(
+            oriented,
+            cropRect,
+            previewWidth,
+            previewHeight,
+        )
+        val longestSide = max(cropped.width, cropped.height)
         val scaled = if (longestSide > 2500) {
             val ratio = 2500f / longestSide
             Bitmap.createScaledBitmap(
-                oriented,
-                (oriented.width * ratio).toInt(),
-                (oriented.height * ratio).toInt(),
+                cropped,
+                (cropped.width * ratio).toInt(),
+                (cropped.height * ratio).toInt(),
                 true,
             )
         } else {
-            oriented
+            cropped
         }
 
         val target = File(context.cacheDir, "nalo_upload_${System.currentTimeMillis()}.jpg")
@@ -190,9 +211,10 @@ private class NativeCameraView(
             }
         }
 
-        if (scaled !== oriented) scaled.recycle()
-        if (oriented !== decoded) oriented.recycle()
-        decoded.recycle()
+        scaled.recycle()
+        if (cropped !== scaled) cropped.recycle()
+        if (cropped !== oriented) oriented.recycle()
+        if (oriented !== decoded) decoded.recycle()
         debugDirectory?.let {
             target.copyTo(
                 File(it, "nalo_upload_$debugId.jpg"),
@@ -201,6 +223,50 @@ private class NativeCameraView(
         }
         source.delete()
         return target
+    }
+
+    /** 解析 Flutter 传入的取景框归一化坐标；缺失时保留完整照片。 */
+    private fun normalizedCropRect(arguments: Map<*, *>?): NormalizedRect? {
+        fun number(key: String) = (arguments?.get(key) as? Number)?.toDouble()
+        val x = number("x") ?: return null
+        val y = number("y") ?: return null
+        val width = number("width") ?: return null
+        val height = number("height") ?: return null
+        if (width <= 0.0 || height <= 0.0) return null
+        return NormalizedRect(x, y, width, height)
+    }
+
+    /** 按 FILL_CENTER 的显示关系映射到照片，并额外保留 12% 边距避免切边。 */
+    private fun cropToPreviewFrame(
+        bitmap: Bitmap,
+        rect: NormalizedRect?,
+        previewWidth: Int,
+        previewHeight: Int,
+    ): Bitmap {
+        if (rect == null || previewWidth <= 0 || previewHeight <= 0) return bitmap
+        val scale = max(
+            previewWidth.toDouble() / bitmap.width,
+            previewHeight.toDouble() / bitmap.height,
+        )
+        val displayedWidth = bitmap.width * scale
+        val displayedHeight = bitmap.height * scale
+        val offsetX = (displayedWidth - previewWidth) / 2.0
+        val offsetY = (displayedHeight - previewHeight) / 2.0
+        var left = (rect.x * previewWidth + offsetX) / scale
+        var top = (rect.y * previewHeight + offsetY) / scale
+        var width = rect.width * previewWidth / scale
+        var height = rect.height * previewHeight / scale
+        val horizontalMargin = width * 0.12
+        val verticalMargin = height * 0.12
+        left = max(0.0, left - horizontalMargin)
+        top = max(0.0, top - verticalMargin)
+        width = min(bitmap.width - left, width + horizontalMargin * 2)
+        height = min(bitmap.height - top, height + verticalMargin * 2)
+        val cropLeft = floor(left).toInt()
+        val cropTop = floor(top).toInt()
+        val cropWidth = min(bitmap.width - cropLeft, max(1, floor(width).toInt()))
+        val cropHeight = min(bitmap.height - cropTop, max(1, floor(height).toInt()))
+        return Bitmap.createBitmap(bitmap, cropLeft, cropTop, cropWidth, cropHeight)
     }
 
     @Suppress("DEPRECATION")
@@ -246,3 +312,11 @@ private class NativeCameraView(
         channel.setMethodCallHandler(null)
     }
 }
+
+/** Flutter 取景框相对于原生预览区域的归一化矩形。 */
+private data class NormalizedRect(
+    val x: Double,
+    val y: Double,
+    val width: Double,
+    val height: Double,
+)

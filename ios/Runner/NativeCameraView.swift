@@ -82,7 +82,7 @@ private final class NativeCameraPreview: UIView {
     }
 }
 
-/// 使用虚拟后置摄像头和质量优先照片输出管理 iOS 拍照会话。
+/// 使用后置摄像头管理 iOS 拍照会话，并将 Flutter 取景框映射到高清成片后裁剪输出。
 private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePhotoCaptureDelegate {
     private let previewView: NativeCameraPreview
     private let session = AVCaptureSession()
@@ -90,6 +90,8 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
     private let sessionQueue = DispatchQueue(label: "com.sanjiang.nalo.native-camera")
     private let channel: FlutterMethodChannel
     private var pendingResult: FlutterResult?
+    private var pendingCropRect: CGRect?
+    private var pendingPreviewSize = CGSize.zero
     private var ready = false
 
     init(frame: CGRect, viewId: Int64, messenger: FlutterBinaryMessenger) {
@@ -118,7 +120,7 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
         case "isReady":
             result(ready)
         case "capture":
-            capture(result: result)
+            capture(arguments: call.arguments, result: result)
         case "dispose":
             release()
             result(nil)
@@ -178,7 +180,10 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
         }
     }
 
-    private func capture(result: @escaping FlutterResult) {
+    /// 保存本次 Flutter 取景框和预览尺寸，供照片回调映射到成片像素坐标。
+    private func capture(arguments: Any?, result: @escaping FlutterResult) {
+        let cropRect = normalizedCropRect(arguments)
+        let previewSize = previewView.bounds.size
         sessionQueue.async { [weak self] in
             guard let self, ready, pendingResult == nil else {
                 DispatchQueue.main.async {
@@ -187,6 +192,8 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
                 return
             }
             pendingResult = result
+            pendingCropRect = cropRect
+            pendingPreviewSize = previewSize
             let settings = AVCapturePhotoSettings()
             settings.photoQualityPrioritization = .quality
             photoOutput.capturePhoto(with: settings, delegate: self)
@@ -200,6 +207,10 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
     ) {
         let result = pendingResult
         pendingResult = nil
+        let cropRect = pendingCropRect
+        pendingCropRect = nil
+        let previewSize = pendingPreviewSize
+        pendingPreviewSize = .zero
         if let error {
             DispatchQueue.main.async {
                 result?(FlutterError(code: "capture_failed", message: error.localizedDescription, details: nil))
@@ -207,7 +218,11 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
             return
         }
         guard let sourceData = photo.fileDataRepresentation(),
-              let data = optimizedPhotoData(sourceData) else {
+              let data = optimizedPhotoData(
+                sourceData,
+                cropRect: cropRect,
+                previewSize: previewSize
+              ) else {
             DispatchQueue.main.async {
                 result?(FlutterError(code: "capture_failed", message: "Photo data is unavailable.", details: nil))
             }
@@ -231,9 +246,19 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
         }
     }
 
-    /// 将系统高清成片缩放并压缩到适合移动网络上传的尺寸。
-    private func optimizedPhotoData(_ data: Data) -> Data? {
-        guard let image = UIImage(data: data) else { return nil }
+    /// 将系统高清成片映射到取景框、裁剪安全边距，再缩放压缩供预览和上传。
+    private func optimizedPhotoData(
+        _ data: Data,
+        cropRect: CGRect?,
+        previewSize: CGSize
+    ) -> Data? {
+        guard let sourceImage = UIImage(data: data) else { return nil }
+        let normalizedImage = normalizeOrientation(sourceImage)
+        let image = cropToPreviewFrame(
+            normalizedImage,
+            normalizedRect: cropRect,
+            previewSize: previewSize
+        )
         let maxPixel: CGFloat = 2500
         let longestSide = max(image.size.width, image.size.height)
         let targetImage: UIImage
@@ -261,6 +286,77 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
             output = targetImage.jpegData(compressionQuality: quality)
         }
         return output
+    }
+
+    /// 解析 Flutter 传入的取景框归一化坐标；缺失时保留完整照片。
+    private func normalizedCropRect(_ arguments: Any?) -> CGRect? {
+        guard let values = arguments as? [String: Any],
+              let x = values["x"] as? NSNumber,
+              let y = values["y"] as? NSNumber,
+              let width = values["width"] as? NSNumber,
+              let height = values["height"] as? NSNumber,
+              width.doubleValue > 0,
+              height.doubleValue > 0 else {
+            return nil
+        }
+        return CGRect(
+            x: x.doubleValue,
+            y: y.doubleValue,
+            width: width.doubleValue,
+            height: height.doubleValue
+        )
+    }
+
+    /// 将带 EXIF 方向的 UIImage 绘制为方向固定的像素图，便于准确裁剪。
+    private func normalizeOrientation(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+    }
+
+    /// 按 resizeAspectFill 的显示关系映射到照片，并保留 12% 边距避免切边。
+    private func cropToPreviewFrame(
+        _ image: UIImage,
+        normalizedRect: CGRect?,
+        previewSize: CGSize
+    ) -> UIImage {
+        guard let normalizedRect,
+              previewSize.width > 0,
+              previewSize.height > 0,
+              let cgImage = image.cgImage else {
+            return image
+        }
+        let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+        let scale = max(
+            previewSize.width / imageSize.width,
+            previewSize.height / imageSize.height
+        )
+        let displayedSize = CGSize(
+            width: imageSize.width * scale,
+            height: imageSize.height * scale
+        )
+        let offset = CGPoint(
+            x: (displayedSize.width - previewSize.width) / 2,
+            y: (displayedSize.height - previewSize.height) / 2
+        )
+        var crop = CGRect(
+            x: (normalizedRect.minX * previewSize.width + offset.x) / scale,
+            y: (normalizedRect.minY * previewSize.height + offset.y) / scale,
+            width: normalizedRect.width * previewSize.width / scale,
+            height: normalizedRect.height * previewSize.height / scale
+        )
+        crop = crop.insetBy(dx: -crop.width * 0.12, dy: -crop.height * 0.12)
+        crop = crop.integral.intersection(CGRect(origin: .zero, size: imageSize))
+        guard crop.width > 0,
+              crop.height > 0,
+              let cropped = cgImage.cropping(to: crop) else {
+            return image
+        }
+        return UIImage(cgImage: cropped, scale: 1, orientation: .up)
     }
 
     #if DEBUG

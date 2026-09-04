@@ -1,11 +1,11 @@
-// 原生相机桥接：在 Flutter 流程中承载双端原生预览，并通过独立通道请求拍照文件。
+// 原生相机桥接：承载双端原生预览，并把 Flutter 取景框坐标随拍照请求交给原生裁剪。
 
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// 管理单个原生相机 Platform View 的就绪、拍照和释放调用。
+/// 管理单个原生相机 Platform View 的就绪、取景框裁剪拍照和释放调用。
 class NativeCameraController {
   static const MethodChannel _permissionChannel = MethodChannel(
     'nalo/native_camera_permission',
@@ -38,11 +38,19 @@ class NativeCameraController {
     _ready = await channel.invokeMethod<bool>('isReady') ?? false;
   }
 
-  /// 使用原生高质量拍照能力保存临时文件并返回绝对路径。
-  Future<String> capture() async {
+  /// 拍摄高清照片，并按 Flutter 取景框在预览中的归一化位置裁剪后返回路径。
+  Future<String> capture({Rect? normalizedCropRect}) async {
     final channel = _channel;
     if (channel == null) throw StateError('Native camera is not attached.');
-    final path = await channel.invokeMethod<String>('capture');
+    final rect = normalizedCropRect;
+    final path = await channel.invokeMethod<String>('capture', {
+      if (rect != null) ...{
+        'x': rect.left,
+        'y': rect.top,
+        'width': rect.width,
+        'height': rect.height,
+      },
+    });
     if (path == null || path.isEmpty) {
       throw StateError('Native camera did not return a photo path.');
     }

@@ -847,6 +847,8 @@ class CaptureScreen extends ConsumerStatefulWidget {
 class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with WidgetsBindingObserver {
   final NativeCameraController _camera = NativeCameraController();
+  final GlobalKey _cameraPreviewKey = GlobalKey();
+  final GlobalKey _cassetteFrameKey = GlobalKey();
   CameraPermissionState _permission = CameraPermissionState.loading;
   bool _initializing = false;
   bool _cameraReady = false;
@@ -959,7 +961,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     }
   }
 
-  /// 调用原生高质量拍照并将临时文件交给流程状态进入预览页。
+  /// 调用原生高质量拍照和取景框裁剪，并将同一文件交给预览及后续上传。
   Future<void> _takePhoto() async {
     if (!_cameraReady || _capturing) return;
     final state = ref.read(testFlowProvider);
@@ -974,7 +976,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     );
     setState(() => _capturing = true);
     try {
-      final path = await _camera.capture();
+      final path = await _camera.capture(
+        normalizedCropRect: _normalizedCassetteRect(),
+      );
       if (mounted) {
         unawaited(
           ref.report(
@@ -1009,6 +1013,30 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+
+  /// 将屏幕取景框换算成相对于原生预览区域的 0～1 坐标，供双端裁剪同一区域。
+  Rect? _normalizedCassetteRect() {
+    final previewBox =
+        _cameraPreviewKey.currentContext?.findRenderObject() as RenderBox?;
+    final frameBox =
+        _cassetteFrameKey.currentContext?.findRenderObject() as RenderBox?;
+    if (previewBox == null || frameBox == null || !previewBox.hasSize) {
+      return null;
+    }
+    final previewOrigin = previewBox.localToGlobal(Offset.zero);
+    final frameOrigin = frameBox.localToGlobal(Offset.zero) - previewOrigin;
+    final previewSize = previewBox.size;
+    return Rect.fromLTWH(
+      (frameOrigin.dx / previewSize.width).clamp(0.0, 1.0).toDouble(),
+      (frameOrigin.dy / previewSize.height).clamp(0.0, 1.0).toDouble(),
+      (frameBox.size.width / previewSize.width)
+          .clamp(0.0, 1.0)
+          .toDouble(),
+      (frameBox.size.height / previewSize.height)
+          .clamp(0.0, 1.0)
+          .toDouble(),
+    );
   }
 
   void _reportPermissionResult(
@@ -1194,6 +1222,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       case CameraPermissionState.ready:
         // TODO: <pf> 原生成像效果确认后，再决定是否恢复光线、模糊和移动的实时拍照门槛。
         return ClipRRect(
+          key: _cameraPreviewKey,
           borderRadius: BorderRadius.circular(20),
           child: Stack(
             fit: StackFit.expand,
@@ -1219,7 +1248,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                 },
               ),
               const ColoredBox(color: Color(0x22000000)),
-              const Center(child: _CassetteFrame()),
+              Center(child: _CassetteFrame(key: _cassetteFrameKey)),
             ],
           ),
         );
@@ -1278,7 +1307,7 @@ class _PermissionMessage extends StatelessWidget {
 }
 
 class _CassetteFrame extends StatelessWidget {
-  const _CassetteFrame();
+  const _CassetteFrame({super.key});
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
