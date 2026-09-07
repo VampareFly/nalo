@@ -245,10 +245,10 @@ enum AnalyticsLoginMethod {
   final String value;
 }
 
-/// 创建账号时上报的 Gender 枚举值。
+/// 注册和编辑资料埋点共用的 Gender 枚举值。
 enum AnalyticsGender {
-  female('1'),
-  male('2');
+  male('1'),
+  female('2');
 
   const AnalyticsGender(this.value);
 
