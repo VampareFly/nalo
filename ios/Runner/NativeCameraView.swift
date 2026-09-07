@@ -318,7 +318,7 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
         }
     }
 
-    /// 按 resizeAspectFill 的显示关系映射到照片，并保留 12% 边距避免切边。
+    /// 按 resizeAspectFill 的显示关系映射到照片，并保留 5% 边距避免切边。
     private func cropToPreviewFrame(
         _ image: UIImage,
         normalizedRect: CGRect?,
@@ -349,7 +349,7 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
             width: normalizedRect.width * previewSize.width / scale,
             height: normalizedRect.height * previewSize.height / scale
         )
-        crop = crop.insetBy(dx: -crop.width * 0.12, dy: -crop.height * 0.12)
+        crop = crop.insetBy(dx: -crop.width * 0.05, dy: -crop.height * 0.05)
         crop = crop.integral.intersection(CGRect(origin: .zero, size: imageSize))
         guard crop.width > 0,
               crop.height > 0,

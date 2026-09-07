@@ -236,7 +236,7 @@ private class NativeCameraView(
         return NormalizedRect(x, y, width, height)
     }
 
-    /** 按 FILL_CENTER 的显示关系映射到照片，并额外保留 12% 边距避免切边。 */
+    /** 按 FILL_CENTER 的显示关系映射到照片，并额外保留 5% 边距避免切边。 */
     private fun cropToPreviewFrame(
         bitmap: Bitmap,
         rect: NormalizedRect?,
@@ -256,8 +256,8 @@ private class NativeCameraView(
         var top = (rect.y * previewHeight + offsetY) / scale
         var width = rect.width * previewWidth / scale
         var height = rect.height * previewHeight / scale
-        val horizontalMargin = width * 0.12
-        val verticalMargin = height * 0.12
+        val horizontalMargin = width * 0.05
+        val verticalMargin = height * 0.05
         left = max(0.0, left - horizontalMargin)
         top = max(0.0, top - verticalMargin)
         width = min(bitmap.width - left, width + horizontalMargin * 2)
