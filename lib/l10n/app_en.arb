@@ -1,5 +1,15 @@
 {
   "@@locale": "en",
   "appName": "Nalo",
-  "welcomeMessage": "Nalo is ready"
+  "welcomeMessage": "Nalo is ready",
+  "selectEnvironment": "Select environment",
+  "currentEnvironment": "Current environment: {environment}",
+  "@currentEnvironment": {
+    "description": "Displays the currently active API environment.",
+    "placeholders": {
+      "environment": {}
+    }
+  },
+  "testEnvironment": "Test",
+  "productionEnvironment": "Production"
 }

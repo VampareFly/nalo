@@ -64,10 +64,12 @@ dependencies:
   url_launcher: ^6.3.2
   webview_flutter: ^4.14.1
   app_links: ^7.2.1
+  firebase_analytics: ^12.5.0
   firebase_core: ^4.11.0
   firebase_crashlytics: ^5.2.4
   amplitude_flutter: ^4.6.2
   visibility_detector: ^0.4.0+2
+  sensors_plus: ^7.1.0
 
 dev_dependencies:
   flutter_test:

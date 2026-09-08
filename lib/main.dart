@@ -2,6 +2,7 @@
 import 'package:amplitude_flutter/amplitude.dart';
 import 'package:amplitude_flutter/configuration.dart';
 import 'package:amplitude_flutter/constants.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,6 +31,14 @@ Future<void> main() async {
   await initializeDebugSystemProxy();
 
   await CrashReportingService.initialize();
+
+  final isFirebaseAnalyticsSupported =
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android);
+  if (isFirebaseAnalyticsSupported) {
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+  }
 
   await Hive.initFlutter();
 

@@ -13,4 +13,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get welcomeMessage => 'Nalo 已准备就绪';
+
+  @override
+  String get selectEnvironment => '选择环境';
+
+  @override
+  String currentEnvironment(Object environment) {
+    return '当前环境：$environment';
+  }
+
+  @override
+  String get testEnvironment => '测试环境';
+
+  @override
+  String get productionEnvironment => '生产环境';
 }

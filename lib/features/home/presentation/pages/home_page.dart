@@ -1,5 +1,5 @@
-// 承载首页与 Shop Tab，并统一处理页面访问、导航和曝光周期。
-// Tab 重新进入或 Flutter 子页面返回时，为当前 Tab 开启新曝光周期。
+// 承载首页与 Shop Tab，并统一处理页面访问、导航、曝光和前后台刷新周期。
+// 首页仅在 App 确实进入后台后恢复时刷新，避免冷启动首次 resumed 重复请求。
 
 import 'dart:async';
 
@@ -46,6 +46,7 @@ class _HomePageState extends ConsumerState<HomePage>
   int _shopExposureCycle = 0;
   bool _hasRenderedFirstFrame = false;
   bool _isVersionDialogVisible = false;
+  bool _hasEnteredBackground = false;
   AppVersionUpdate? _pendingVersionUpdate;
 
   @override
@@ -82,9 +83,17 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      _hasEnteredBackground = true;
+      return;
+    }
     if (state == AppLifecycleState.resumed) {
       ref.read(appNotificationPermissionProvider.notifier).refresh();
-      if (_selectedIndex == _homeIndex) _refreshHome();
+      if (_hasEnteredBackground && _selectedIndex == _homeIndex) {
+        _refreshHome();
+      }
+      _hasEnteredBackground = false;
     }
   }
 

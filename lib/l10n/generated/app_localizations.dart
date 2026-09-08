@@ -109,6 +109,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nalo is ready'**
   String get welcomeMessage;
+
+  /// No description provided for @selectEnvironment.
+  ///
+  /// In en, this message translates to:
+  /// **'Select environment'**
+  String get selectEnvironment;
+
+  /// Displays the currently active API environment.
+  ///
+  /// In en, this message translates to:
+  /// **'Current environment: {environment}'**
+  String currentEnvironment(Object environment);
+
+  /// No description provided for @testEnvironment.
+  ///
+  /// In en, this message translates to:
+  /// **'Test'**
+  String get testEnvironment;
+
+  /// No description provided for @productionEnvironment.
+  ///
+  /// In en, this message translates to:
+  /// **'Production'**
+  String get productionEnvironment;
 }
 
 class _AppLocalizationsDelegate

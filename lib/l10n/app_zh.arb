@@ -1,5 +1,15 @@
 {
   "@@locale": "zh",
   "appName": "Nalo",
-  "welcomeMessage": "Nalo 已准备就绪"
+  "welcomeMessage": "Nalo 已准备就绪",
+  "selectEnvironment": "选择环境",
+  "currentEnvironment": "当前环境：{environment}",
+  "@currentEnvironment": {
+    "description": "显示当前使用的 API 环境。",
+    "placeholders": {
+      "environment": {}
+    }
+  },
+  "testEnvironment": "测试环境",
+  "productionEnvironment": "生产环境"
 }

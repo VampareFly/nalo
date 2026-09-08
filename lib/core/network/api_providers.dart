@@ -191,6 +191,7 @@ final sessionExpirationStreamProvider = StreamProvider<String>((ref) {
 
 /// 创建自有业务后端专用的 ApiClient。
 final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
+  final environment = await ref.watch(appEnvironmentProvider.future);
   final tokenStorage = await ref.watch(tokenStorageProvider.future);
   final packageInfo = await ref.watch(appPackageInfoProvider.future);
   final expirationNotifier = ref.watch(sessionExpirationNotifierProvider);
@@ -198,7 +199,7 @@ final businessApiClientProvider = FutureProvider<ApiClient>((ref) async {
   final dio = Dio(
     BaseOptions(
       // Host 由该 baseUrl 自动生成；User-Agent 由 Dart HTTP 底层自动生成。
-      baseUrl: currentEnvironment.apiBaseUrl,
+      baseUrl: environment.apiBaseUrl,
       // 统一将 Content-Type 设为 application/json。
       contentType: Headers.jsonContentType,
       connectTimeout: const Duration(seconds: 30),

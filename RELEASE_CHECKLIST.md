@@ -21,6 +21,8 @@
 
 ## 上线阻断项
 
+- [ ] 上传 App Store 或 Google Play 前，已再次确认是否保留摇一摇环境切换入口。
+- [ ] 若保留摇一摇入口，已确认正式包不会误连接 Test 环境或泄露测试数据。
 - [ ] 已确认目标环境与 API Base URL 一致。
 - [ ] Google Play 构建已显式传入 `ALLOW_NETWORK_INSPECTION=false`。
 - [ ] Production 包没有写死 Charles、Proxyman 或其他代理地址。

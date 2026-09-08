@@ -13,4 +13,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get welcomeMessage => 'Nalo is ready';
+
+  @override
+  String get selectEnvironment => 'Select environment';
+
+  @override
+  String currentEnvironment(Object environment) {
+    return 'Current environment: $environment';
+  }
+
+  @override
+  String get testEnvironment => 'Test';
+
+  @override
+  String get productionEnvironment => 'Production';
 }

@@ -1,14 +1,17 @@
 import 'dart:async';
-
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:nalo/app/router/app_router.dart';
+import 'package:nalo/app/config/app_environment.dart';
+import 'package:nalo/app/config/environment_picker_dialog.dart';
 import 'package:nalo/app/theme/app_theme.dart';
 import 'package:nalo/core/network/api_providers.dart';
+import 'package:nalo/core/device/shake_detector.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
+import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
@@ -27,6 +30,8 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
   bool _isSessionExpiredDialogVisible = false;
   late final ProviderSubscription<AsyncValue<AuthSessionState>>
   _authSessionSubscription;
+  late final ShakeDetector _shakeDetector;
+  bool _environmentDialogVisible = false;
 
   @override
   void initState() {
@@ -38,6 +43,7 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
       _handleAuthSessionChange,
       fireImmediately: true,
     );
+    _shakeDetector = ShakeDetector()..start(onShake: _showEnvironmentPicker);
   }
 
   /// 统一使用 Shop 页面相同的蓝色圆形进度动画。
@@ -63,8 +69,33 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     _authSessionSubscription.close();
+    unawaited(_shakeDetector.dispose());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// 在所有构建模式中弹出运行环境选择器。
+  Future<void> _showEnvironmentPicker() async {
+    if (_environmentDialogVisible || !mounted) return;
+    final navigatorContext = rootNavigatorKey.currentContext;
+    if (navigatorContext == null) return;
+    _environmentDialogVisible = true;
+    final current =
+        ref.read(appEnvironmentProvider).value ?? AppEnvironment.test;
+    AppEnvironment? selected;
+    try {
+      selected = await showDialog<AppEnvironment>(
+        context: navigatorContext,
+        builder: (_) => EnvironmentPickerDialog(current: current),
+      );
+    } finally {
+      _environmentDialogVisible = false;
+    }
+    if (!mounted || selected == null || selected == current) return;
+    await ref.read(authSessionProvider.notifier).logout();
+    await ref.read(appEnvironmentProvider.notifier).setEnvironment(selected);
+    ref.invalidate(authSessionProvider);
+    ref.invalidate(currentUserSnapshotProvider);
   }
 
   @override

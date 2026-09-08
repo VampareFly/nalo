@@ -35,7 +35,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders["appAuthRedirectScheme"] =
-            "shop.69330108529.testerkit"
+            "shop.73864740899.nalo"
     }
 
     buildTypes {
