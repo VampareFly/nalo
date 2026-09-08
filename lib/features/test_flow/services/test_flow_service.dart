@@ -63,8 +63,8 @@ class TestFlowService {
     return result;
   }
 
-  /// 提交用户确认后的区间、采样日期和时间段，并返回是否展示庆祝页。
-  Future<bool> confirm({
+  /// 提交用户确认后的区间、采样日期和时段，并返回确认记录及庆祝页状态。
+  Future<DetectionConfirmation> confirm({
     required DetectionType type,
     required String finalLevel,
     required DateTime? sampledAt,
@@ -78,19 +78,10 @@ class TestFlowService {
       'detection_id': detectionId,
       if (sampledAt != null) 'sampled_at': _date(sampledAt),
     };
-    final result = await _client.post<bool>(
+    final result = await _client.post<DetectionConfirmation>(
       '/api/v1/app/detections/confirm',
       data: body,
-      decoder: (raw) {
-        if (raw is! Map || raw['show_popup'] is! int) {
-          throw const FormatException('Missing show_popup.');
-        }
-        final value = raw['show_popup'] as int;
-        if (value != 0 && value != 1) {
-          throw const FormatException('Invalid show_popup.');
-        }
-        return value == 1;
-      },
+      decoder: DetectionConfirmation.fromJson,
     );
     if (result == null) {
       throw const ResponseFormatException(

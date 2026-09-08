@@ -48,6 +48,7 @@ class TestHistoryCounts {
 class TestHistoryItem {
   const TestHistoryItem({
     required this.id,
+    this.detectionId,
     required this.date,
     required this.timePeriod,
     required this.type,
@@ -57,6 +58,7 @@ class TestHistoryItem {
   });
 
   final int id;
+  final int? detectionId;
   final String date;
   final String timePeriod;
   final TestHistoryFilter type;
@@ -78,6 +80,7 @@ class TestHistoryItem {
     }
     return TestHistoryItem(
       id: _requiredInt(json, 'id'),
+      detectionId: _optionalInt(json, 'detection_id'),
       date: _requiredString(json, 'date'),
       timePeriod: _requiredString(json, 'time_period'),
       type: type,
@@ -183,4 +186,9 @@ int _requiredInt(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is int) return value;
   throw FormatException('Invalid $key.');
+}
+
+int? _optionalInt(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  return value is int ? value : null;
 }

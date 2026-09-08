@@ -26,6 +26,7 @@ class TestFlowState {
     this.selectedLevel,
     this.sampledAt,
     this.selectedTimePeriod,
+    this.confirmRecordId,
     this.result,
     this.analysisError,
     this.isLoading = false,
@@ -45,6 +46,7 @@ class TestFlowState {
   final String? selectedLevel;
   final DateTime? sampledAt;
   final String? selectedTimePeriod;
+  final int? confirmRecordId;
   final DetectionResult? result;
   final DetectionAnalysisError? analysisError;
   final bool isLoading;
@@ -70,6 +72,7 @@ class TestFlowState {
     Object? selectedLevel = _unset,
     Object? sampledAt = _unset,
     Object? selectedTimePeriod = _unset,
+    Object? confirmRecordId = _unset,
     Object? result = _unset,
     Object? analysisError = _unset,
     bool? isLoading,
@@ -100,6 +103,9 @@ class TestFlowState {
     selectedTimePeriod: identical(selectedTimePeriod, _unset)
         ? this.selectedTimePeriod
         : selectedTimePeriod as String?,
+    confirmRecordId: identical(confirmRecordId, _unset)
+        ? this.confirmRecordId
+        : confirmRecordId as int?,
     result: identical(result, _unset)
         ? this.result
         : result as DetectionResult?,
@@ -496,7 +502,7 @@ class TestFlowController extends Notifier<TestFlowState> {
     var confirmRequestSucceeded = false;
     try {
       final repository = await ref.read(testFlowRepositoryProvider.future);
-      final showPopup = await repository.confirm(
+      final confirmation = await repository.confirm(
         type: state.type,
         finalLevel: level,
         sampledAt: sampledAt,
@@ -511,7 +517,9 @@ class TestFlowController extends Notifier<TestFlowState> {
               AnalyticsEvent.testResultConfirmRequestResult,
               properties: {
                 ...requestProperties,
-                AnalyticsEventProperty.showPopup: showPopup ? 1 : 0,
+                AnalyticsEventProperty.showPopup: confirmation.showPopup
+                    ? 1
+                    : 0,
                 AnalyticsEventProperty.isSuccess: 1,
                 AnalyticsEventProperty.failReason: '',
               },
@@ -564,7 +572,10 @@ class TestFlowController extends Notifier<TestFlowState> {
         resultError = _friendlyError(error);
       }
       state = state.copyWith(
-        step: showPopup ? TestFlowStep.milestone : TestFlowStep.result,
+        step: confirmation.showPopup
+            ? TestFlowStep.milestone
+            : TestFlowStep.result,
+        confirmRecordId: confirmation.confirmRecordId,
         result: result,
         recent: result?.recent ?? state.recent,
         isLoading: false,

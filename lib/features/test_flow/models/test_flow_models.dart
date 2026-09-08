@@ -224,10 +224,35 @@ class DetectionAnalysis {
   }
 }
 
+/// 用户确认检测结果后，服务端返回的确认记录和周期展示状态。
+class DetectionConfirmation {
+  const DetectionConfirmation({
+    required this.confirmRecordId,
+    required this.showPopup,
+  });
+
+  final int confirmRecordId;
+  final bool showPopup;
+
+  /// 从确认接口 data 中解析确认记录 ID 和庆祝页标识。
+  factory DetectionConfirmation.fromJson(Object? raw) {
+    final json = _map(raw);
+    final showPopup = _integer(json, 'show_popup');
+    if (showPopup != 0 && showPopup != 1) {
+      throw const FormatException('Invalid show_popup.');
+    }
+    return DetectionConfirmation(
+      confirmRecordId: _integer(json, 'confirm_record_id'),
+      showPopup: showPopup == 1,
+    );
+  }
+}
+
 /// 最近一次检测列表中的摘要数据。
 class RecentDetection {
   const RecentDetection({
     required this.id,
+    this.detectionId,
     required this.date,
     required this.period,
     required this.value,
@@ -235,6 +260,7 @@ class RecentDetection {
     required this.typicalRange,
   });
   final int id;
+  final int? detectionId;
   final String date;
   final String period;
   final String value;
@@ -245,6 +271,9 @@ class RecentDetection {
     final json = _map(raw);
     return RecentDetection(
       id: _integer(json, 'id'),
+      detectionId: json['detection_id'] is int
+          ? json['detection_id'] as int
+          : null,
       date: _string(json, 'date'),
       period: _string(json, 'time_period'),
       value: _string(json, 'value'),

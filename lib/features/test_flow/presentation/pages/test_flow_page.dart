@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
+import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/test_flow/models/test_flow_models.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
 import 'package:nalo/features/test_flow/presentation/pages/test_flow_screens.dart';
@@ -307,6 +308,7 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   void _backToHomeAfterCompletion() {
     _isExiting = true;
     ref.read(testFlowProvider.notifier).reset();
+    ref.invalidate(homeIndexProvider);
     final homeLocation = Uri(
       path: HomePage.path,
       queryParameters: {

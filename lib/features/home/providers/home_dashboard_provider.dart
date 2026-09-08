@@ -62,6 +62,7 @@ List<RecentDetection> _cachedResultsFor(HomeIndexData data, String type) {
       .map(
         (item) => RecentDetection(
           id: item.id,
+          detectionId: item.detectionId,
           date: item.date,
           period: item.timePeriod,
           value: item.value,
@@ -105,6 +106,7 @@ List<HomeRecentResult> _resultsFor(HomeIndexData? data, HomeTestType type) {
       .map(
         (item) => HomeRecentResult(
           id: item.id,
+          detectionId: item.detectionId,
           type: type,
           monthLabel: _monthLabel(item.date),
           dateLabel: item.date,

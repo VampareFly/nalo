@@ -22,6 +22,7 @@ class HomeIndexGreeting {
 class HomeIndexTestItem {
   const HomeIndexTestItem({
     required this.id,
+    this.detectionId,
     required this.date,
     required this.timePeriod,
     required this.value,
@@ -30,6 +31,7 @@ class HomeIndexTestItem {
   });
 
   final int id;
+  final int? detectionId;
   final String date;
   final String timePeriod;
   final String value;
@@ -41,6 +43,7 @@ class HomeIndexTestItem {
     final json = _map(raw);
     return HomeIndexTestItem(
       id: _integer(json, 'id'),
+      detectionId: _optionalInt(json, 'detection_id'),
       date: _string(json, 'date'),
       timePeriod: _string(json, 'time_period'),
       value: _string(json, 'value'),
@@ -112,6 +115,11 @@ int _integer(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is! int) throw FormatException('Missing $key.');
   return value;
+}
+
+int? _optionalInt(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  return value is int ? value : null;
 }
 
 int _nonNegativeIntOrZero(Map<String, dynamic> json, String key) {

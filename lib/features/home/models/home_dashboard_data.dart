@@ -8,6 +8,7 @@ enum HomeTestType { cortisol, testosterone }
 class HomeRecentResult {
   const HomeRecentResult({
     required this.id,
+    this.detectionId,
     required this.type,
     required this.monthLabel,
     required this.dateLabel,
@@ -19,6 +20,7 @@ class HomeRecentResult {
   });
 
   final int id;
+  final int? detectionId;
   final HomeTestType type;
   final String monthLabel;
   final String dateLabel;

@@ -47,7 +47,7 @@ class TestFlowRepository {
   }) => _service.analyze(type: type, imagePath: imagePath);
 
   /// 提交用户最终确认的检测信息。
-  Future<bool> confirm({
+  Future<DetectionConfirmation> confirm({
     required DetectionType type,
     required String finalLevel,
     required DateTime? sampledAt,
