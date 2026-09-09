@@ -23,6 +23,7 @@
 
 - [ ] 上传 App Store 或 Google Play 前，已再次确认是否保留摇一摇环境切换入口。
 - [ ] 若保留摇一摇入口，已确认正式包不会误连接 Test 环境或泄露测试数据。
+- [ ] Production 包的 `defaultEnvironment` 已改为 `AppEnvironment.production`。
 - [ ] 已确认目标环境与 API Base URL 一致。
 - [ ] Google Play 构建已显式传入 `ALLOW_NETWORK_INSPECTION=false`。
 - [ ] Production 包没有写死 Charles、Proxyman 或其他代理地址。
@@ -59,6 +60,12 @@ AppEnvironment.test => 'https://api-test.naloresults.com/',
 AppEnvironment.production => 'https://api.naloresults.com/',
 ```
 
+确认首次安装使用的默认环境；正式上线必须设置为 Production：
+
+```dart
+const defaultEnvironment = AppEnvironment.production;
+```
+
 搜索所有可能写死的服务端地址：
 
 ```bash
@@ -69,6 +76,7 @@ rg -n "api-test\.naloresults\.com|api\.naloresults\.com|api\.example\.com" lib
 
 - [ ] Test 包使用 Test Base URL。
 - [ ] Production 包使用 Production Base URL。
+- [ ] Production 包的首次安装默认环境为 `AppEnvironment.production`。
 - [ ] Repository 和 Service 中没有自行写死其他业务 API Host。
 - [ ] Production 包没有连接 Test 后端。
 

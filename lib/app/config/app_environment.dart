@@ -21,8 +21,8 @@ final appEnvironmentProvider =
       AppEnvironmentController.new,
     );
 
-/// 第三方 SDK 初始化前使用的默认环境；业务 API 使用运行时 Provider。
-const currentEnvironment = AppEnvironment.test;
+/// 本地尚未保存选择时使用的首次启动环境；正式上线前必须改为 production。
+const defaultEnvironment = AppEnvironment.test;
 
 /// 读取、保存并切换当前运行环境。
 class AppEnvironmentController extends AsyncNotifier<AppEnvironment> {
@@ -34,7 +34,7 @@ class AppEnvironmentController extends AsyncNotifier<AppEnvironment> {
     return _fromStorage(preferences.getString(_storageKey));
   }
 
-  /// 保存新的环境，切换后由依赖 Provider 自动重建网络客户端。
+  /// 保存用户选择的环境，供 App 下次启动时初始化业务服务。
   Future<void> setEnvironment(AppEnvironment environment) async {
     final preferences = await ref.read(sharedPreferencesProvider.future);
     await preferences.setString(_storageKey, environment.name);
@@ -44,7 +44,7 @@ class AppEnvironmentController extends AsyncNotifier<AppEnvironment> {
   AppEnvironment _fromStorage(String? value) {
     return AppEnvironment.values.firstWhere(
       (environment) => environment.name == value,
-      orElse: () => AppEnvironment.test,
+      orElse: () => defaultEnvironment,
     );
   }
 }

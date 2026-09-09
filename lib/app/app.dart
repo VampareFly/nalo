@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -11,7 +13,6 @@ import 'package:nalo/app/theme/app_theme.dart';
 import 'package:nalo/core/network/api_providers.dart';
 import 'package:nalo/core/device/shake_detector.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
-import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
@@ -74,14 +75,14 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// 在所有构建模式中弹出运行环境选择器。
+  /// 在所有构建模式中选择环境；保存后退出 App，重启时统一初始化相关服务。
   Future<void> _showEnvironmentPicker() async {
     if (_environmentDialogVisible || !mounted) return;
     final navigatorContext = rootNavigatorKey.currentContext;
     if (navigatorContext == null) return;
     _environmentDialogVisible = true;
     final current =
-        ref.read(appEnvironmentProvider).value ?? AppEnvironment.test;
+        ref.read(appEnvironmentProvider).value ?? defaultEnvironment;
     AppEnvironment? selected;
     try {
       selected = await showDialog<AppEnvironment>(
@@ -94,8 +95,7 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
     if (!mounted || selected == null || selected == current) return;
     await ref.read(authSessionProvider.notifier).logout();
     await ref.read(appEnvironmentProvider.notifier).setEnvironment(selected);
-    ref.invalidate(authSessionProvider);
-    ref.invalidate(currentUserSnapshotProvider);
+    exit(0);
   }
 
   @override

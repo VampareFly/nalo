@@ -1,7 +1,4 @@
-// 应用启动入口，依次完成系统 UI、基础服务与全局 Provider 初始化。
-import 'package:amplitude_flutter/amplitude.dart';
-import 'package:amplitude_flutter/configuration.dart';
-import 'package:amplitude_flutter/constants.dart';
+// 应用启动入口，依次完成系统 UI、基础服务、运行环境与全局 Provider 初始化。
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nalo/app/app.dart';
+import 'package:nalo/app/config/app_environment.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/analytics/amplitude_config.dart';
 import 'package:nalo/core/crash_reporting/crash_reporting_service.dart';
@@ -42,14 +40,12 @@ Future<void> main() async {
 
   await Hive.initFlutter();
 
-  final amplitude = Amplitude(
-    Configuration(
-      apiKey: AmplitudeConfig.apiKey,
-      minIdLength: 1,
-      logLevel: kDebugMode ? LogLevel.debug : LogLevel.warn,
-    ),
+  final bootstrapContainer = ProviderContainer(retry: appProviderRetry);
+  final environment = await bootstrapContainer.read(
+    appEnvironmentProvider.future,
   );
-  await amplitude.isBuilt;
+  bootstrapContainer.dispose();
+  final amplitude = await createAmplitude(environment);
 
   runApp(
     ProviderScope(

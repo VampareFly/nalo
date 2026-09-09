@@ -711,7 +711,7 @@ class AmplitudeAnalyticsService implements AnalyticsService {
   }
 }
 
-/// 提供已在应用入口初始化的 Amplitude 实例。
+/// 提供已在应用入口按当前业务环境初始化的 Amplitude 实例。
 final amplitudeProvider = Provider<Amplitude>((ref) {
   throw StateError('Amplitude has not been initialized');
 });
