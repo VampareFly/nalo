@@ -1,5 +1,5 @@
-// 管理应用级认证会话、冷启动 Token 恢复和后台静默刷新。
-// 有效 Session 先恢复页面流程，刷新结果仅在会话未变化时写回。
+// 管理应用级认证会话、分析平台身份恢复和后台静默刷新。
+// 有效 Session 先恢复分析身份与页面流程，刷新结果仅在会话未变化时写回。
 
 import 'dart:async';
 
@@ -61,10 +61,31 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
       unawaited(_refreshInBackground(repository, token));
     }
 
+    await _restoreAnalyticsIdentity();
+
     return AuthSessionState(
       status: AuthSessionStatus.authenticated,
       token: token,
     );
+  }
+
+  /// 从本地用户快照恢复 Amplitude 与 GA4 各自使用的用户身份。
+  Future<void> _restoreAnalyticsIdentity() async {
+    try {
+      final userStorage = await ref.read(currentUserStorageProvider.future);
+      final currentUser = await userStorage.read();
+      if (currentUser == null) return;
+      await ref
+          .read(analyticsProvider)
+          .restoreUserIdentity(
+            AnalyticsUserIdentity(
+              appUserId: currentUser.id.toString(),
+              shopifyCustomerId: currentUser.shopifyCustomerId?.toString(),
+            ),
+          );
+    } catch (_) {
+      // 分析身份恢复属于可降级能力，不阻塞有效 Session 进入应用。
+    }
   }
 
   /// 后台静默刷新临近过期的 Token，任何失败都不影响当前有效 Session。
@@ -111,7 +132,7 @@ class AuthSessionNotifier extends AsyncNotifier<AuthSessionState> {
     );
   }
 
-  /// 主动退出并清理本地认证数据及 Amplitude 身份。
+  /// 主动退出并清理本地认证数据及所有分析平台身份。
   Future<void> logout() async {
     final repository = await ref.read(authRepositoryProvider.future);
     try {

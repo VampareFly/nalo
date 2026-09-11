@@ -68,6 +68,7 @@ class ShopifyBackendAuthRepository {
         completionDestination: completionDestination,
         token: token,
         userId: user.id,
+        shopifyCustomerId: user.shopifyCustomerId,
         email: user.email,
         fullName: user.fullName,
       );

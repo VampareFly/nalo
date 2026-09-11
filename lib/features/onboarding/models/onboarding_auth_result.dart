@@ -15,6 +15,7 @@ class OnboardingAuthResult {
     required this.completionDestination,
     required this.token,
     required this.userId,
+    this.shopifyCustomerId,
     this.email,
     this.fullName,
   });
@@ -25,6 +26,9 @@ class OnboardingAuthResult {
   final OnboardingCompletionDestination completionDestination;
   final AuthToken token;
   final int userId;
+
+  /// 登录成功用户对应的 Shopify 客户 ID，用于绑定 GA4 身份。
+  final int? shopifyCustomerId;
   final String? email;
   final String? fullName;
 }

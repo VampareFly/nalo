@@ -1,5 +1,5 @@
 // 管理新登录注册入口页的服务端 Shopify 认证状态。
-// 完整认证结束后绑定 Amplitude 用户并上报结果。
+// 完整认证结束后分别绑定 Amplitude 与 GA4 用户并上报结果。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
@@ -36,7 +36,10 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
       ref.read(authSessionProvider.notifier).markAuthenticated(result.token);
       final analytics = ref.read(analyticsProvider);
       await analytics.identifyUser(
-        result.userId.toString(),
+        AnalyticsUserIdentity(
+          appUserId: result.userId.toString(),
+          shopifyCustomerId: result.shopifyCustomerId?.toString(),
+        ),
         loginMethod: AnalyticsLoginMethod.shopify,
       );
       await _reportLoginResult(isSuccess: true);

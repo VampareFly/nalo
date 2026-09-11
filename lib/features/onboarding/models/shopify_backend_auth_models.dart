@@ -81,6 +81,7 @@ class AppUserInfo {
   const AppUserInfo({
     required this.id,
     required this.isProfileCompleted,
+    this.shopifyCustomerId,
     this.email,
     this.fullName,
     this.birthDay,
@@ -93,6 +94,9 @@ class AppUserInfo {
 
   /// 服务端确认的 Profile 完成状态，用于登录和冷启动分流。
   final bool isProfileCompleted;
+
+  /// Shopify 客户 ID，用于 App 与 Shopify Web 共用 GA4 User-ID。
+  final int? shopifyCustomerId;
 
   final String? email;
   final String? fullName;
@@ -117,6 +121,7 @@ class AppUserInfo {
     return AppUserInfo(
       id: id,
       isProfileCompleted: profileCompleted == 1,
+      shopifyCustomerId: _positiveInt(json['shopify_customer_id']),
       email: json['email'] is String ? json['email'] as String : null,
       fullName: json['full_name'] is String
           ? json['full_name'] as String
@@ -133,6 +138,7 @@ class AppUserInfo {
   /// 转换为本地分流快照，字段名与服务端 User 保持一致。
   Map<String, dynamic> toJson() => {
     'id': id,
+    'shopify_customer_id': shopifyCustomerId,
     'email': email,
     'full_name': fullName,
     'birth_day': birthDay,
@@ -141,6 +147,10 @@ class AppUserInfo {
     if (testInfo != null) 'test_info': testInfo!.toJson(),
     if (referralCard != null) 'referral_card': referralCard!.toJson(),
   };
+}
+
+int? _positiveInt(Object? value) {
+  return value is int && value > 0 ? value : null;
 }
 
 /// 用户累计检测统计，用于 Profile 展示完成次数。

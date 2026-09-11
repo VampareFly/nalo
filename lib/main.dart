@@ -35,6 +35,8 @@ Future<void> main() async {
       (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.android);
   if (isFirebaseAnalyticsSupported) {
+    // TODO: <pf> Production Firebase Project 与 GA4 Property 创建后，
+    // 按正式构建环境切换 Firebase 配置，避免测试与生产数据混用。
     await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
   }
 

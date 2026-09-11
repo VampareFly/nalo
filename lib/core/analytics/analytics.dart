@@ -1,12 +1,13 @@
 // 客户端埋点统一入口。
 // Widget 上报点击和曝光，ViewModel 上报请求结果，页面容器上报页面访问；
-// AnalyticsService 自动补充公共属性并隔离 Amplitude SDK。
+// AnalyticsService 自动补充公共属性，并将同一次上报隔离分发到 Amplitude 与 GA4。
 
 import 'dart:io';
 
 import 'package:amplitude_flutter/amplitude.dart';
 import 'package:amplitude_flutter/events/base_event.dart';
 import 'package:amplitude_flutter/events/identify.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,7 +20,7 @@ import 'package:nalo/core/logging/logger_provider.dart';
 import 'package:nalo/features/notifications/services/notification_permission_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-/// 客户端发送到 Amplitude 的事件名称。
+/// 客户端发送到 Amplitude 与 GA4 的事件名称。
 enum AnalyticsEvent {
   pageView('page_view'),
   loginClick('login_click'),
@@ -212,9 +213,10 @@ enum AnalyticsEventProperty {
   final String propertyName;
 }
 
-/// 当前用户在 Amplitude 中维护的属性。
+/// 当前用户在分析平台中维护的属性，各平台按自身规则筛选。
 enum AnalyticsUserProperty {
   userId('user_id'),
+  appUserId('app_user_id'),
   loginStatus('login_status'),
   notificationPermission('notification_permission'),
   kcId('kc_id'),
@@ -509,6 +511,63 @@ int _minorUnitValue(String value) {
   return (amount * 100).round();
 }
 
+/// 同时保存 App 与 Shopify 身份，由不同分析平台选择自己的用户 ID。
+class AnalyticsUserIdentity {
+  const AnalyticsUserIdentity({
+    required this.appUserId,
+    required this.shopifyCustomerId,
+  });
+
+  final String appUserId;
+  final String? shopifyCustomerId;
+
+  /// 返回 App 与 Shopify Web 共用的 GA4 User-ID；无有效 Shopify ID 时为空。
+  String? get ga4UserId {
+    final value = shopifyCustomerId?.trim();
+    if (value == null || value.isEmpty) return null;
+    return value;
+  }
+}
+
+/// 集中管理 GA4 参数边界，避免业务页面感知分析平台差异。
+abstract final class Ga4ParameterPolicy {
+  /// GA4 明确禁止接收的个人信息和广告标识字段。
+  static const blockedParameterNames = <String>{
+    'email',
+    'name',
+    'birth',
+    'x-idfa',
+  };
+
+  /// 由 GA4 SDK 专用 API 管理，不作为普通事件参数重复发送。
+  static const _systemManagedParameterNames = <String>{'user_id', 'kc_id'};
+
+  /// 在发送到 GA4 前移除禁止字段；Amplitude 原始参数不受影响。
+  static Map<String, Object> sanitizeEventParameters(
+    Map<String, Object> parameters,
+  ) {
+    // TODO: <pf> 根据最终 GA4 数据规范启用业务参数白名单。
+    // static const allowedParameterNames = <String>{};
+    // TODO: <pf> 正式发布前复核健康相关业务参数，仅保留分析必需的枚举或分档值。
+    // 当前除强制禁止字段和系统专用字段外，其他业务参数暂时全部放行。
+    return Map.fromEntries(
+      parameters.entries.where(
+        (entry) =>
+            !blockedParameterNames.contains(entry.key) &&
+            !_systemManagedParameterNames.contains(entry.key),
+      ),
+    );
+  }
+
+  /// 判断现有用户属性是否允许同步到 GA4。
+  static bool allowsUserProperty(String propertyName) {
+    return propertyName == AnalyticsUserProperty.appUserId.propertyName ||
+        propertyName == AnalyticsUserProperty.loginStatus.propertyName ||
+        propertyName ==
+            AnalyticsUserProperty.notificationPermission.propertyName;
+  }
+}
+
 /// 业务层使用的统一分析接口。
 abstract interface class AnalyticsService {
   /// 上报事件，并自动附加公共事件属性。
@@ -520,19 +579,22 @@ abstract interface class AnalyticsService {
   /// 页面实际可见时上报，并自动使用上一次 Page Name 作为来源。
   Future<void> reportPageView(AnalyticsPageName pageName);
 
-  /// 登录成功后绑定后端用户 ID，并设置登录相关用户属性。
+  /// 登录或冷启动恢复后，为不同分析平台绑定各自用户 ID。
   Future<void> identifyUser(
-    String userId, {
+    AnalyticsUserIdentity identity, {
     required AnalyticsLoginMethod loginMethod,
   });
 
-  /// 更新当前 Amplitude 用户属性。
+  /// 冷启动恢复已登录身份，不重复执行 ATT 等首次登录准备流程。
+  Future<void> restoreUserIdentity(AnalyticsUserIdentity identity);
+
+  /// 更新当前用户属性，各平台按自身规则筛选。
   Future<void> setUserProperties(Map<AnalyticsUserProperty, Object> properties);
 
   /// 请求 iOS ATT，并设置设备、通知和 IDFA 用户属性。
   Future<void> prepareTrackingAuthorization();
 
-  /// 退登、Token 失效或注销成功后清除 Amplitude 身份。
+  /// 退登、Token 失效或注销成功后清除所有分析平台身份。
   Future<void> resetIdentity();
 }
 
@@ -588,9 +650,10 @@ class AmplitudeAnalyticsService implements AnalyticsService {
 
   @override
   Future<void> identifyUser(
-    String userId, {
+    AnalyticsUserIdentity identity, {
     required AnalyticsLoginMethod loginMethod,
   }) async {
+    final userId = identity.appUserId;
     if (userId.trim().isEmpty) {
       _logger.w('Unable to identify analytics user with an empty user ID');
       return;
@@ -610,6 +673,17 @@ class AmplitudeAnalyticsService implements AnalyticsService {
       await setUserProperties(properties);
     } catch (error, stackTrace) {
       _logFailure('identify analytics user', error, stackTrace);
+    }
+  }
+
+  @override
+  Future<void> restoreUserIdentity(AnalyticsUserIdentity identity) async {
+    final userId = identity.appUserId.trim();
+    if (userId.isEmpty) return;
+    try {
+      await _amplitude.setUserId(userId);
+    } catch (error, stackTrace) {
+      _logFailure('restore analytics user', error, stackTrace);
     }
   }
 
@@ -711,6 +785,253 @@ class AmplitudeAnalyticsService implements AnalyticsService {
   }
 }
 
+/// 使用 Firebase Analytics 镜像现有 App 事件并维护 GA4 用户身份。
+class FirebaseAnalyticsService implements AnalyticsService {
+  FirebaseAnalyticsService(
+    this._analytics,
+    this._notificationPermissionService,
+    this._logger,
+  ) : _packageInfo = PackageInfo.fromPlatform();
+
+  final FirebaseAnalytics _analytics;
+  final NotificationPermissionService _notificationPermissionService;
+  final Logger _logger;
+  final Future<PackageInfo> _packageInfo;
+  AnalyticsPageName? _currentPageName;
+
+  @override
+  Future<void> report(
+    AnalyticsEvent event, {
+    Map<AnalyticsEventProperty, Object> properties = const {},
+  }) async {
+    try {
+      final eventParameters = <String, Object>{
+        for (final property in properties.entries)
+          property.key.propertyName: property.value,
+        ...await _commonProperties(),
+      };
+      await _analytics.logEvent(
+        name: event.eventName,
+        parameters: Ga4ParameterPolicy.sanitizeEventParameters(
+          eventParameters,
+        ),
+      );
+    } catch (error, stackTrace) {
+      _logFailure('report ${event.eventName}', error, stackTrace);
+    }
+  }
+
+  @override
+  Future<void> reportPageView(AnalyticsPageName pageName) {
+    final previousPage = _currentPageName;
+    _currentPageName = pageName;
+    return report(
+      AnalyticsEvent.pageView,
+      properties: {
+        AnalyticsEventProperty.pageName: pageName.value,
+        AnalyticsEventProperty.previousPage: previousPage?.value ?? '',
+      },
+    );
+  }
+
+  @override
+  Future<void> identifyUser(
+    AnalyticsUserIdentity identity, {
+    required AnalyticsLoginMethod loginMethod,
+  }) async {
+    try {
+      final userId = identity.ga4UserId;
+      await _analytics.setUserId(id: userId);
+      if (userId == null) {
+        _logger.w(
+          'Unable to identify GA4 user without a Shopify customer ID',
+        );
+      }
+      await setUserProperties({
+        if (identity.appUserId.trim().isNotEmpty)
+          AnalyticsUserProperty.appUserId: identity.appUserId.trim(),
+        AnalyticsUserProperty.loginStatus: loginMethod.value,
+        AnalyticsUserProperty.notificationPermission:
+            await _notificationEnabledValue(),
+      });
+    } catch (error, stackTrace) {
+      _logFailure('identify GA4 user', error, stackTrace);
+    }
+  }
+
+  @override
+  Future<void> restoreUserIdentity(AnalyticsUserIdentity identity) async {
+    try {
+      await _analytics.setUserId(id: identity.ga4UserId);
+      final appUserId = identity.appUserId.trim();
+      if (appUserId.isNotEmpty) {
+        await setUserProperties({
+          AnalyticsUserProperty.appUserId: appUserId,
+        });
+      }
+    } catch (error, stackTrace) {
+      _logFailure('restore GA4 user', error, stackTrace);
+    }
+  }
+
+  @override
+  Future<void> setUserProperties(
+    Map<AnalyticsUserProperty, Object> properties,
+  ) async {
+    try {
+      for (final property in properties.entries) {
+        final propertyName = property.key.propertyName;
+        if (!Ga4ParameterPolicy.allowsUserProperty(propertyName)) continue;
+        await _analytics.setUserProperty(
+          name: propertyName,
+          value: property.value.toString(),
+        );
+      }
+    } catch (error, stackTrace) {
+      _logFailure('set GA4 user properties', error, stackTrace);
+    }
+  }
+
+  @override
+  Future<void> prepareTrackingAuthorization() async {
+    await setUserProperties({
+      AnalyticsUserProperty.notificationPermission:
+          await _notificationEnabledValue(),
+    });
+  }
+
+  @override
+  Future<void> resetIdentity() async {
+    try {
+      await _analytics.setUserId(id: null);
+      await _analytics.setUserProperty(
+        name: AnalyticsUserProperty.loginStatus.propertyName,
+        value: null,
+      );
+      await _analytics.setUserProperty(
+        name: AnalyticsUserProperty.appUserId.propertyName,
+        value: null,
+      );
+    } catch (error, stackTrace) {
+      _logFailure('reset GA4 identity', error, stackTrace);
+    }
+  }
+
+  Future<Map<String, Object>> _commonProperties() async {
+    final packageInfo = await _packageInfoValue();
+    return {
+      AnalyticsCommonProperty.notificationEnabled.propertyName:
+          await _notificationEnabledValue(),
+      AnalyticsCommonProperty.platform.propertyName: _platformValue(),
+      AnalyticsCommonProperty.appVersion.propertyName:
+          packageInfo?.version ?? '',
+      AnalyticsCommonProperty.osVersion.propertyName: _osVersionValue(),
+    };
+  }
+
+  Future<String> _notificationEnabledValue() async {
+    try {
+      final isEnabled = await _notificationPermissionService
+          .isNotificationPermissionEnabled();
+      return isEnabled ? '1' : '0';
+    } catch (_) {
+      return '0';
+    }
+  }
+
+  Future<PackageInfo?> _packageInfoValue() async {
+    try {
+      return await _packageInfo;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _platformValue() => switch (defaultTargetPlatform) {
+    TargetPlatform.iOS => '1',
+    TargetPlatform.android => '2',
+    _ => '',
+  };
+
+  String _osVersionValue() {
+    if (kIsWeb) return '';
+    return Platform.operatingSystemVersion;
+  }
+
+  void _logFailure(String operation, Object error, StackTrace stackTrace) {
+    _logger.w('Failed to $operation', error: error, stackTrace: stackTrace);
+  }
+}
+
+/// 将同一次业务埋点独立发送到多个分析平台。
+class CompositeAnalyticsService implements AnalyticsService {
+  const CompositeAnalyticsService(this._services);
+
+  final List<AnalyticsService> _services;
+
+  @override
+  Future<void> report(
+    AnalyticsEvent event, {
+    Map<AnalyticsEventProperty, Object> properties = const {},
+  }) async {
+    await Future.wait(
+      _services.map(
+        (service) => service.report(event, properties: properties),
+      ),
+    );
+  }
+
+  @override
+  Future<void> reportPageView(AnalyticsPageName pageName) async {
+    await Future.wait(
+      _services.map((service) => service.reportPageView(pageName)),
+    );
+  }
+
+  @override
+  Future<void> identifyUser(
+    AnalyticsUserIdentity identity, {
+    required AnalyticsLoginMethod loginMethod,
+  }) async {
+    await Future.wait(
+      _services.map(
+        (service) => service.identifyUser(
+          identity,
+          loginMethod: loginMethod,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> restoreUserIdentity(AnalyticsUserIdentity identity) async {
+    await Future.wait(
+      _services.map((service) => service.restoreUserIdentity(identity)),
+    );
+  }
+
+  @override
+  Future<void> setUserProperties(
+    Map<AnalyticsUserProperty, Object> properties,
+  ) async {
+    await Future.wait(
+      _services.map((service) => service.setUserProperties(properties)),
+    );
+  }
+
+  @override
+  Future<void> prepareTrackingAuthorization() async {
+    await Future.wait(
+      _services.map((service) => service.prepareTrackingAuthorization()),
+    );
+  }
+
+  @override
+  Future<void> resetIdentity() async {
+    await Future.wait(_services.map((service) => service.resetIdentity()));
+  }
+}
+
 /// 提供已在应用入口按当前业务环境初始化的 Amplitude 实例。
 final amplitudeProvider = Provider<Amplitude>((ref) {
   throw StateError('Amplitude has not been initialized');
@@ -718,13 +1039,23 @@ final amplitudeProvider = Provider<Amplitude>((ref) {
 
 /// 提供统一的业务埋点服务。
 final analyticsProvider = Provider<AnalyticsService>((ref) {
-  return AmplitudeAnalyticsService(
-    ref.watch(amplitudeProvider),
-    ref.watch(deviceIdServiceProvider),
-    PlatformNotificationPermissionService(),
-    ref.watch(trackingTransparencyServiceProvider),
-    ref.watch(loggerProvider),
-  );
+  final notificationPermissionService =
+      PlatformNotificationPermissionService();
+  final logger = ref.watch(loggerProvider);
+  return CompositeAnalyticsService([
+    AmplitudeAnalyticsService(
+      ref.watch(amplitudeProvider),
+      ref.watch(deviceIdServiceProvider),
+      notificationPermissionService,
+      ref.watch(trackingTransparencyServiceProvider),
+      logger,
+    ),
+    FirebaseAnalyticsService(
+      FirebaseAnalytics.instance,
+      notificationPermissionService,
+      logger,
+    ),
+  ]);
 });
 
 /// 监听路由页面进入和返回，并统一上报 `page_view`。
@@ -782,15 +1113,15 @@ extension AnalyticsWidgetRef on WidgetRef {
 
   /// 登录成功后绑定用户和登录方式。
   Future<void> identifyAnalyticsUser(
-    String userId, {
+    AnalyticsUserIdentity identity, {
     required AnalyticsLoginMethod loginMethod,
   }) {
     return read(
       analyticsProvider,
-    ).identifyUser(userId, loginMethod: loginMethod);
+    ).identifyUser(identity, loginMethod: loginMethod);
   }
 
-  /// 更新当前 Amplitude 用户属性。
+  /// 更新当前用户属性，各平台按自身规则筛选。
   Future<void> setAnalyticsUserProperties(
     Map<AnalyticsUserProperty, Object> properties,
   ) {
