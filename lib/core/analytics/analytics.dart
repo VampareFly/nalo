@@ -299,7 +299,8 @@ enum AnalyticsProfileActionType {
 /// `test_start_entry_click.position` 的检测入口位置。
 enum AnalyticsTestStartPosition {
   homeCard('1'),
-  bottomScan('2');
+  bottomScan('2'),
+  testHistoryEmpty('3');
 
   const AnalyticsTestStartPosition(this.value);
 

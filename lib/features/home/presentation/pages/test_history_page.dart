@@ -1,15 +1,19 @@
 // 展示用户完整检测历史，支持服务端筛选、按月份分组与滚动分页。
-// 页面负责筛选点击及 Section、Item 曝光；单次页面访问周期内按稳定业务键去重。
+// 页面负责筛选、空状态检测入口及 Section、Item 曝光；检测流程返回后刷新记录。
+// 单次页面访问周期内按稳定业务键去重。
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/widgets/nalo_back_button.dart';
+import 'package:nalo/core/widgets/nalo_state_view.dart';
 import 'package:nalo/features/home/models/test_history_models.dart';
 import 'package:nalo/features/home/view_models/test_history_view_model.dart';
+import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 const _historyBlue = Color(0xFF008BC7);
@@ -73,6 +77,24 @@ class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
     unawaited(
       ref.read(testHistoryViewModelProvider.notifier).selectFilter(filter),
     );
+  }
+
+  Future<void> _startTestFromEmptyState() async {
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testStartEntryClick,
+        properties: {
+          AnalyticsEventProperty.pageName:
+              AnalyticsPageName.testHistory.value,
+          AnalyticsEventProperty.position:
+              AnalyticsTestStartPosition.testHistoryEmpty.value,
+          AnalyticsEventProperty.totalTestCount: 0,
+        },
+      ),
+    );
+    await context.push(TestFlowPage.path);
+    if (!mounted) return;
+    await ref.read(testHistoryViewModelProvider.notifier).loadInitial();
   }
 
   void _reportSectionView(
@@ -154,6 +176,9 @@ class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
                     const SizedBox(height: 12),
                     _HistoryContent(
                       state: state,
+                      onStartTest: _startTestFromEmptyState,
+                      onViewAll: () =>
+                          _selectFilter(state, TestHistoryFilter.all),
                       onSectionVisibilityChanged: _reportSectionView,
                       onItemVisibilityChanged: _reportItemView,
                     ),
@@ -243,11 +268,15 @@ class _FilterRow extends StatelessWidget {
 class _HistoryContent extends ConsumerWidget {
   const _HistoryContent({
     required this.state,
+    required this.onStartTest,
+    required this.onViewAll,
     required this.onSectionVisibilityChanged,
     required this.onItemVisibilityChanged,
   });
 
   final TestHistoryState state;
+  final VoidCallback onStartTest;
+  final VoidCallback onViewAll;
   final void Function(
     TestHistoryGroup group,
     int position,
@@ -270,8 +299,10 @@ class _HistoryContent extends ConsumerWidget {
       );
     }
     if (state.initialError != null) {
-      return _MessageState(
-        title: 'Unable to load test history',
+      return NaloStateView(
+        illustrationAsset: NaloStateIllustration.networkError,
+        title: 'We couldn\'t connect',
+        description: 'Check your internet connection and try again.',
         actionLabel: 'Try again',
         onAction: () =>
             ref.read(testHistoryViewModelProvider.notifier).loadInitial(),
@@ -288,7 +319,24 @@ class _HistoryContent extends ConsumerWidget {
         ),
         const SizedBox(height: 18),
         if (state.isEmpty)
-          const _MessageState(title: 'No test results yet.')
+          state.counts.all == 0
+              ? NaloStateView(
+                  illustrationAsset: NaloStateIllustration.testHistoryEmpty,
+                  title: 'No test results yet',
+                  description:
+                      'Complete your first test to start tracking your hormone results.',
+                  actionLabel: 'Start a test',
+                  onAction: onStartTest,
+                  usePrimaryAction: true,
+                )
+              : NaloStateView(
+                  illustrationAsset: NaloStateIllustration.testHistoryEmpty,
+                  title: 'No matching results',
+                  description:
+                      'There are no results for this test type yet.',
+                  actionLabel: 'View all results',
+                  onAction: onViewAll,
+                )
         else
           for (
             var groupIndex = 0;
@@ -379,35 +427,6 @@ class _HistoryMonthSection extends StatelessWidget {
         ],
         const SizedBox(height: 24),
       ],
-    );
-  }
-}
-
-class _MessageState extends StatelessWidget {
-  const _MessageState({required this.title, this.actionLabel, this.onAction});
-
-  final String title;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 260,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _historyMuted, fontSize: 14),
-          ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 8),
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
-        ],
-      ),
     );
   }
 }

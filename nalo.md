@@ -243,6 +243,10 @@ GET  /api/v1/app/configs/version/check
 - Test history通过 `/detections/history` 获取历史记录。
 - Shop通过 `/products` 获取商品，通过 `/products/shopify-url` 获取购买地址。
 - Test flow根据 `/configs/list` 配置调用检测创建、确认和结果接口。
+- Shop空商品、检测历史为空和列表加载失败统一使用 `NaloStateView`，由页面传入对应插画、文案和操作回调。
+- Shop空商品使用检测盒插画；检测历史完全为空使用记录卡插画并提供 `Start a test`；列表首次加载失败共用网络错误插画和重试入口。
+- 检测历史通过 `pagination.all` 区分完全无记录和筛选后无结果：完全无记录进入检测流程，筛选后无结果可返回 All。
+- 从历史空状态点击 `Start a test` 上报 `test_start_entry_click`，`page_name=test_history`、`position=3`、`total_test_count=0`；检测流程返回后重新请求历史第一页。
 
 ## 版本更新
 

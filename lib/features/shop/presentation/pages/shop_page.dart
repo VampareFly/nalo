@@ -9,6 +9,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/sharing/platform_share_service.dart';
+import 'package:nalo/core/widgets/nalo_state_view.dart';
 import 'package:nalo/features/home/models/home_dashboard_data.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/shop/models/test_kit_product.dart';
@@ -241,7 +242,16 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                           const _ShopHeading(),
                           const SizedBox(height: 20),
                           if (state.products.isEmpty)
-                            const _EmptyShop()
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: NaloStateView(
+                                illustrationAsset:
+                                    NaloStateIllustration.shopEmpty,
+                                title: 'No kits available right now',
+                                description:
+                                    'New testing options will appear here when they become available.',
+                              ),
+                            )
                           else
                             for (
                               var index = 0;
@@ -410,24 +420,6 @@ class _ShopHeading extends StatelessWidget {
   }
 }
 
-class _EmptyShop extends StatelessWidget {
-  const _EmptyShop();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 56),
-      child: Center(
-        child: Text(
-          'No kits are available right now.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _muted, fontSize: 14),
-        ),
-      ),
-    );
-  }
-}
-
 class _ShopLoadError extends StatelessWidget {
   const _ShopLoadError({required this.onRetry});
 
@@ -436,26 +428,12 @@ class _ShopLoadError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Unable to load products.',
-              style: TextStyle(color: _ink, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: onRetry,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _ink,
-                shape: const StadiumBorder(),
-              ),
-              child: const Text('Try again'),
-            ),
-          ],
-        ),
+      child: NaloStateView(
+        illustrationAsset: NaloStateIllustration.networkError,
+        title: 'We couldn\'t connect',
+        description: 'Check your internet connection and try again.',
+        actionLabel: 'Try again',
+        onAction: onRetry,
       ),
     );
   }

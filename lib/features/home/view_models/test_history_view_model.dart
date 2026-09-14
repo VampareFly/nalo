@@ -68,11 +68,8 @@ class TestHistoryViewModel extends Notifier<TestHistoryState> {
   /// 每次进入页面或重试时重新请求当前筛选的第一页。
   Future<void> loadInitial() => _loadFirstPage(state.filter);
 
-  /// 下拉刷新当前筛选并覆盖其列表和分页缓存。
-  Future<void> refresh() => _loadFirstPage(
-    state.filter,
-    preserveContent: state.groups.isNotEmpty,
-  );
+  /// 下拉刷新当前筛选并保留现有内容，由 RefreshIndicator 单独展示刷新进度。
+  Future<void> refresh() => _loadFirstPage(state.filter, preserveContent: true);
 
   /// 切换筛选时优先恢复当前页面周期内的缓存，未加载时请求第一页。
   Future<void> selectFilter(TestHistoryFilter filter) async {
