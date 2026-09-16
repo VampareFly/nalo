@@ -9,7 +9,7 @@ abstract interface class DeviceIdService {
 
 /// 通过 MethodChannel 从 iOS 或 Android 获取设备 ID。
 class PlatformDeviceIdService implements DeviceIdService {
-  static const _channel = MethodChannel('com.sanjiang.nalo/device_id');
+  static const _channel = MethodChannel('com.rnbl.nalo/device_id');
 
   @override
   /// 获取设备 ID；当前仅支持 iOS 和 Android。

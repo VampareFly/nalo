@@ -14,6 +14,7 @@ import 'package:nalo/core/network/api_providers.dart';
 import 'package:nalo/core/device/shake_detector.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
+import 'package:nalo/features/notifications/providers/push_messaging_provider.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
 import 'package:nalo/l10n/generated/app_localizations.dart';
@@ -26,7 +27,7 @@ class NaloApp extends ConsumerStatefulWidget {
   ConsumerState<NaloApp> createState() => _NaloAppState();
 }
 
-/// 监听应用生命周期，并维护全局 Session 与通知权限状态。
+/// 监听应用生命周期，并维护全局 Session、通知权限与远程推送状态。
 class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
   bool _isSessionExpiredDialogVisible = false;
   late final ProviderSubscription<AsyncValue<AuthSessionState>>
@@ -109,6 +110,7 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     ref.watch(appNotificationPermissionProvider);
+    ref.watch(pushMessagingProvider);
     ref.listen(sessionExpirationStreamProvider, (_, next) {
       if (next.hasValue) {
         ref.read(authSessionProvider.notifier).markExpired(next.requireValue);

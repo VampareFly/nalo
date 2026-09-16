@@ -1,4 +1,4 @@
-package com.sanjiang.nalo
+package com.rnbl.nalo
 
 import android.content.Context
 import android.content.pm.ApplicationInfo

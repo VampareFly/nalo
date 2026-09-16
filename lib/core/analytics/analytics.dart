@@ -139,6 +139,7 @@ enum AnalyticsCommonProperty {
   notificationEnabled('notification_enabled'),
   platform('platform'),
   appVersion('app_version'),
+  bundleId('bundle_id'),
   osVersion('os_version'),
   userId('user_id'),
   kcId('kc_id');
@@ -219,6 +220,7 @@ enum AnalyticsUserProperty {
   appUserId('app_user_id'),
   loginStatus('login_status'),
   notificationPermission('notification_permission'),
+  bundleId('bundle_id'),
   kcId('kc_id'),
   idfa('x-idfa');
 
@@ -564,6 +566,7 @@ abstract final class Ga4ParameterPolicy {
   static bool allowsUserProperty(String propertyName) {
     return propertyName == AnalyticsUserProperty.appUserId.propertyName ||
         propertyName == AnalyticsUserProperty.loginStatus.propertyName ||
+        propertyName == AnalyticsUserProperty.bundleId.propertyName ||
         propertyName ==
             AnalyticsUserProperty.notificationPermission.propertyName;
   }
@@ -667,6 +670,7 @@ class AmplitudeAnalyticsService implements AnalyticsService {
         AnalyticsUserProperty.loginStatus: loginMethod.value,
         AnalyticsUserProperty.notificationPermission:
             await _notificationEnabledValue(),
+        AnalyticsUserProperty.bundleId: await _bundleIdValue(),
         AnalyticsUserProperty.kcId: await _deviceIdValue(),
       };
       final idfa = await _trackingTransparencyService.requestAdvertisingId();
@@ -683,6 +687,9 @@ class AmplitudeAnalyticsService implements AnalyticsService {
     if (userId.isEmpty) return;
     try {
       await _amplitude.setUserId(userId);
+      await setUserProperties({
+        AnalyticsUserProperty.bundleId: await _bundleIdValue(),
+      });
     } catch (error, stackTrace) {
       _logFailure('restore analytics user', error, stackTrace);
     }
@@ -710,6 +717,7 @@ class AmplitudeAnalyticsService implements AnalyticsService {
       final properties = <AnalyticsUserProperty, Object>{
         AnalyticsUserProperty.notificationPermission:
             await _notificationEnabledValue(),
+        AnalyticsUserProperty.bundleId: await _bundleIdValue(),
         AnalyticsUserProperty.kcId: await _deviceIdValue(),
       };
       final idfa = await _trackingTransparencyService.requestAdvertisingId();
@@ -737,6 +745,8 @@ class AmplitudeAnalyticsService implements AnalyticsService {
       AnalyticsCommonProperty.platform.propertyName: _platformValue(),
       AnalyticsCommonProperty.appVersion.propertyName:
           packageInfo?.version ?? '',
+      AnalyticsCommonProperty.bundleId.propertyName:
+          packageInfo?.packageName ?? '',
       AnalyticsCommonProperty.osVersion.propertyName: _osVersionValue(),
       AnalyticsCommonProperty.userId.propertyName:
           await _amplitude.getUserId() ?? '',
@@ -768,6 +778,11 @@ class AmplitudeAnalyticsService implements AnalyticsService {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<String> _bundleIdValue() async {
+    final packageInfo = await _packageInfoValue();
+    return packageInfo?.packageName ?? '';
   }
 
   String _platformValue() => switch (defaultTargetPlatform) {
@@ -813,9 +828,7 @@ class FirebaseAnalyticsService implements AnalyticsService {
       };
       await _analytics.logEvent(
         name: event.eventName,
-        parameters: Ga4ParameterPolicy.sanitizeEventParameters(
-          eventParameters,
-        ),
+        parameters: Ga4ParameterPolicy.sanitizeEventParameters(eventParameters),
       );
     } catch (error, stackTrace) {
       _logFailure('report ${event.eventName}', error, stackTrace);
@@ -844,9 +857,7 @@ class FirebaseAnalyticsService implements AnalyticsService {
       final userId = identity.ga4UserId;
       await _analytics.setUserId(id: userId);
       if (userId == null) {
-        _logger.w(
-          'Unable to identify GA4 user without a Shopify customer ID',
-        );
+        _logger.w('Unable to identify GA4 user without a Shopify customer ID');
       }
       await setUserProperties({
         if (identity.appUserId.trim().isNotEmpty)
@@ -854,6 +865,7 @@ class FirebaseAnalyticsService implements AnalyticsService {
         AnalyticsUserProperty.loginStatus: loginMethod.value,
         AnalyticsUserProperty.notificationPermission:
             await _notificationEnabledValue(),
+        AnalyticsUserProperty.bundleId: await _bundleIdValue(),
       });
     } catch (error, stackTrace) {
       _logFailure('identify GA4 user', error, stackTrace);
@@ -868,6 +880,7 @@ class FirebaseAnalyticsService implements AnalyticsService {
       if (appUserId.isNotEmpty) {
         await setUserProperties({
           AnalyticsUserProperty.appUserId: appUserId,
+          AnalyticsUserProperty.bundleId: await _bundleIdValue(),
         });
       }
     } catch (error, stackTrace) {
@@ -898,6 +911,7 @@ class FirebaseAnalyticsService implements AnalyticsService {
     await setUserProperties({
       AnalyticsUserProperty.notificationPermission:
           await _notificationEnabledValue(),
+      AnalyticsUserProperty.bundleId: await _bundleIdValue(),
     });
   }
 
@@ -926,6 +940,8 @@ class FirebaseAnalyticsService implements AnalyticsService {
       AnalyticsCommonProperty.platform.propertyName: _platformValue(),
       AnalyticsCommonProperty.appVersion.propertyName:
           packageInfo?.version ?? '',
+      AnalyticsCommonProperty.bundleId.propertyName:
+          packageInfo?.packageName ?? '',
       AnalyticsCommonProperty.osVersion.propertyName: _osVersionValue(),
     };
   }
@@ -946,6 +962,11 @@ class FirebaseAnalyticsService implements AnalyticsService {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<String> _bundleIdValue() async {
+    final packageInfo = await _packageInfoValue();
+    return packageInfo?.packageName ?? '';
   }
 
   String _platformValue() => switch (defaultTargetPlatform) {
@@ -976,9 +997,7 @@ class CompositeAnalyticsService implements AnalyticsService {
     Map<AnalyticsEventProperty, Object> properties = const {},
   }) async {
     await Future.wait(
-      _services.map(
-        (service) => service.report(event, properties: properties),
-      ),
+      _services.map((service) => service.report(event, properties: properties)),
     );
   }
 
@@ -996,10 +1015,7 @@ class CompositeAnalyticsService implements AnalyticsService {
   }) async {
     await Future.wait(
       _services.map(
-        (service) => service.identifyUser(
-          identity,
-          loginMethod: loginMethod,
-        ),
+        (service) => service.identifyUser(identity, loginMethod: loginMethod),
       ),
     );
   }
@@ -1040,8 +1056,7 @@ final amplitudeProvider = Provider<Amplitude>((ref) {
 
 /// 提供统一的业务埋点服务。
 final analyticsProvider = Provider<AnalyticsService>((ref) {
-  final notificationPermissionService =
-      PlatformNotificationPermissionService();
+  final notificationPermissionService = PlatformNotificationPermissionService();
   final logger = ref.watch(loggerProvider);
   return CompositeAnalyticsService([
     AmplitudeAnalyticsService(

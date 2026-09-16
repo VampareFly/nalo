@@ -230,6 +230,7 @@ class NetworkLogInterceptor extends Interceptor {
     'password',
     'access_token',
     'refresh_token',
+    'fcm_token',
     'code',
     'code_verifier',
     'state',

@@ -35,7 +35,7 @@ Future<void> initializeDebugSystemProxy() async {
   if (!networkInspectionEnabled || !Platform.isAndroid) return;
 
   try {
-    const channel = MethodChannel('com.sanjiang.nalo/system_proxy');
+    const channel = MethodChannel('com.rnbl.nalo/system_proxy');
     final proxy = await channel.invokeMapMethod<String, Object?>(
       'getSystemProxy',
     );

@@ -7,7 +7,7 @@ import Flutter
 
 /// 统一注册 Flutter ATT 请求并返回可上报的 IDFA。
 enum TrackingTransparencyChannel {
-  private static let channelName = "com.sanjiang.nalo/tracking_transparency"
+  private static let channelName = "com.rnbl.nalo/tracking_transparency"
   private static let unavailableAdvertisingId =
     "00000000-0000-0000-0000-000000000000"
 

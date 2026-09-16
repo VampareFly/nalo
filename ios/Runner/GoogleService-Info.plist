@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.sanjiang.nalo</string>
+	<string>com.rnbl.nalo</string>
 	<key>PROJECT_ID</key>
 	<string>nala-5bfa8</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:136764861311:ios:84e30dbf377efcd351c84a</string>
+	<string>1:136764861311:ios:16904c5735d6cc6351c84a</string>
 </dict>
 </plist>

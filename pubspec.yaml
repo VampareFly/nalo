@@ -67,6 +67,8 @@ dependencies:
   firebase_analytics: ^12.5.0
   firebase_core: ^4.11.0
   firebase_crashlytics: ^5.2.4
+  # 16.6.0 与当前 FlutterFire 套件共同使用 Firebase Apple SDK 12.18.0。
+  firebase_messaging: 16.6.0
   amplitude_flutter: ^4.6.2
   visibility_detector: ^0.4.0+2
   sensors_plus: ^7.1.0

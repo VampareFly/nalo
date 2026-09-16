@@ -1,4 +1,4 @@
-package com.sanjiang.nalo
+package com.rnbl.nalo
 
 import android.Manifest
 import android.app.NotificationManager
@@ -109,7 +109,7 @@ class NotificationPermissionChannel(private val activity: MainActivity) {
     }
 
     private companion object {
-        const val channelName = "com.sanjiang.nalo/notification_permission"
+        const val channelName = "com.rnbl.nalo/notification_permission"
         const val methodIsPermissionEnabled = "isNotificationPermissionEnabled"
         const val methodRequestPermission = "requestNotificationPermission"
         const val methodOpenAppSettings = "openAppSettings"

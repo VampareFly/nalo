@@ -30,19 +30,27 @@ enum TimerStatus { idle, running, paused, complete }
 /// 图片检测接口需要由客户端专门处理的稳定业务错误。
 enum DetectionAnalysisError { recognitionFailed, invalidControlLine }
 
-/// 服务端配置中的单个可选项，value 用于提交，label 用于展示。
+/// 服务端配置中的单个可选项，value 用于提交，其他字段用于页面展示。
 class DetectionOption {
   const DetectionOption({
     required this.value,
     required this.label,
     this.range = '',
     this.hint = '',
+    this.typeRangeMap = const {},
   });
 
   final String value;
   final String label;
   final String range;
   final String hint;
+  final Map<String, String> typeRangeMap;
+
+  /// 返回当前检测类型在该时间段对应的典型范围；配置缺失时返回 null。
+  String? typicalRangeFor(DetectionType type) {
+    final value = typeRangeMap[type.apiValue];
+    return value == null || value.isEmpty ? null : value;
+  }
 
   factory DetectionOption.fromJson(Object? raw) {
     final json = _map(raw);
@@ -51,6 +59,7 @@ class DetectionOption {
       label: _string(json, 'label'),
       range: json['range'] as String? ?? '',
       hint: json['hint'] as String? ?? '',
+      typeRangeMap: _stringMap(json['typerange_map']),
     );
   }
 
@@ -59,6 +68,7 @@ class DetectionOption {
     'label': label,
     'range': range,
     'hint': hint,
+    if (typeRangeMap.isNotEmpty) 'typerange_map': typeRangeMap,
   };
 }
 
@@ -168,21 +178,42 @@ class DetectionConfig {
           label: 'Morning',
           range: '6 AM – 12 PM',
           hint: 'Recommended · ~1h after waking',
+          typeRangeMap: {
+            'testosterone': '0.01–2 ng/mL',
+            'cortisol': '0.01–2 ng/mL',
+          },
         ),
         DetectionOption(
           value: 'afternoon',
           label: 'Afternoon',
           range: '12 – 6 PM',
+          typeRangeMap: {
+            'testosterone': '0.01–2 ng/mL',
+            'cortisol': '0.01–2 ng/mL',
+          },
         ),
         DetectionOption(
           value: 'night',
           label: 'Night',
           range: '6 PM – 12 AM',
           hint: 'Bedtime',
+          typeRangeMap: {
+            'testosterone': '0.01–2 ng/mL',
+            'cortisol': '0.01–2 ng/mL',
+          },
         ),
       ],
     ),
   );
+}
+
+Map<String, String> _stringMap(Object? raw) {
+  if (raw is! Map) return const {};
+  return {
+    for (final entry in raw.entries)
+      if (entry.key is String && entry.value is String)
+        entry.key as String: entry.value as String,
+  };
 }
 
 /// 图片上传后服务端返回的识别结果。

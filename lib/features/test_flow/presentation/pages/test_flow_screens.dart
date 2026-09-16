@@ -588,30 +588,33 @@ class TestTimerScreen extends ConsumerWidget {
                 const SizedBox(height: 32),
                 _TimerRing(state: state),
                 const SizedBox(height: 12),
-                TextButton(
-                  onPressed: state.timerStatus == TimerStatus.paused
-                      ? () {
-                          _reportTimerClick(
-                            ref,
-                            state,
-                            AnalyticsTimerAction.resume,
-                          );
-                          controller.resumeTimer();
-                        }
-                      : () => _pause(context, ref, isDevelop),
-                  child: Text(
-                    state.timerStatus == TimerStatus.paused
-                        ? 'Resume'
-                        : 'Pause',
-                    style: const TextStyle(
-                      color: flowBlue,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline,
-                      decorationColor: flowBlue,
+                if (state.timerStatus == TimerStatus.complete)
+                  const SizedBox(height: 48)
+                else
+                  TextButton(
+                    onPressed: state.timerStatus == TimerStatus.paused
+                        ? () {
+                            _reportTimerClick(
+                              ref,
+                              state,
+                              AnalyticsTimerAction.resume,
+                            );
+                            controller.resumeTimer();
+                          }
+                        : () => _pause(context, ref, isDevelop),
+                    child: Text(
+                      state.timerStatus == TimerStatus.paused
+                          ? 'Resume'
+                          : 'Pause',
+                      style: const TextStyle(
+                        color: flowBlue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                        decorationColor: flowBlue,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -1105,9 +1108,9 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         AnalyticsEvent.testCaptureGuideView,
         properties: {
           ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
-          AnalyticsEventProperty.title: 'Hold steady and align the entire test',
+          AnalyticsEventProperty.title: 'Align the entire test cassette',
           AnalyticsEventProperty.desc:
-              'Place the cassette flat on a plain, dark surface.\nCenter the entire cassette inside the frame.',
+              'Keep the whole cassette inside the frame.\nPlace the cassette flat on a plain, dark surface. Make sure it is well lit and free from glare.',
         },
       ),
     );
@@ -1131,9 +1134,27 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               ),
               if (permissionReady && _cameraReady) ...[
                 const SizedBox(height: 24),
-                const Text(
-                  'Hold steady and align the entire test',
-                  style: TextStyle(color: Color(0x99FFFFFF), fontSize: 14),
+                const Column(
+                  children: [
+                    Text(
+                      'Align the entire test cassette',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xCCFFFFFF),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Keep the whole cassette inside the frame.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0x99FFFFFF),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ],
               const SizedBox(height: 24),
@@ -1141,7 +1162,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               if (permissionReady) ...[
                 const SizedBox(height: 16),
                 const Text(
-                  'Place the cassette flat on a plain, dark surface.\nCenter the entire cassette inside the frame.',
+                  'Place the cassette flat on a plain, dark surface.\nMake sure it is well lit and free from glare.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white70,
@@ -1323,19 +1344,7 @@ class _CassetteFrame extends StatelessWidget {
       return SizedBox(
         width: width,
         height: height,
-        child: CustomPaint(
-          painter: _CassetteFramePainter(),
-          child: const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'Position the entire\ntest cassette here',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0x99FFFFFF), fontSize: 11),
-              ),
-            ),
-          ),
-        ),
+        child: CustomPaint(painter: _CassetteFramePainter()),
       );
     },
   );
@@ -1566,6 +1575,8 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
       (option) => option.value == state.selectedTimePeriod,
     );
     final period = matchingPeriods.isEmpty ? null : matchingPeriods.first;
+    final displayedTypicalRange =
+        state.typicalRangeOverride ?? analysis?.typicalRange ?? '—';
     return _PaperPage(
       scrollable: true,
       child: Column(
@@ -1641,7 +1652,7 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              analysis?.typicalRange ?? '—',
+                              displayedTypicalRange,
                               style: const TextStyle(
                                 color: flowYellow,
                                 fontSize: 16,

@@ -18,6 +18,7 @@ import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:nalo/features/profile/view_models/profile_account_view_model.dart';
 import 'package:nalo/features/profile/view_models/profile_view_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 /// Nalo 个人中心主页。
@@ -59,13 +60,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     BotToast.showText(text: '$feature is coming soon', align: Alignment.center);
   }
 
-  void _openShopifyManage() {
+  Future<void> _openShopifyManage() async {
     _reportAction(AnalyticsProfileActionType.manageShopifyAccount);
-    // TODO: <pf> Shopify Customer accounts 管理 URL 确认后使用外部浏览器打开。
-    BotToast.showText(
-      text: 'Shopify account management is coming soon',
-      align: Alignment.center,
+    // TODO: <pf> 服务端提供 Shopify Customer Account URL 后移除测试店写死地址。
+    final manageUrl = Uri.parse(
+      'https://test-store-001-55rykspg.myshopify.com/account',
     );
+    final opened = await launchUrl(
+      manageUrl,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) {
+      BotToast.showText(
+        text: 'Unable to open Shopify account',
+        align: Alignment.center,
+      );
+    }
   }
 
   Future<void> _shareReferralLink(

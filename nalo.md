@@ -285,7 +285,7 @@ Session失效 → resetIdentity
 
 埋点失败不得阻塞核心业务。日志统一使用项目 Logger，不新增 `print`，敏感字段必须脱敏。
 
-Flutter通过 MethodChannel `com.sanjiang.nalo/device_id` 获取 iOS或 Android设备ID。业务代码只依赖 `DeviceIdService`，不直接调用 MethodChannel。
+Flutter通过 MethodChannel `com.rnbl.nalo/device_id` 获取 iOS或 Android设备ID。业务代码只依赖 `DeviceIdService`，不直接调用 MethodChannel。
 
 ## 开发与验证约定
 

@@ -3,8 +3,8 @@ import Foundation
 import Security
 
 enum DeviceIdChannel {
-  private static let channelName = "com.sanjiang.nalo/device_id"
-  private static let keychainService = "com.sanjiang.nalo.device-id"
+  private static let channelName = "com.rnbl.nalo/device_id"
+  private static let keychainService = "com.rnbl.nalo.device-id"
   private static let keychainAccount = "device-id"
 
   static func register(binaryMessenger: FlutterBinaryMessenger) {

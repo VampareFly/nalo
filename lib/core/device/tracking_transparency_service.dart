@@ -14,7 +14,7 @@ abstract interface class TrackingTransparencyService {
 class PlatformTrackingTransparencyService
     implements TrackingTransparencyService {
   static const _channel = MethodChannel(
-    'com.sanjiang.nalo/tracking_transparency',
+    'com.rnbl.nalo/tracking_transparency',
   );
 
   @override

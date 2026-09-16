@@ -25,6 +25,7 @@ class RequestContext {
   const RequestContext({
     required this.appVersion,
     required this.appBuild,
+    required this.appBundleId,
     required this.platform,
     required this.deviceId,
     required this.requestId,
@@ -37,6 +38,9 @@ class RequestContext {
 
   /// `X-App-Build`：来自 `PackageInfo.buildNumber`，对应 pubspec 中版本号的 `+build` 部分。
   final String appBuild;
+
+  /// `X-App-Bundle-ID`：来自 `PackageInfo.packageName`，用于标识当前应用包。
+  final String appBundleId;
 
   /// `X-Platform`：来自 Flutter 当前运行平台，iOS/Android 分别传 `ios`/`android`。
   final String platform;
@@ -73,6 +77,7 @@ class RequestContextLoader {
     return RequestContext(
       appVersion: _packageInfo.version,
       appBuild: _packageInfo.buildNumber,
+      appBundleId: _packageInfo.packageName,
       platform: switch (defaultTargetPlatform) {
         TargetPlatform.iOS => 'ios',
         TargetPlatform.android => 'android',
@@ -128,6 +133,7 @@ class RequestContextInterceptor extends Interceptor {
       options.headers.addAll({
         'X-App-Version': context.appVersion,
         'X-App-Build': context.appBuild,
+        'X-App-Bundle-ID': context.appBundleId,
         'X-Platform': context.platform,
         'X-Device-ID': context.deviceId,
         'X-Request-ID': context.requestId,

@@ -26,6 +26,7 @@ class TestFlowState {
     this.selectedLevel,
     this.sampledAt,
     this.selectedTimePeriod,
+    this.typicalRangeOverride,
     this.confirmRecordId,
     this.result,
     this.analysisError,
@@ -46,6 +47,7 @@ class TestFlowState {
   final String? selectedLevel;
   final DateTime? sampledAt;
   final String? selectedTimePeriod;
+  final String? typicalRangeOverride;
   final int? confirmRecordId;
   final DetectionResult? result;
   final DetectionAnalysisError? analysisError;
@@ -72,6 +74,7 @@ class TestFlowState {
     Object? selectedLevel = _unset,
     Object? sampledAt = _unset,
     Object? selectedTimePeriod = _unset,
+    Object? typicalRangeOverride = _unset,
     Object? confirmRecordId = _unset,
     Object? result = _unset,
     Object? analysisError = _unset,
@@ -103,6 +106,9 @@ class TestFlowState {
     selectedTimePeriod: identical(selectedTimePeriod, _unset)
         ? this.selectedTimePeriod
         : selectedTimePeriod as String?,
+    typicalRangeOverride: identical(typicalRangeOverride, _unset)
+        ? this.typicalRangeOverride
+        : typicalRangeOverride as String?,
     confirmRecordId: identical(confirmRecordId, _unset)
         ? this.confirmRecordId
         : confirmRecordId as int?,
@@ -421,6 +427,7 @@ class TestFlowController extends Notifier<TestFlowState> {
         selectedLevel: selectedLevel,
         sampledAt: DateTime.now(),
         selectedTimePeriod: selectedTimePeriod,
+        typicalRangeOverride: null,
         isLoading: false,
       );
     } catch (error) {
@@ -470,8 +477,19 @@ class TestFlowController extends Notifier<TestFlowState> {
       state = state.copyWith(selectedLevel: value);
   void selectSampleDate(DateTime value) =>
       state = state.copyWith(sampledAt: value);
-  void selectTimePeriod(String value) =>
-      state = state.copyWith(selectedTimePeriod: value);
+  /// 更新用户选择的检测时段，并同步该时段与检测类型对应的典型范围。
+  void selectTimePeriod(String value) {
+    final matches = state.effectiveConfig.timePeriods.options.where(
+      (option) => option.value == value,
+    );
+    final typicalRange = matches.isEmpty
+        ? null
+        : matches.first.typicalRangeFor(state.type);
+    state = state.copyWith(
+      selectedTimePeriod: value,
+      typicalRangeOverride: typicalRange,
+    );
+  }
 
   /// 提交人工确认结果，再读取结果页数据并按 show_popup 决定是否展示庆祝页。
   Future<void> saveResult() async {

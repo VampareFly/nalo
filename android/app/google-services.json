@@ -7,28 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:136764861311:android:1d581acac76878e551c84a",
+        "mobilesdk_app_id": "1:136764861311:android:837891caacf3102c51c84a",
         "android_client_info": {
-          "package_name": "com.sanjiang.nala"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAvE-1ya47oT-nyRXXstdVziLVD_lbf-AA"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:136764861311:android:139739deee68161451c84a",
-        "android_client_info": {
-          "package_name": "com.sanjiang.nalo"
+          "package_name": "com.rnbl.nalo"
         }
       },
       "oauth_client": [],

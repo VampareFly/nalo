@@ -87,7 +87,7 @@ private final class NativeCameraView: NSObject, FlutterPlatformView, AVCapturePh
     private let previewView: NativeCameraPreview
     private let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
-    private let sessionQueue = DispatchQueue(label: "com.sanjiang.nalo.native-camera")
+    private let sessionQueue = DispatchQueue(label: "com.rnbl.nalo.native-camera")
     private let channel: FlutterMethodChannel
     private var pendingResult: FlutterResult?
     private var pendingCropRect: CGRect?
