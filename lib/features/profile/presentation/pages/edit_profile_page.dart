@@ -368,7 +368,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   ],
                   _FieldLabel(
                     label: 'Email',
-                    child: _ReadOnlyField(value: state.email),
+                    child: _ReadOnlyField(value: state.email, showLock: true),
                   ),
                   // TODO: <pf> 服务端支持修改 Email 后开放编辑并补充校验。
                   const SizedBox(height: 16),
@@ -521,9 +521,10 @@ class _FieldLabel extends StatelessWidget {
 }
 
 class _ReadOnlyField extends StatelessWidget {
-  const _ReadOnlyField({required this.value});
+  const _ReadOnlyField({required this.value, this.showLock = false});
 
   final String value;
+  final bool showLock;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -536,9 +537,21 @@ class _ReadOnlyField extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: Colors.black12),
     ),
-    child: Text(
-      value.isEmpty ? '—' : value,
-      style: const TextStyle(color: Color(0xFF1A2433), fontSize: 16),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            value.isEmpty ? '—' : value,
+            style: const TextStyle(color: Color(0xFF1A2433), fontSize: 16),
+          ),
+        ),
+        if (showLock)
+          const Icon(
+            Icons.lock_outline_rounded,
+            size: 14,
+            color: Color(0xFFABB5AD),
+          ),
+      ],
     ),
   );
 }

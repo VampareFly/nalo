@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/sharing/platform_share_service.dart';
@@ -216,7 +217,11 @@ class _AboutTestScreenState extends ConsumerState<AboutTestScreen> {
                   key: ValueKey('test-about-section-${state.type.name}'),
                   onVisibilityChanged: (info) =>
                       _reportSectionView(state, info.visibleFraction),
-                  child: const FlowSectionLabel('Last 3 tests'),
+                child: RecentResultsHeader(
+                  count: state.recent.length,
+                  type: state.type,
+                  showTypeInTitle: false,
+                ),
                 ),
                 const SizedBox(height: 12),
                 RecentResultsList(
@@ -271,12 +276,14 @@ class RecentResultsList extends StatelessWidget {
     required this.items,
     required this.type,
     this.shrinkWrap = false,
+    this.currentRecordId,
     this.onItemVisibilityChanged,
     super.key,
   });
   final List<RecentDetection> items;
   final DetectionType type;
   final bool shrinkWrap;
+  final int? currentRecordId;
   final void Function(RecentDetection, DetectionType, int, double)?
   onItemVisibilityChanged;
   @override
@@ -308,11 +315,25 @@ class RecentResultsList extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, index) {
         final item = items[index];
+        final isCurrent = currentRecordId != null && item.id == currentRecordId;
+        final accent = type == DetectionType.cortisol
+            ? const Color(0xFF8AB4CB)
+            : const Color(0xFFF5C842);
         final row = Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFEAF6FB),
-            borderRadius: BorderRadius.circular(14),
+            color: isCurrent
+                ? const Color(0xFFEAF6FB)
+                : const Color(0xFFF5F2EE),
+            borderRadius: BorderRadius.circular(16),
+            border: Border(
+              left: BorderSide(
+                color: isCurrent && type == DetectionType.cortisol
+                    ? flowBlue
+                    : accent,
+                width: 4,
+              ),
+            ),
           ),
           child: Row(
             children: [
@@ -320,25 +341,80 @@ class RecentResultsList extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.date,
-                      style: const TextStyle(
-                        color: flowInk,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          item.date,
+                          style: const TextStyle(
+                            color: flowInk,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (isCurrent)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: type == DetectionType.cortisol
+                                  ? flowBlue
+                                  : const Color(0xFFF5C842),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'Now',
+                              style: TextStyle(
+                                color: type == DetectionType.cortisol
+                                    ? Colors.white
+                                    : flowInk,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       item.period,
-                      style: const TextStyle(color: flowMuted, fontSize: 11),
+                      style: const TextStyle(color: flowMuted, fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              Text(
-                '${item.value} ${item.unit}',
-                style: const TextStyle(
-                  color: flowInk,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(width: 12),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${item.value} ${item.unit}',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: flowInk,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Typical range',
+                      style: TextStyle(color: flowMuted, fontSize: 10),
+                    ),
+                    Text(
+                      item.typicalRange,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: Color(0xFFB07D00),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -355,6 +431,54 @@ class RecentResultsList extends StatelessWidget {
       },
     );
   }
+}
+
+/// 展示最近三次记录标题及服务端实际返回的条数。
+class RecentResultsHeader extends StatelessWidget {
+  const RecentResultsHeader({
+    required this.count,
+    this.type,
+    this.showTypeInTitle = true,
+    super.key,
+  });
+  final int count;
+  final DetectionType? type;
+  final bool showTypeInTitle;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          !showTypeInTitle || type == null
+              ? 'LAST 3 TESTS'
+              : 'LAST 3 TESTS · ${type!.label}',
+          style: const TextStyle(
+            color: flowMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      Container(
+        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          color: Color(0xFFEAF6FB),
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          '$count',
+          style: const TextStyle(
+            color: flowBlue,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 /// 展示正式检测开始前的准备要求。
@@ -439,8 +563,7 @@ class _BeforeStartScreenState extends ConsumerState<BeforeStartScreen> {
               info.visibleFraction,
             ),
             child: const _PreparationCard(
-              icon: Icons.schedule,
-              iconColor: flowBlue,
+              iconAsset: 'assets/icons/before_start_clock.svg',
               title: firstTitle,
               body: firstDesc,
             ),
@@ -456,8 +579,7 @@ class _BeforeStartScreenState extends ConsumerState<BeforeStartScreen> {
               info.visibleFraction,
             ),
             child: const _PreparationCard(
-              icon: Icons.notifications_none,
-              iconColor: Color(0xFFF5A623),
+              iconAsset: 'assets/icons/before_start_bell.svg',
               title: secondTitle,
               body: secondDesc,
             ),
@@ -475,13 +597,11 @@ class _BeforeStartScreenState extends ConsumerState<BeforeStartScreen> {
 
 class _PreparationCard extends StatelessWidget {
   const _PreparationCard({
-    required this.icon,
-    required this.iconColor,
+    required this.iconAsset,
     required this.title,
     required this.body,
   });
-  final IconData icon;
-  final Color iconColor;
+  final String iconAsset;
   final String title;
   final String body;
   @override
@@ -489,7 +609,7 @@ class _PreparationCard extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: iconColor, size: 18),
+        SvgPicture.asset(iconAsset, width: 18, height: 18),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -1520,8 +1640,8 @@ class _PhotoPreviewScreenState extends ConsumerState<PhotoPreviewScreen> {
 
 /// 展示服务端识别区间，并上报用户对区间、日期和检测时段的确认操作。
 class ConfirmResultScreen extends ConsumerStatefulWidget {
-  const ConfirmResultScreen({required this.onClose, super.key});
-  final VoidCallback onClose;
+  const ConfirmResultScreen({required this.onBack, super.key});
+  final VoidCallback onBack;
 
   @override
   ConsumerState<ConfirmResultScreen> createState() =>
@@ -1582,7 +1702,11 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FlowTopBar(title: state.type.label, onClose: widget.onClose),
+          FlowTopBar(
+            title: state.type.label,
+            titleColor: flowBlue,
+            onBack: widget.onBack,
+          ),
           const SizedBox(height: 24),
           const Text(
             'Confirm your result.',
@@ -1801,8 +1925,10 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
                             if (option.range.isNotEmpty)
                               Text(
                                 option.range,
-                                style: const TextStyle(
-                                  color: flowMuted,
+                                style: TextStyle(
+                                  color: state.selectedTimePeriod == option.value
+                                      ? const Color(0xBFFFFFFF)
+                                      : flowMuted,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1814,7 +1940,7 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
                             option.hint,
                             style: TextStyle(
                               color: state.selectedTimePeriod == option.value
-                                  ? Colors.white70
+                                  ? const Color(0xA6FFFFFF)
                                   : flowMuted,
                               fontSize: 12,
                             ),
@@ -2317,6 +2443,15 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
     final result = state.result;
     final infoTitle = result?.infoTitle ?? '';
     final infoContent = result?.infoContent ?? '';
+    final currentRecords = result?.recent.where(
+      (item) => item.id == state.confirmRecordId,
+    );
+    final currentRecord = currentRecords == null || currentRecords.isEmpty
+        ? null
+        : currentRecords.first;
+    final resultDateAndPeriod = currentRecord == null
+        ? result?.testTime ?? ''
+        : '${currentRecord.date} · ${currentRecord.period}';
     final referralOffer = ref
         .watch(homeDashboardProvider)
         .asData
@@ -2331,6 +2466,7 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
             onClose: () => _close(state),
             center: const FlowNaloMark(),
             closeOnRight: true,
+            plainRightClose: true,
           ),
           Text(
             state.type.label,
@@ -2353,7 +2489,7 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            result?.testTime ?? '',
+            resultDateAndPeriod,
             textAlign: TextAlign.center,
             style: const TextStyle(color: flowMuted, fontSize: 12),
           ),
@@ -2367,24 +2503,34 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _ResultMetric(
-                          label: 'YOUR READING',
-                          value:
-                              '${result?.value ?? '—'} ${result?.unit ?? ''}',
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _ResultMetric(
+                            label: 'YOUR READING',
+                            value:
+                                '${result?.value ?? '—'} ${result?.unit ?? ''}',
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: _ResultMetric(
-                          label: 'TYPICAL RANGE',
-                          value: result?.typicalRange ?? '—',
-                          yellow: true,
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.only(left: 20),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                left: BorderSide(color: Color(0x26FFFFFF)),
+                              ),
+                            ),
+                            child: _ResultMetric(
+                              label: 'TYPICAL RANGE',
+                              value: result?.typicalRange ?? '—',
+                              yellow: true,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 if ((result?.testTime ?? '').isNotEmpty)
@@ -2462,15 +2608,16 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  FlowSectionLabel(
-                    'Last 3 tests · ${state.type.label}',
-                    uppercase: false,
+                  RecentResultsHeader(
+                    count: result?.recent.length ?? 0,
+                    type: state.type,
                   ),
                   const SizedBox(height: 12),
                   RecentResultsList(
                     items: result?.recent ?? const [],
                     type: state.type,
                     shrinkWrap: true,
+                    currentRecordId: state.confirmRecordId,
                     onItemVisibilityChanged: _reportItemView,
                   ),
                 ],
@@ -2485,7 +2632,12 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
             child: const FlowCard(
               child: Row(
                 children: [
-                  Icon(Icons.notifications_none, color: flowBlue, size: 18),
+                  Image(
+                    image: AssetImage('assets/icons/notification_bell_blue.png'),
+                    width: 18,
+                    height: 19,
+                    fit: BoxFit.contain,
+                  ),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -2520,50 +2672,9 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
               key: const ValueKey('test-result-referral'),
               onVisibilityChanged: (info) =>
                   _reportReferralView(referralOffer, info.visibleFraction),
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _shareReferral(referralOffer),
-                child: FlowCard(
-                  color: flowYellow,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.card_giftcard, color: flowInk, size: 18),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              referralOffer.title,
-                              style: const TextStyle(
-                                color: flowInk,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              referralOffer.description,
-                              style: const TextStyle(
-                                color: Color(0xAA1A2433),
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              referralOffer.buttonText,
-                              style: const TextStyle(
-                                color: flowInk,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              child: _ResultReferralCard(
+                offer: referralOffer,
+                onPressed: () => _shareReferral(referralOffer),
               ),
             ),
           ],
@@ -2584,6 +2695,71 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
       ),
     );
   }
+}
+
+/// 结果页专用分享卡片，沿用服务端文案和页面原有分享回调。
+class _ResultReferralCard extends StatelessWidget {
+  const _ResultReferralCard({required this.offer, required this.onPressed});
+
+  final HomeReferralOffer offer;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: flowYellow,
+    borderRadius: BorderRadius.circular(24),
+    child: InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SvgPicture.asset(
+              'assets/icons/home_referral.svg',
+              width: 24,
+              height: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    offer.title,
+                    style: const TextStyle(
+                      color: flowInk,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    offer.description,
+                    style: const TextStyle(
+                      color: Color(0xAA1A2433),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    offer.buttonText,
+                    style: const TextStyle(
+                      color: flowInk,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _ResultMetric extends StatelessWidget {

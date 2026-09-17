@@ -41,19 +41,23 @@ class FlowNaloMark extends StatelessWidget {
 class FlowTopBar extends StatelessWidget {
   const FlowTopBar({
     this.title,
+    this.titleColor,
     this.onBack,
     this.onClose,
     this.center,
     this.dark = false,
     this.closeOnRight = false,
+    this.plainRightClose = false,
     super.key,
   });
   final String? title;
+  final Color? titleColor;
   final VoidCallback? onBack;
   final VoidCallback? onClose;
   final Widget? center;
   final bool dark;
   final bool closeOnRight;
+  final bool plainRightClose;
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +90,7 @@ class FlowTopBar extends StatelessWidget {
                   title ?? '',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: dark ? Colors.white : flowInk,
+                    color: titleColor ?? (dark ? Colors.white : flowInk),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -96,6 +100,12 @@ class FlowTopBar extends StatelessWidget {
             width: 44,
             child: onClose == null || (onBack == null && !closeOnRight)
                 ? null
+                : plainRightClose
+                ? IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: onClose,
+                    icon: const Icon(Icons.close, color: flowBlue, size: 28),
+                  )
                 : Stack(
                     alignment: Alignment.center,
                     children: [

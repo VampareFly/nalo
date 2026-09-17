@@ -404,7 +404,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                 ],
                 _FieldLabel(
                   label: 'Email',
-                  child: _ReadOnlyField(value: state.email),
+                  child: _ReadOnlyField(value: state.email, showLock: true),
                 ),
                 const SizedBox(height: 16),
                 _FieldLabel(
@@ -604,10 +604,16 @@ class _FieldLabel extends StatelessWidget {
 }
 
 class _ReadOnlyField extends StatelessWidget {
-  const _ReadOnlyField({required this.value, this.hint, this.icon});
+  const _ReadOnlyField({
+    required this.value,
+    this.hint,
+    this.icon,
+    this.showLock = false,
+  });
   final String value;
   final String? hint;
   final IconData? icon;
+  final bool showLock;
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
@@ -630,7 +636,14 @@ class _ReadOnlyField extends StatelessWidget {
             ),
           ),
         ),
-        if (icon != null) Icon(icon, size: 18, color: const Color(0xFF008BC7)),
+        if (showLock)
+          const Icon(
+            Icons.lock_outline_rounded,
+            size: 14,
+            color: Color(0xFFABB5AD),
+          )
+        else if (icon != null)
+          Icon(icon, size: 18, color: const Color(0xFF008BC7)),
       ],
     ),
   );

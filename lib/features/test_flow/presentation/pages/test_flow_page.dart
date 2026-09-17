@@ -100,7 +100,7 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
                 onBack: () => _retake(AnalyticsPhotoRetakeMethod.topBack),
               ),
               TestFlowStep.confirm => ConfirmResultScreen(
-                onClose: _requestExit,
+                onBack: _backFromConfirm,
               ),
               TestFlowStep.milestone => const MilestoneScreen(),
               TestFlowStep.result => ResultDetailsScreen(
@@ -133,7 +133,7 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
         _retake(AnalyticsPhotoRetakeMethod.systemBack);
         return;
       case TestFlowStep.confirm:
-        _requestExit();
+        _backFromConfirm();
         return;
       case TestFlowStep.result:
         _exitAfterCompletion();
@@ -201,6 +201,19 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
       ),
     );
     ref.read(testFlowProvider.notifier).previousTimerStep();
+  }
+
+  /// 确认页返回现有照片预览，不触发退出确认或重新拍照。
+  void _backFromConfirm() {
+    final state = ref.read(testFlowProvider);
+    if (state.isLoading) return;
+    unawaited(
+      ref.report(
+        AnalyticsEvent.testFlowBackClick,
+        properties: _flowProperties(state),
+      ),
+    );
+    _setStep(TestFlowStep.preview);
   }
 
   void _retake(AnalyticsPhotoRetakeMethod method) {

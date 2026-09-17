@@ -1,5 +1,5 @@
 // 渲染首页业务卡片，并统一处理 Section、Item 和入口曝光。
-// HomePage 传入当前可见状态与曝光周期，路由点击继续交给容器。
+// HomePage 传入当前可见状态与曝光周期；Referral 卡片与检测结果页共用。
 
 import 'dart:async';
 
@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/models/home_dashboard_data.dart';
+import 'package:nalo/features/home/presentation/widgets/home_referral_card.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -367,7 +368,7 @@ class _HomeDashboardBody extends StatelessWidget {
               ),
               fraction,
             ),
-            child: _ReferralCard(offer: offer, onPressed: onReferralPressed),
+            child: HomeReferralCard(offer: offer, onPressed: onReferralPressed),
           ),
         ],
       ],
@@ -486,8 +487,8 @@ class _ReminderCard extends ConsumerWidget {
                       }
                     : null,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _ink,
-                  side: const BorderSide(color: Color(0xFFD7D7D7)),
+                  foregroundColor: _blue,
+                  side: const BorderSide(color: _blue),
                   shape: const StadiumBorder(),
                 ),
                 child: const Text(
@@ -653,19 +654,19 @@ class _ResultsCard extends StatelessWidget {
                 ),
                 Container(
                   constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
+                    minWidth: 28,
+                    minHeight: 28,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   alignment: Alignment.center,
                   decoration: const BoxDecoration(
-                    color: _softSurface,
+                    color: Color(0xFFEAF6FB),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
                     '${results.length}',
                     style: const TextStyle(
-                      color: _ink,
+                      color: _blue,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -756,72 +757,6 @@ class _ResultRow extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ReferralCard extends StatelessWidget {
-  const _ReferralCard({required this.offer, required this.onPressed});
-  final HomeReferralOffer offer;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: _yellow,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              SvgPicture.asset(
-                'assets/icons/home_referral.svg',
-                width: 24,
-                height: 24,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      offer.title,
-                      style: const TextStyle(
-                        color: _ink,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      offer.description,
-                      style: const TextStyle(color: _muted, fontSize: 13),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      offer.buttonText,
-                      style: const TextStyle(
-                        color: _ink,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SvgPicture.asset(
-                'assets/icons/home_referral_chevron.svg',
-                width: 18,
-                height: 18,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
