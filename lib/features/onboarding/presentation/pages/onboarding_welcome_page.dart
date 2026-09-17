@@ -91,9 +91,6 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
   @override
   Widget build(BuildContext context) {
     final normalizedName = widget.fullName.trim();
-    final firstName = normalizedName.isEmpty
-        ? null
-        : normalizedName.split(RegExp(r'\s+')).first;
     final notificationPermission = ref.watch(appNotificationPermissionProvider);
     final shouldShowReminder = notificationPermission.maybeWhen(
       data: (state) => !state.isEnabled,
@@ -116,9 +113,9 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
               ),
               const SizedBox(height: 32),
               Text(
-                firstName == null || firstName.isEmpty
+                normalizedName.isEmpty
                     ? 'Welcome.'
-                    : 'Welcome,\n$firstName.',
+                    : 'Welcome,\n$normalizedName.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,

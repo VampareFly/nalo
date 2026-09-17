@@ -1,4 +1,4 @@
-// 管理新登录注册入口页的服务端 Shopify 认证状态。
+// 管理登录注册入口页的 Shopify 与 Apple 服务端认证状态。
 // 完整认证结束后分别绑定 Amplitude 与 GA4 用户并上报结果。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,8 +7,11 @@ import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
+import 'package:nalo/features/onboarding/repositories/apple_auth_repository.dart';
 import 'package:nalo/features/onboarding/repositories/shopify_backend_auth_repository.dart';
+import 'package:nalo/features/onboarding/services/apple_auth_service.dart';
 import 'package:nalo/features/onboarding/services/shopify_backend_auth_service.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// 登录注册入口页状态。
 class AuthEntryState {
@@ -19,20 +22,46 @@ class AuthEntryState {
   final String? errorMessage;
 }
 
-/// 编排正式 Shopify 服务端认证并阻止重复提交。
+/// 编排 Shopify 与 Apple 服务端认证并阻止重复提交。
 class AuthEntryViewModel extends Notifier<AuthEntryState> {
   @override
   AuthEntryState build() => const AuthEntryState();
 
-  /// 按入口意图发起服务端认证。
+  /// 按入口意图发起 Shopify 服务端认证。
   Future<OnboardingAuthResult?> authorize(ShopifyAuthIntent intent) async {
+    return _authorize(
+      request: () async {
+        final repository = await ref.read(
+          shopifyBackendAuthRepositoryProvider.future,
+        );
+        return repository.authorize(intent);
+      },
+      loginMethod: AnalyticsLoginMethod.shopify,
+      providerName: 'Shopify',
+    );
+  }
+
+  /// 发起 Apple 原生授权并通过 Nalo 服务端建立 Session。
+  Future<OnboardingAuthResult?> authorizeApple() {
+    return _authorize(
+      request: () async {
+        final repository = await ref.read(appleAuthRepositoryProvider.future);
+        return repository.authorize();
+      },
+      loginMethod: AnalyticsLoginMethod.apple,
+      providerName: 'Apple',
+    );
+  }
+
+  Future<OnboardingAuthResult?> _authorize({
+    required Future<OnboardingAuthResult> Function() request,
+    required AnalyticsLoginMethod loginMethod,
+    required String providerName,
+  }) async {
     if (state.isLoading) return null;
     state = const AuthEntryState(isLoading: true);
     try {
-      final repository = await ref.read(
-        shopifyBackendAuthRepositoryProvider.future,
-      );
-      final result = await repository.authorize(intent);
+      final result = await request();
       ref.read(authSessionProvider.notifier).markAuthenticated(result.token);
       final analytics = ref.read(analyticsProvider);
       await analytics.identifyUser(
@@ -40,22 +69,49 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
           appUserId: result.userId.toString(),
           shopifyCustomerId: result.shopifyCustomerId?.toString(),
         ),
-        loginMethod: AnalyticsLoginMethod.shopify,
+        loginMethod: loginMethod,
       );
-      await _reportLoginResult(isSuccess: true);
+      await _reportLoginResult(isSuccess: true, loginMethod: loginMethod);
       state = const AuthEntryState();
       return result;
     } on FlutterAppAuthUserCancelledException {
       await _reportLoginResult(
         isSuccess: false,
         failReason: 'oauth_cancelled: User cancelled Shopify authorization',
+        loginMethod: loginMethod,
       );
       state = const AuthEntryState(errorMessage: 'Shopify login was cancelled');
+      return null;
+    } on SignInWithAppleAuthorizationException catch (error) {
+      final isCancelled = error.code == AuthorizationErrorCode.canceled;
+      await _reportLoginResult(
+        isSuccess: false,
+        failReason: isCancelled
+            ? 'oauth_cancelled: User cancelled Apple authorization'
+            : 'oauth_error: ${error.message}',
+        loginMethod: loginMethod,
+      );
+      state = AuthEntryState(
+        errorMessage: isCancelled
+            ? 'Apple login was cancelled'
+            : 'Unable to log in with Apple',
+      );
+      return null;
+    } on AppleIdentityTokenMissingException {
+      await _reportLoginResult(
+        isSuccess: false,
+        failReason: 'identity_token_missing: Apple returned no identity token',
+        loginMethod: loginMethod,
+      );
+      state = const AuthEntryState(
+        errorMessage: 'Apple did not return an identity token',
+      );
       return null;
     } on ApiException catch (error) {
       await _reportLoginResult(
         isSuccess: false,
         failReason: '${error.code}: ${error.message}',
+        loginMethod: loginMethod,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
@@ -63,6 +119,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
       await _reportLoginResult(
         isSuccess: false,
         failReason: 'session_expired: ${error.message}',
+        loginMethod: loginMethod,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
@@ -70,6 +127,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
       await _reportLoginResult(
         isSuccess: false,
         failReason: '${error.type.name}: ${error.message}',
+        loginMethod: loginMethod,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
@@ -77,24 +135,27 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
       await _reportLoginResult(
         isSuccess: false,
         failReason: 'response_format_error: ${error.message}',
+        loginMethod: loginMethod,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
     } on FlutterAppAuthPlatformException catch (error) {
-      final message = error.message ?? 'Unable to log in with Shopify';
+      final message = error.message ?? 'Unable to log in with $providerName';
       await _reportLoginResult(
         isSuccess: false,
         failReason: 'oauth_error: $message',
+        loginMethod: loginMethod,
       );
       state = AuthEntryState(errorMessage: message);
       return null;
     } catch (_) {
       await _reportLoginResult(
         isSuccess: false,
-        failReason: 'unknown_error: Unable to log in with Shopify',
+        failReason: 'unknown_error: Unable to log in with $providerName',
+        loginMethod: loginMethod,
       );
-      state = const AuthEntryState(
-        errorMessage: 'Unable to log in with Shopify',
+      state = AuthEntryState(
+        errorMessage: 'Unable to log in with $providerName',
       );
       return null;
     } finally {
@@ -104,6 +165,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
 
   Future<void> _reportLoginResult({
     required bool isSuccess,
+    required AnalyticsLoginMethod loginMethod,
     String failReason = '',
   }) {
     return ref
@@ -113,8 +175,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
           properties: {
             AnalyticsEventProperty.pageName:
                 AnalyticsPageName.loginSignIn.value,
-            AnalyticsEventProperty.loginMethod:
-                AnalyticsLoginMethod.shopify.value,
+            AnalyticsEventProperty.loginMethod: loginMethod.value,
             AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
             AnalyticsEventProperty.failReason: failReason,
           },

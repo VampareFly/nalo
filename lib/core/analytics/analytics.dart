@@ -232,7 +232,8 @@ enum AnalyticsUserProperty {
 /// `login_click.method` 的文档枚举值。
 enum AnalyticsLoginClickMethod {
   continueWithShopify('1'),
-  signIn('2');
+  signIn('2'),
+  continueWithApple('3');
 
   const AnalyticsLoginClickMethod(this.value);
 

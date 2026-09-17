@@ -1,12 +1,12 @@
-// 新登录注册入口页，展示正式服务端 Shopify 认证入口。
+// 登录注册入口页，展示 Shopify 与仅限 iOS 的 Apple 认证入口。
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
@@ -14,6 +14,7 @@ import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/presentation/widgets/nalo_brand.dart';
+import 'package:nalo/features/onboarding/repositories/auth_entry_config_repository.dart';
 import 'package:nalo/features/onboarding/services/shopify_backend_auth_service.dart';
 import 'package:nalo/features/onboarding/view_models/auth_entry_view_model.dart';
 
@@ -27,7 +28,7 @@ class AuthEntryPage extends ConsumerStatefulWidget {
   ConsumerState<AuthEntryPage> createState() => _AuthEntryPageState();
 }
 
-/// 准备 ATT 用户属性，并处理登录入口埋点。
+/// 准备 ATT 用户属性，并展示缓存与服务端决定的登录入口。
 class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
   @override
   void initState() {
@@ -42,40 +43,11 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(authEntryViewModelProvider);
     final isAnyAuthenticationBusy = state.isLoading;
+    final showAppleLogin = Platform.isIOS
+        ? (ref.watch(showAppleLoginProvider).value ?? true)
+        : false;
 
-    Future<void> authorize(ShopifyAuthIntent intent) async {
-      switch (intent) {
-        case ShopifyAuthIntent.loginOrSignUp:
-          unawaited(
-            ref.report(
-              AnalyticsEvent.loginClick,
-              properties: {
-                AnalyticsEventProperty.method:
-                    AnalyticsLoginClickMethod.continueWithShopify.value,
-              },
-            ),
-          );
-          break;
-        case ShopifyAuthIntent.signIn:
-          unawaited(
-            ref.report(
-              AnalyticsEvent.loginClick,
-              properties: {
-                AnalyticsEventProperty.method:
-                    AnalyticsLoginClickMethod.signIn.value,
-              },
-            ),
-          );
-          break;
-        case ShopifyAuthIntent.kitPurchase:
-          unawaited(ref.report(AnalyticsEvent.iNeedKitClick));
-          break;
-      }
-      EasyLoading.show();
-      final result = await ref
-          .read(authEntryViewModelProvider.notifier)
-          .authorize(intent);
-      EasyLoading.dismiss();
+    void handleAuthorizationResult(OnboardingAuthResult? result) {
       if (!context.mounted) return;
       if (result == null) {
         final message = ref.read(authEntryViewModelProvider).errorMessage;
@@ -112,6 +84,60 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
       }
     }
 
+    Future<void> authorize(ShopifyAuthIntent intent) async {
+      switch (intent) {
+        case ShopifyAuthIntent.loginOrSignUp:
+          unawaited(
+            ref.report(
+              AnalyticsEvent.loginClick,
+              properties: {
+                AnalyticsEventProperty.method:
+                    AnalyticsLoginClickMethod.continueWithShopify.value,
+              },
+            ),
+          );
+          break;
+        case ShopifyAuthIntent.signIn:
+          unawaited(
+            ref.report(
+              AnalyticsEvent.loginClick,
+              properties: {
+                AnalyticsEventProperty.method:
+                    AnalyticsLoginClickMethod.signIn.value,
+              },
+            ),
+          );
+          break;
+        case ShopifyAuthIntent.kitPurchase:
+          unawaited(ref.report(AnalyticsEvent.iNeedKitClick));
+          break;
+      }
+      EasyLoading.show();
+      final result = await ref
+          .read(authEntryViewModelProvider.notifier)
+          .authorize(intent);
+      EasyLoading.dismiss();
+      handleAuthorizationResult(result);
+    }
+
+    Future<void> authorizeApple() async {
+      unawaited(
+        ref.report(
+          AnalyticsEvent.loginClick,
+          properties: {
+            AnalyticsEventProperty.method:
+                AnalyticsLoginClickMethod.continueWithApple.value,
+          },
+        ),
+      );
+      EasyLoading.show();
+      final result = await ref
+          .read(authEntryViewModelProvider.notifier)
+          .authorizeApple();
+      EasyLoading.dismiss();
+      handleAuthorizationResult(result);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF008BC7),
       body: Stack(
@@ -139,19 +165,32 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
                   const SizedBox(height: 40),
                   _AuthCard(
                     title: 'Login or Sign up',
-                    subtitle: 'Use your Shopify account to continue.',
-                    child: _PillButton(
-                      label: 'Continue with Shopify',
-                      foregroundColor: const Color(0xFF1A2433),
-                      backgroundColor: Colors.white,
-                      icon: SvgPicture.asset(
-                        'assets/icons/shopify.svg',
-                        width: 20,
-                        height: 20,
-                      ),
-                      onPressed: isAnyAuthenticationBusy
-                          ? null
-                          : () => authorize(ShopifyAuthIntent.loginOrSignUp),
+                    subtitle: 'Choose an account to continue.',
+                    child: Column(
+                      children: [
+                        _PillButton(
+                          label: 'Continue with Shopify',
+                          foregroundColor: const Color(0xFF1A2433),
+                          backgroundColor: Colors.white,
+                          icon: Image.asset(
+                            'assets/icons/shopify_login.png',
+                            width: 24,
+                            height: 24,
+                          ),
+                          onPressed: isAnyAuthenticationBusy
+                              ? null
+                              : () =>
+                                    authorize(ShopifyAuthIntent.loginOrSignUp),
+                        ),
+                        if (showAppleLogin) ...[
+                          const SizedBox(height: 12),
+                          _AppleLoginButton(
+                            onPressed: isAnyAuthenticationBusy
+                                ? null
+                                : authorizeApple,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -320,8 +359,54 @@ class _PillButton extends StatelessWidget {
           disabledForegroundColor: foregroundColor,
           overlayColor: Colors.transparent,
           splashFactory: NoSplash.splashFactory,
-          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w600,
+          ),
           shape: const StadiumBorder(),
+        ),
+      ),
+    );
+  }
+}
+
+/// 无按压变色效果的 Apple 登录按钮。
+class _AppleLoginButton extends StatelessWidget {
+  const _AppleLoginButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: onPressed != null,
+      label: 'Continue with Apple',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: Container(
+          width: double.infinity,
+          height: 48,
+          decoration: const BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.all(Radius.circular(24)),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.apple, color: Colors.white, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'Continue with Apple',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
