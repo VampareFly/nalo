@@ -81,7 +81,7 @@ class FlowTopBar extends StatelessWidget {
           ),
           Expanded(
             child:
-                center ??
+                (center == null ? null : Center(child: center)) ??
                 Text(
                   title ?? '',
                   textAlign: TextAlign.center,
@@ -96,16 +96,23 @@ class FlowTopBar extends StatelessWidget {
             width: 44,
             child: onClose == null || (onBack == null && !closeOnRight)
                 ? null
-                : DecoratedBox(
-                    decoration: const BoxDecoration(
-                      color: Color(0x14000000),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: onClose,
-                      icon: const Icon(Icons.close, color: flowInk, size: 18),
-                    ),
+                : Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          color: Color(0x14000000),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: onClose,
+                        icon: const Icon(Icons.close, color: flowInk, size: 18),
+                      ),
+                    ],
                   ),
           ),
         ],

@@ -63,52 +63,27 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Future<void> _openShopifyManage() async {
     _reportAction(AnalyticsProfileActionType.manageShopifyAccount);
     // TODO: <pf> 服务端提供 Shopify Customer Account URL 后移除测试店写死地址。
-    final manageUrl = Uri.parse(
-      'https://test-store-001-55rykspg.myshopify.com/account',
-    );
-    final opened = await launchUrl(
-      manageUrl,
-      mode: LaunchMode.externalApplication,
-    );
+    final manageUrl = Uri.parse('https://test-store-001-55rykspg.myshopify.com/account');
+    final opened = await launchUrl(manageUrl, mode: LaunchMode.externalApplication);
     if (!opened) {
-      BotToast.showText(
-        text: 'Unable to open Shopify account',
-        align: Alignment.center,
-      );
+      BotToast.showText(text: 'Unable to open Shopify account', align: Alignment.center);
     }
   }
 
-  Future<void> _shareReferralLink(
-    UserReferralCard referralCard,
-    Rect? shareOrigin,
-  ) async {
-    unawaited(
-      ref.report(
-        AnalyticsEvent.referralClick,
-        properties: _referralProperties(referralCard),
-      ),
-    );
+  Future<void> _shareReferralLink(UserReferralCard referralCard, Rect? shareOrigin) async {
+    unawaited(ref.report(AnalyticsEvent.referralClick, properties: _referralProperties(referralCard)));
     try {
       await ref
           .read(platformShareServiceProvider)
-          .shareLink(
-            referralCard.actionUrl,
-            message: referralCard.shareText,
-            sharePositionOrigin: shareOrigin,
-          );
+          .shareLink(referralCard.actionUrl, message: referralCard.shareText, sharePositionOrigin: shareOrigin);
     } on Object {
-      BotToast.showText(
-        text: 'Unable to share referral link',
-        align: Alignment.center,
-      );
+      BotToast.showText(text: 'Unable to share referral link', align: Alignment.center);
     }
   }
 
   Future<void> _logout() async {
     _reportAction(AnalyticsProfileActionType.signOut);
-    final didLogout = await ref
-        .read(profileAccountViewModelProvider.notifier)
-        .logout();
+    final didLogout = await ref.read(profileAccountViewModelProvider.notifier).logout();
     if (!mounted || !didLogout) return;
     context.go(AuthEntryPage.path);
   }
@@ -143,9 +118,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               unawaited(_reportDeleteAlertClick('1'));
               Navigator.of(dialogContext).pop(true);
             },
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFD4183D),
-            ),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFD4183D)),
             child: const Text('Delete account'),
           ),
         ],
@@ -153,9 +126,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
     if (didConfirm != true || !mounted) return;
 
-    final didDeactivate = await ref
-        .read(profileAccountViewModelProvider.notifier)
-        .deactivate();
+    final didDeactivate = await ref.read(profileAccountViewModelProvider.notifier).deactivate();
     if (!mounted) return;
     if (didDeactivate) {
       context.go(AuthEntryPage.path);
@@ -171,10 +142,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     unawaited(
       ref.report(
         AnalyticsEvent.profileActionClick,
-        properties: {
-          AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
-          AnalyticsEventProperty.actionType: action.value,
-        },
+        properties: {AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value, AnalyticsEventProperty.actionType: action.value},
       ),
     );
   }
@@ -189,19 +157,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     setState(() {});
   }
 
-  void _showTrackedComingSoon(
-    AnalyticsProfileActionType action,
-    String feature,
-  ) {
+  void _showTrackedComingSoon(AnalyticsProfileActionType action, String feature) {
     _reportAction(action);
     _showComingSoon(feature);
   }
 
-  void _reportSectionVisibility(
-    AnalyticsProfileSectionType section,
-    double visibleFraction, {
-    int? totalTestCount,
-  }) {
+  void _reportSectionVisibility(AnalyticsProfileSectionType section, double visibleFraction, {int? totalTestCount}) {
     if (visibleFraction < 0.1 || !_viewedSections.add(section)) return;
     unawaited(
       ref.report(
@@ -209,8 +170,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         properties: {
           AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
           AnalyticsEventProperty.sectionType: section.value,
-          if (totalTestCount != null)
-            AnalyticsEventProperty.totalTestCount: totalTestCount,
+          if (totalTestCount != null) AnalyticsEventProperty.totalTestCount: totalTestCount,
         },
       ),
     );
@@ -219,16 +179,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Future<void> _reportDeleteAlertClick(String action) {
     return ref.report(
       AnalyticsEvent.profileDeleteAccountAlertClick,
-      properties: {
-        AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value,
-        AnalyticsEventProperty.action: action,
-      },
+      properties: {AnalyticsEventProperty.pageName: AnalyticsPageName.profile.value, AnalyticsEventProperty.action: action},
     );
   }
 
-  Map<AnalyticsEventProperty, Object> _referralProperties(
-    UserReferralCard referralCard,
-  ) => referralAnalyticsProperties(
+  Map<AnalyticsEventProperty, Object> _referralProperties(UserReferralCard referralCard) => referralAnalyticsProperties(
     pageName: AnalyticsPageName.profile,
     url: referralCard.actionUrl,
     advocateRewardType: referralCard.rewardsAdvocate?.rewardType,
@@ -242,42 +197,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileViewModelProvider);
-    final user =
-        ref.watch(currentUserSnapshotProvider).value ?? profileState.user;
-    ref.listen(
-      profileAccountViewModelProvider.select((state) => state.isLoading),
-      (previous, next) {
-        if (next) {
-          _ownsLoadingToast = true;
-          EasyLoading.show();
-        } else if (_ownsLoadingToast) {
-          _ownsLoadingToast = false;
-          EasyLoading.dismiss();
-        }
-      },
-    );
+    final user = ref.watch(currentUserSnapshotProvider).value ?? profileState.user;
+    ref.listen(profileAccountViewModelProvider.select((state) => state.isLoading), (previous, next) {
+      if (next) {
+        _ownsLoadingToast = true;
+        EasyLoading.show();
+      } else if (_ownsLoadingToast) {
+        _ownsLoadingToast = false;
+        EasyLoading.dismiss();
+      }
+    });
 
-    ref.listen(profileViewModelProvider.select((state) => state.errorMessage), (
-      previous,
-      next,
-    ) {
+    ref.listen(profileViewModelProvider.select((state) => state.errorMessage), (previous, next) {
       if (next != null && next != previous) {
         BotToast.showText(text: next, align: Alignment.center);
       }
     });
-    ref.listen(
-      profileViewModelProvider.select(
-        (state) => state.user?.testInfo?.sumCount,
-      ),
-      (previous, next) {
-        if (next == null) return;
-        _reportSectionVisibility(
-          AnalyticsProfileSectionType.testsCompleted,
-          _testsCompletedVisibleFraction,
-          totalTestCount: next,
-        );
-      },
-    );
+    ref.listen(profileViewModelProvider.select((state) => state.user?.testInfo?.sumCount), (previous, next) {
+      if (next == null) return;
+      _reportSectionVisibility(AnalyticsProfileSectionType.testsCompleted, _testsCompletedVisibleFraction, totalTestCount: next);
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFEDE8E0),
@@ -287,13 +226,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             child: CustomScrollView(
               slivers: [
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 40),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                   sliver: SliverList.list(
                     children: [
-                      _Header(
-                        onBack: () => context.pop(),
-                        onEdit: user == null ? null : _openEditProfile,
-                      ),
+                      _Header(onBack: () => context.pop(), onEdit: user == null ? null : _openEditProfile),
                       const SizedBox(height: 30),
                       _ProfileExposure(
                         keyName: 'tests-completed',
@@ -302,79 +238,48 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _testsCompletedVisibleFraction = fraction;
                           final count = user?.testInfo?.sumCount;
                           if (count == null) return;
-                          _reportSectionVisibility(
-                            AnalyticsProfileSectionType.testsCompleted,
-                            fraction,
-                            totalTestCount: count,
-                          );
+                          _reportSectionVisibility(AnalyticsProfileSectionType.testsCompleted, fraction, totalTestCount: count);
                         },
-                        child: _TestsCompletedCard(
-                          count: user?.testInfo?.sumCount ?? 0,
-                        ),
+                        child: _TestsCompletedCard(count: user?.testInfo?.sumCount ?? 0),
                       ),
                       const SizedBox(height: 18),
                       _ProfileExposure(
                         keyName: 'personal-information',
                         exposureCycle: _exposureCycle,
                         onVisibilityChanged: (fraction) =>
-                            _reportSectionVisibility(
-                              AnalyticsProfileSectionType.personalInformation,
-                              fraction,
-                            ),
+                            _reportSectionVisibility(AnalyticsProfileSectionType.personalInformation, fraction),
                         child: _UserInfoCard(user: user),
                       ),
                       const SizedBox(height: 18),
                       _ProfileExposure(
                         keyName: 'shopify-account',
                         exposureCycle: _exposureCycle,
-                        onVisibilityChanged: (fraction) =>
-                            _reportSectionVisibility(
-                              AnalyticsProfileSectionType.shopifyAccount,
-                              fraction,
-                            ),
-                        child: _ShopifyAccountCard(
-                          email: _displayValue(user?.email),
-                          onManage: _openShopifyManage,
-                        ),
+                        onVisibilityChanged: (fraction) => _reportSectionVisibility(AnalyticsProfileSectionType.shopifyAccount, fraction),
+                        child: _ShopifyAccountCard(email: _displayValue(user?.email), onManage: _openShopifyManage),
                       ),
                       const SizedBox(height: 18),
                       _ProfileExposure(
                         keyName: 'settings-menu',
                         exposureCycle: _exposureCycle,
-                        onVisibilityChanged: (fraction) =>
-                            _reportSectionVisibility(
-                              AnalyticsProfileSectionType.settingsMenu,
-                              fraction,
-                            ),
+                        onVisibilityChanged: (fraction) => _reportSectionVisibility(AnalyticsProfileSectionType.settingsMenu, fraction),
                         child: _MenuCard(
                           items: [
                             _MenuItem(
                               label: 'Notification settings',
-                              onPressed: () => _showTrackedComingSoon(
-                                AnalyticsProfileActionType.notificationSettings,
-                                'Notification settings',
-                              ),
+                              onPressed: () =>
+                                  _showTrackedComingSoon(AnalyticsProfileActionType.notificationSettings, 'Notification settings'),
                             ),
                             _MenuItem(
                               label: 'Privacy policy',
-                              onPressed: () => _showTrackedComingSoon(
-                                AnalyticsProfileActionType.privacyPolicy,
-                                'Privacy policy',
-                              ),
+                              onPressed: () => _showTrackedComingSoon(AnalyticsProfileActionType.privacyPolicy, 'Privacy policy'),
                             ),
                             _MenuItem(
                               label: 'Terms of service',
-                              onPressed: () => _showTrackedComingSoon(
-                                AnalyticsProfileActionType.termsOfService,
-                                'Terms of service',
-                              ),
+                              onPressed: () => _showTrackedComingSoon(AnalyticsProfileActionType.termsOfService, 'Terms of service'),
                             ),
                             _MenuItem(
                               label: 'Help & support',
-                              onPressed: () => _showTrackedComingSoon(
-                                AnalyticsProfileActionType.helpAndSupport,
-                                'Help & support',
-                              ),
+                              onPressed: () => _showTrackedComingSoon(AnalyticsProfileActionType.helpAndSupport, 'Help & support'),
                             ),
                           ],
                         ),
@@ -384,22 +289,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         VisibilityDetector(
                           key: ValueKey('profile-$_exposureCycle-referral'),
                           onVisibilityChanged: (info) {
-                            if (_referralViewReported ||
-                                info.visibleFraction < 0.1) {
+                            if (_referralViewReported || info.visibleFraction < 0.1) {
                               return;
                             }
                             _referralViewReported = true;
-                            unawaited(
-                              ref.report(
-                                AnalyticsEvent.referralView,
-                                properties: _referralProperties(referralCard),
-                              ),
-                            );
+                            unawaited(ref.report(AnalyticsEvent.referralView, properties: _referralProperties(referralCard)));
                           },
                           child: _ReferralCard(
                             referralCard: referralCard,
-                            onPressed: (shareOrigin) =>
-                                _shareReferralLink(referralCard, shareOrigin),
+                            onPressed: (shareOrigin) => _shareReferralLink(referralCard, shareOrigin),
                           ),
                         ),
                       ],
@@ -407,11 +305,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       _ProfileExposure(
                         keyName: 'account-actions',
                         exposureCycle: _exposureCycle,
-                        onVisibilityChanged: (fraction) =>
-                            _reportSectionVisibility(
-                              AnalyticsProfileSectionType.accountActions,
-                              fraction,
-                            ),
+                        onVisibilityChanged: (fraction) => _reportSectionVisibility(AnalyticsProfileSectionType.accountActions, fraction),
                         child: Column(
                           children: [
                             _SignOutButton(onPressed: _logout),
@@ -421,10 +315,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               style: TextButton.styleFrom(
                                 foregroundColor: const Color(0xFF9FA89E),
                                 minimumSize: const Size.fromHeight(42),
-                                textStyle: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                               ),
                               child: const Text('Delete account'),
                             ),
@@ -457,23 +348,12 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Transform.translate(
-        offset: const Offset(-4, 0),
-        child: NaloBackButton(
-          onPressed: onBack,
-          color: const Color(0xFF1A2433),
-          backgroundColor: Colors.black.withValues(alpha: 0.07),
-        ),
-      ),
+      NaloBackButton(onPressed: onBack, color: const Color(0xFF1A2433), backgroundColor: Colors.black.withValues(alpha: 0.07)),
       const Expanded(
         child: Text(
           'Profile',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Color(0xFF1A2433),
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(color: Color(0xFF1A2433), fontSize: 16, fontWeight: FontWeight.w900),
         ),
       ),
       OutlinedButton(
@@ -498,10 +378,7 @@ class _TestsCompletedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-    decoration: BoxDecoration(
-      color: const Color(0xFF008BC7),
-      borderRadius: BorderRadius.circular(24),
-    ),
+    decoration: BoxDecoration(color: const Color(0xFF008BC7), borderRadius: BorderRadius.circular(24)),
     child: Row(
       children: [
         Expanded(
@@ -510,22 +387,12 @@ class _TestsCompletedCard extends StatelessWidget {
             children: [
               const Text(
                 'TESTS COMPLETED',
-                style: TextStyle(
-                  color: Color(0x8CFFFFFF),
-                  fontSize: 12,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: TextStyle(color: Color(0x8CFFFFFF), fontSize: 12, letterSpacing: 1.2, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 4),
               Text(
                 '$count',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 48, height: 1, fontWeight: FontWeight.w900),
               ),
             ],
           ),
@@ -533,11 +400,7 @@ class _TestsCompletedCard extends StatelessWidget {
         const CircleAvatar(
           radius: 32,
           backgroundColor: Color(0x1FFFFFFF),
-          child: Icon(
-            Icons.emoji_events_outlined,
-            color: Color(0xFFFFDA59),
-            size: 29,
-          ),
+          child: Icon(Icons.emoji_events_outlined, color: Color(0xFFFFDA59), size: 29),
         ),
       ],
     ),
@@ -559,10 +422,7 @@ class _UserInfoCard extends StatelessWidget {
     ];
     return Container(
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
       child: Column(
         children: [
           for (var index = 0; index < rows.length; index++) ...[
@@ -573,11 +433,7 @@ class _UserInfoCard extends StatelessWidget {
                 children: [
                   Text(
                     rows[index].$1,
-                    style: const TextStyle(
-                      color: Color(0xFF9FA89E),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: const TextStyle(color: Color(0xFF9FA89E), fontSize: 12, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -586,11 +442,7 @@ class _UserInfoCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        color: Color(0xFF1A2433),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: const TextStyle(color: Color(0xFF1A2433), fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -638,10 +490,7 @@ class _ShopifyAccountCard extends StatelessWidget {
                 'assets/icons/shopify.svg',
                 width: 18,
                 height: 18,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
-                ),
+                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
               ),
             ),
             const SizedBox(width: 12),
@@ -651,21 +500,14 @@ class _ShopifyAccountCard extends StatelessWidget {
                 children: [
                   const Text(
                     'Shopify account',
-                    style: TextStyle(
-                      color: Color(0xFF1A2433),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: TextStyle(color: Color(0xFF1A2433), fontSize: 14, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Connected · $email',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF9FA89E),
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: Color(0xFF9FA89E), fontSize: 12),
                   ),
                 ],
               ),
@@ -673,17 +515,10 @@ class _ShopifyAccountCard extends StatelessWidget {
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: const ShapeDecoration(
-                color: Color(0x1F96BF48),
-                shape: StadiumBorder(),
-              ),
+              decoration: const ShapeDecoration(color: Color(0x1F96BF48), shape: StadiumBorder()),
               child: const Text(
                 'Manage',
-                style: TextStyle(
-                  color: Color(0xFF5A8A1A),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(color: Color(0xFF5A8A1A), fontSize: 12, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -708,10 +543,7 @@ class _MenuCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-    ),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
     child: Column(
       children: [
         for (var index = 0; index < items.length; index++) ...[
@@ -725,18 +557,10 @@ class _MenuCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       items[index].label,
-                      style: const TextStyle(
-                        color: Color(0xFF1A2433),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: const TextStyle(color: Color(0xFF1A2433), fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Color(0xFF9FA89E),
-                    size: 18,
-                  ),
+                  const Icon(Icons.chevron_right, color: Color(0xFF9FA89E), size: 18),
                 ],
               ),
             ),
@@ -756,30 +580,16 @@ class _ReferralCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFDDA7C),
-      borderRadius: BorderRadius.circular(24),
-    ),
+    decoration: BoxDecoration(color: const Color(0xFFFDDA7C), borderRadius: BorderRadius.circular(24)),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           referralCard.title,
-          style: const TextStyle(
-            color: Color(0xFF1A2433),
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
+          style: const TextStyle(color: Color(0xFF1A2433), fontSize: 18, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 5),
-        Text(
-          referralCard.description,
-          style: const TextStyle(
-            color: Color(0xFF5A4200),
-            fontSize: 12,
-            height: 1.35,
-          ),
-        ),
+        Text(referralCard.description, style: const TextStyle(color: Color(0xFF5A4200), fontSize: 12, height: 1.35)),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
@@ -790,9 +600,7 @@ class _ReferralCard extends StatelessWidget {
                 backgroundColor: const Color(0xFF1A2433),
                 foregroundColor: const Color(0xFFFDDA7C),
                 minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               child: Text(referralCard.buttonText),
             ),
@@ -833,12 +641,7 @@ class _SignOutButton extends StatelessWidget {
 
 /// 将 Profile 区域的可见比例交给页面统一去重和上报。
 class _ProfileExposure extends StatelessWidget {
-  const _ProfileExposure({
-    required this.keyName,
-    required this.exposureCycle,
-    required this.onVisibilityChanged,
-    required this.child,
-  });
+  const _ProfileExposure({required this.keyName, required this.exposureCycle, required this.onVisibilityChanged, required this.child});
 
   final String keyName;
   final int exposureCycle;
