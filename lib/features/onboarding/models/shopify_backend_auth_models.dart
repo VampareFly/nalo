@@ -82,6 +82,7 @@ class AppUserInfo {
     required this.id,
     required this.isProfileCompleted,
     this.shopifyCustomerId,
+    this.shopifyAccountUrl,
     this.email,
     this.fullName,
     this.birthDay,
@@ -97,6 +98,9 @@ class AppUserInfo {
 
   /// Shopify 客户 ID，用于 App 与 Shopify Web 共用 GA4 User-ID。
   final int? shopifyCustomerId;
+
+  /// 服务端下发的 Shopify Customer Account 管理页地址。
+  final String? shopifyAccountUrl;
 
   final String? email;
   final String? fullName;
@@ -122,6 +126,9 @@ class AppUserInfo {
       id: id,
       isProfileCompleted: profileCompleted == 1,
       shopifyCustomerId: _positiveInt(json['shopify_customer_id']),
+      shopifyAccountUrl: json['shopify_account_url'] is String
+          ? json['shopify_account_url'] as String
+          : null,
       email: json['email'] is String ? json['email'] as String : null,
       fullName: json['full_name'] is String
           ? json['full_name'] as String
@@ -139,6 +146,7 @@ class AppUserInfo {
   Map<String, dynamic> toJson() => {
     'id': id,
     'shopify_customer_id': shopifyCustomerId,
+    if (shopifyAccountUrl != null) 'shopify_account_url': shopifyAccountUrl,
     'email': email,
     'full_name': fullName,
     'birth_day': birthDay,

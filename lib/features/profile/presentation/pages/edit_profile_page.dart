@@ -332,6 +332,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         color: Color(0xFFFDDA7C),
                         icon: Icons.warning_amber_rounded,
                         text: _over65Description,
+                        textStyle: TextStyle(
+                          color: Color(0xFF1A2433),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -407,6 +412,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         value: state.dateOfBirth == null
                             ? ''
                             : DateFormat.yMMMd('en').format(state.dateOfBirth!),
+                        showBorder: false,
                       ),
                     ),
                   ),
@@ -479,6 +485,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
 InputDecoration _inputDecoration(String hint) => InputDecoration(
   hintText: hint,
+  hintStyle: const TextStyle(color: Color(0x801A2433)),
   filled: true,
   fillColor: Colors.white,
   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -521,10 +528,15 @@ class _FieldLabel extends StatelessWidget {
 }
 
 class _ReadOnlyField extends StatelessWidget {
-  const _ReadOnlyField({required this.value, this.showLock = false});
+  const _ReadOnlyField({
+    required this.value,
+    this.showLock = false,
+    this.showBorder = true,
+  });
 
   final String value;
   final bool showLock;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -535,7 +547,7 @@ class _ReadOnlyField extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.black12),
+      border: showBorder ? Border.all(color: Colors.black12) : null,
     ),
     child: Row(
       children: [
@@ -546,10 +558,11 @@ class _ReadOnlyField extends StatelessWidget {
           ),
         ),
         if (showLock)
-          const Icon(
-            Icons.lock_outline_rounded,
-            size: 14,
-            color: Color(0xFFABB5AD),
+          Image.asset(
+            'assets/icons/email_locked.png',
+            width: 14,
+            height: 14,
+            fit: BoxFit.contain,
           ),
       ],
     ),
@@ -596,12 +609,14 @@ class _NoticeBox extends StatelessWidget {
     required this.text,
     this.icon,
     this.assetPath,
+    this.textStyle,
   });
 
   final Color color;
   final String text;
   final IconData? icon;
   final String? assetPath;
+  final TextStyle? textStyle;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -622,7 +637,7 @@ class _NoticeBox extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
+            style: textStyle ?? const TextStyle(
               color: Color(0xFF2A6B8A),
               fontSize: 12,
               height: 1.6,

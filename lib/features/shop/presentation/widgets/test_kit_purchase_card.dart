@@ -3,7 +3,6 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:nalo/features/shop/models/test_kit_product.dart';
 
@@ -17,12 +16,14 @@ class TestKitPurchaseCard extends StatelessWidget {
     super.key,
     required this.product,
     required this.imageBackgroundColor,
+    required this.imageCacheWidth,
     required this.isPurchaseEnabled,
     required this.onPurchasePressed,
   });
 
   final TestKitProduct product;
   final Color imageBackgroundColor;
+  final int imageCacheWidth;
   final bool isPurchaseEnabled;
   final VoidCallback onPurchasePressed;
 
@@ -48,6 +49,7 @@ class TestKitPurchaseCard extends StatelessWidget {
           _ProductImage(
             imageUrl: product.imageUrl,
             backgroundColor: imageBackgroundColor,
+            imageCacheWidth: imageCacheWidth,
           ),
           const SizedBox(height: 16),
           Text(
@@ -100,10 +102,15 @@ class TestKitPurchaseCard extends StatelessWidget {
 }
 
 class _ProductImage extends StatelessWidget {
-  const _ProductImage({required this.imageUrl, required this.backgroundColor});
+  const _ProductImage({
+    required this.imageUrl,
+    required this.backgroundColor,
+    required this.imageCacheWidth,
+  });
 
   final String? imageUrl;
   final Color backgroundColor;
+  final int imageCacheWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -114,14 +121,13 @@ class _ProductImage extends StatelessWidget {
         child: ColoredBox(
           color: backgroundColor,
           child: imageUrl == null
-              ? _ProductImageFallback(color: backgroundColor)
+              ? const _ProductImageFallback()
               : CachedNetworkImage(
                   imageUrl: imageUrl!,
                   fit: BoxFit.cover,
-                  placeholder: (_, _) =>
-                      _ProductImageFallback(color: backgroundColor),
-                  errorWidget: (_, _, _) =>
-                      _ProductImageFallback(color: backgroundColor),
+                  memCacheWidth: imageCacheWidth,
+                  placeholder: (_, _) => const _ProductImageFallback(),
+                  errorWidget: (_, _, _) => const _ProductImageFallback(),
                 ),
         ),
       ),
@@ -130,19 +136,16 @@ class _ProductImage extends StatelessWidget {
 }
 
 class _ProductImageFallback extends StatelessWidget {
-  const _ProductImageFallback({required this.color});
-
-  final Color color;
+  const _ProductImageFallback();
 
   @override
   Widget build(BuildContext context) {
-    final foreground = Color.lerp(color, Colors.white, 0.35) ?? Colors.white;
     return Center(
-      child: SvgPicture.asset(
-        'assets/images/nalo_symbol_white.svg',
+      child: Image.asset(
+        'assets/images/nalo_logo_blue.png',
         width: 52,
         height: 39,
-        colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
+        fit: BoxFit.contain,
       ),
     );
   }

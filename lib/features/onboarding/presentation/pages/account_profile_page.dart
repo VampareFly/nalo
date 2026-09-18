@@ -368,6 +368,11 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                       color: Color(0xFFFDDA7C),
                       icon: Icons.warning_amber_rounded,
                       text: _over65Description,
+                      textStyle: TextStyle(
+                        color: Color(0xFF1A2433),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -444,6 +449,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                           : DateFormat.yMMMd('en').format(state.dateOfBirth!),
                       hint: 'Select your birthday',
                       icon: Icons.calendar_today_outlined,
+                      showBorder: false,
                     ),
                   ),
                 ),
@@ -564,6 +570,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
 
 InputDecoration _inputDecoration(String hint) => InputDecoration(
   hintText: hint,
+  hintStyle: const TextStyle(color: Color(0x801A2433)),
   filled: true,
   fillColor: Colors.white,
   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -609,20 +616,26 @@ class _ReadOnlyField extends StatelessWidget {
     this.hint,
     this.icon,
     this.showLock = false,
+    this.showBorder = true,
   });
   final String value;
   final String? hint;
   final IconData? icon;
   final bool showLock;
+  final bool showBorder;
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     height: 50,
     padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
-      color: value.isEmpty ? Colors.white : const Color(0xFFF5F2EE),
+      color: !showBorder || value.isEmpty
+          ? Colors.white
+          : const Color(0xFFF5F2EE),
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0x22008BC7)),
+      border: showBorder
+          ? Border.all(color: const Color(0x22008BC7))
+          : null,
     ),
     child: Row(
       children: [
@@ -631,16 +644,18 @@ class _ReadOnlyField extends StatelessWidget {
             value.isEmpty ? hint ?? '' : value,
             style: TextStyle(
               color: value.isEmpty
-                  ? const Color(0x881A2433)
+                  ? const Color(0x801A2433)
                   : const Color(0xFF1A2433),
+              fontSize: 16,
             ),
           ),
         ),
         if (showLock)
-          const Icon(
-            Icons.lock_outline_rounded,
-            size: 14,
-            color: Color(0xFFABB5AD),
+          Image.asset(
+            'assets/icons/email_locked.png',
+            width: 14,
+            height: 14,
+            fit: BoxFit.contain,
           )
         else if (icon != null)
           Icon(icon, size: 18, color: const Color(0xFF008BC7)),
@@ -686,10 +701,12 @@ class _NoticeBox extends StatelessWidget {
     required this.text,
     this.icon,
     this.assetPath,
+    this.textStyle,
   });
   final Color color;
   final IconData? icon;
   final String? assetPath;
+  final TextStyle? textStyle;
   final String text;
   @override
   Widget build(BuildContext context) => Container(
@@ -709,7 +726,7 @@ class _NoticeBox extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
+            style: textStyle ?? const TextStyle(
               color: Color(0xFF1A2433),
               fontSize: 12,
               height: 1.5,

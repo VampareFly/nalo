@@ -685,10 +685,7 @@ class TestTimerScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Center(
-                    child: FlowNaloMark(
-                      color: isDevelop ? const Color(0xFFF5B843) : flowYellow,
-                      width: 64,
-                    ),
+                    child: const FlowNaloMark(width: 64),
                   ),
                 ),
                 const SizedBox(height: 32),

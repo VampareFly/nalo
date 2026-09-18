@@ -7,7 +7,6 @@ import 'package:nalo/features/app_update/models/app_version_update.dart';
 const _blue = Color(0xFF008BC7);
 const _ink = Color(0xFF1A2433);
 const _muted = Color(0xFF7E897F);
-const _yellow = Color(0xFFFDDA7C);
 
 /// Nalo 版本更新弹窗。
 class VersionUpdateDialog extends StatelessWidget {
@@ -115,17 +114,15 @@ class _UpdateLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(color: _yellow, shape: BoxShape.circle),
+      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
       child: SizedBox(
         width: 64,
         height: 64,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Image.asset(
-            'assets/images/nalo_logo_temp.png',
+            'assets/images/nalo_logo_blue.png',
             fit: BoxFit.contain,
-            color: _blue,
-            colorBlendMode: BlendMode.srcIn,
           ),
         ),
       ),

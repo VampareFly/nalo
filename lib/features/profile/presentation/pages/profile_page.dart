@@ -60,10 +60,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     BotToast.showText(text: '$feature is coming soon', align: Alignment.center);
   }
 
-  Future<void> _openShopifyManage() async {
+  Future<void> _openShopifyManage(String? accountUrl) async {
     _reportAction(AnalyticsProfileActionType.manageShopifyAccount);
-    // TODO: <pf> 服务端提供 Shopify Customer Account URL 后移除测试店写死地址。
-    final manageUrl = Uri.parse('https://test-store-001-55rykspg.myshopify.com/account');
+    final rawUrl = accountUrl?.trim();
+    final manageUrl = rawUrl == null ? null : Uri.tryParse(rawUrl);
+    if (manageUrl == null ||
+        (manageUrl.scheme != 'http' && manageUrl.scheme != 'https') ||
+        manageUrl.host.isEmpty) {
+      BotToast.showText(text: 'Unable to open Shopify account', align: Alignment.center);
+      return;
+    }
     final opened = await launchUrl(manageUrl, mode: LaunchMode.externalApplication);
     if (!opened) {
       BotToast.showText(text: 'Unable to open Shopify account', align: Alignment.center);
@@ -255,7 +261,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         keyName: 'shopify-account',
                         exposureCycle: _exposureCycle,
                         onVisibilityChanged: (fraction) => _reportSectionVisibility(AnalyticsProfileSectionType.shopifyAccount, fraction),
-                        child: _ShopifyAccountCard(email: _displayValue(user?.email), onManage: _openShopifyManage),
+                        child: _ShopifyAccountCard(
+                          email: _displayValue(user?.email),
+                          onManage: () => _openShopifyManage(user?.shopifyAccountUrl),
+                        ),
                       ),
                       const SizedBox(height: 18),
                       _ProfileExposure(

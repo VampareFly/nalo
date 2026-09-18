@@ -4,6 +4,7 @@
 import 'dart:async';
 
 import 'package:bot_toast/bot_toast.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,11 +25,7 @@ const _ink = Color(0xFF1A2433);
 const _muted = Color(0xFF9FA89E);
 const _pageBackground = Color(0xFFEDE8E0);
 const _skuVisibleFraction = 0.1;
-const _productBackgrounds = [
-  Color(0xFFB6D0DF),
-  Color(0xFFFDDA7C),
-  Color(0xFFECAD46),
-];
+const _productImageBackground = Color(0xFFB6D0DF);
 
 /// Home 容器中的 Shop Tab，保留滚动位置并在接近底部时加载更多。
 class ShopPage extends ConsumerStatefulWidget {
@@ -53,6 +50,7 @@ class ShopPage extends ConsumerStatefulWidget {
 class _ShopPageState extends ConsumerState<ShopPage> {
   late final ScrollController _scrollController;
   final Set<String> _viewedSkuKeys = {};
+  final Set<String> _prefetchedImageKeys = {};
   bool _referralViewReported = false;
   bool _ownsLoadingToast = false;
 
@@ -124,13 +122,56 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     }
   }
 
-  void _handleSkuVisibility(TestKitProduct product, double visibleFraction) {
+  void _handleSkuVisibility(
+    TestKitProduct product,
+    int index,
+    double visibleFraction,
+  ) {
     if (!widget.isActive || visibleFraction < _skuVisibleFraction) return;
+    _prefetchNearbyImages(index);
     final skuKey = '${product.productId}:${product.variantId}';
     if (!_viewedSkuKeys.add(skuKey)) return;
     unawaited(
       ref.report(AnalyticsEvent.skuView, properties: _skuProperties(product)),
     );
+  }
+
+  int _imageCacheWidth(BuildContext context) {
+    final logicalWidth = MediaQuery.sizeOf(context).width - 80;
+    return (logicalWidth * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(
+      1,
+      4096,
+    );
+  }
+
+  void _prefetchNearbyImages(int index) {
+    if (!mounted) return;
+    final products = ref.read(shopViewModelProvider).asData?.value.products;
+    if (products == null) return;
+    final cacheWidth = _imageCacheWidth(context);
+    for (final nearbyIndex in [index - 2, index - 1, index + 1, index + 2]) {
+      if (nearbyIndex < 0 || nearbyIndex >= products.length) continue;
+      final url = products[nearbyIndex].imageUrl;
+      if (url == null) continue;
+      final cacheKey = '$cacheWidth:$url';
+      if (!_prefetchedImageKeys.add(cacheKey)) continue;
+      unawaited(_prefetchImage(url, cacheWidth, cacheKey));
+    }
+  }
+
+  Future<void> _prefetchImage(String url, int cacheWidth, String key) async {
+    try {
+      await precacheImage(
+        ResizeImage.resizeIfNeeded(
+          cacheWidth,
+          null,
+          CachedNetworkImageProvider(url),
+        ),
+        context,
+      );
+    } catch (_) {
+      _prefetchedImageKeys.remove(key);
+    }
   }
 
   Map<AnalyticsEventProperty, Object> _skuProperties(TestKitProduct product) {
@@ -197,6 +238,7 @@ class _ShopPageState extends ConsumerState<ShopPage> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(shopViewModelProvider);
+    final imageCacheWidth = _imageCacheWidth(context);
     final dashboard = ref.watch(homeDashboardProvider);
     final initial = dashboard.asData?.value.userInitial ?? 'N';
     final referralOffer = dashboard.asData?.value.referralOffer;
@@ -267,13 +309,13 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                                 onVisibilityChanged: (info) =>
                                     _handleSkuVisibility(
                                       state.products[index],
+                                      index,
                                       info.visibleFraction,
                                     ),
                                 child: TestKitPurchaseCard(
                                   product: state.products[index],
-                                  imageBackgroundColor:
-                                      _productBackgrounds[index %
-                                          _productBackgrounds.length],
+                                  imageBackgroundColor: _productImageBackground,
+                                  imageCacheWidth: imageCacheWidth,
                                   isPurchaseEnabled:
                                       state.loadingProductId == null,
                                   onPurchasePressed: () =>

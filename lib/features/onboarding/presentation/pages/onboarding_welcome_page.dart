@@ -104,12 +104,10 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
           child: Column(
             children: [
               Image.asset(
-                'assets/images/nalo_logo_temp.png',
+                'assets/images/nalo_logo_white.png',
                 width: 88,
                 height: 70,
                 fit: BoxFit.contain,
-                color: const Color(0xFFFDDA7C),
-                colorBlendMode: BlendMode.srcIn,
               ),
               const SizedBox(height: 32),
               Text(
@@ -154,8 +152,8 @@ class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
                     children: [
                       Image.asset(
                         'assets/icons/notification_bell_blue.png',
-                        width: 24,
-                        height: 24,
+                        width: 20,
+                        height: 20,
                       ),
                       const SizedBox(width: 12),
                       Expanded(

@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -34,6 +35,7 @@ class TestHistoryPage extends ConsumerStatefulWidget {
 
 class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
   final _scrollController = ScrollController();
+  bool _loadMoreArmed = true;
   final Set<String> _viewedSections = {};
   final Set<String> _viewedItems = {};
 
@@ -56,9 +58,19 @@ class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
   }
 
   void _loadMoreWhenNeeded() {
-    if (_scrollController.position.extentAfter < 240) {
-      ref.read(testHistoryViewModelProvider.notifier).loadMore();
+    final position = _scrollController.position;
+    if (!_loadMoreArmed ||
+        position.extentAfter >= 240 ||
+        position.userScrollDirection != ScrollDirection.reverse) {
+      return;
     }
+    final state = ref.read(testHistoryViewModelProvider);
+    if (state.isInitialLoading || state.isRefreshing || state.isLoadingMore ||
+        !state.hasMore || state.nextEndDate.isEmpty) {
+      return;
+    }
+    _loadMoreArmed = false;
+    unawaited(ref.read(testHistoryViewModelProvider.notifier).loadMore());
   }
 
   void _selectFilter(TestHistoryState state, TestHistoryFilter filter) {
@@ -162,27 +174,37 @@ class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
             Expanded(
               child: RefreshIndicator(
                 color: _historyBlue,
+                notificationPredicate: (notification) =>
+                    !state.isLoadingMore && notification.depth == 0,
                 onRefresh: () =>
                     ref.read(testHistoryViewModelProvider.notifier).refresh(),
-                child: ListView(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-                  children: [
-                    _FilterRow(
-                      state: state,
-                      onSelected: (filter) => _selectFilter(state, filter),
-                    ),
-                    const SizedBox(height: 12),
-                    _HistoryContent(
-                      state: state,
-                      onStartTest: _startTestFromEmptyState,
-                      onViewAll: () =>
-                          _selectFilter(state, TestHistoryFilter.all),
-                      onSectionVisibilityChanged: _reportSectionView,
-                      onItemVisibilityChanged: _reportItemView,
-                    ),
-                  ],
+                child: NotificationListener<ScrollStartNotification>(
+                  onNotification: (notification) {
+                    if (notification.dragDetails != null) {
+                      _loadMoreArmed = true;
+                    }
+                    return false;
+                  },
+                  child: ListView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                    children: [
+                      _FilterRow(
+                        state: state,
+                        onSelected: (filter) => _selectFilter(state, filter),
+                      ),
+                      const SizedBox(height: 12),
+                      _HistoryContent(
+                        state: state,
+                        onStartTest: _startTestFromEmptyState,
+                        onViewAll: () =>
+                            _selectFilter(state, TestHistoryFilter.all),
+                        onSectionVisibilityChanged: _reportSectionView,
+                        onItemVisibilityChanged: _reportItemView,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

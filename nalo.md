@@ -2,7 +2,7 @@
 
 ## 基本信息
 
-- 更新日期：2026-09-03
+- 更新日期：2026-09-18
 - 当前状态：持续开发和接口联调中
 - 技术栈：Flutter、Dart、Riverpod、GoRouter、Dio
 - 架构：MVVM，调用方向为 `View → ViewModel/Provider → Repository → Service → 外部系统`
@@ -73,6 +73,14 @@ Nalo服务端 / Shopify / 原生平台
 ```
 
 View不直接请求接口或解析响应；业务状态放在 ViewModel；Repository协调数据；Service处理协议；Provider负责状态和依赖注入。
+
+## 品牌 Logo 使用规则
+
+- 蓝色页面背景使用白色 Logo：`assets/images/nalo_logo_white.png`；登录页和 Welcome 页均如此。
+- 其他页面直接使用蓝色 Logo：`assets/images/nalo_logo_blue.png`，默认不额外添加白底，也不把蓝色图形染成其他颜色；版本更新弹窗例外，使用白色圆形底。
+- Logo 下方的文字颜色不受本规则限制，由所在页面的设计决定。
+- 登录页、欢迎页、检测流程、商品图片占位（包括无图、加载中和加载失败）及版本更新弹窗均遵循以上规则；不要通过图片着色代替对应颜色的资源。
+- 只有现有桌面 App Icon 保留白底蓝色图形；iOS、Android 的系统启动页使用独立原生图片，本规则暂不涉及启动页。
 
 ## 登录注册流程
 

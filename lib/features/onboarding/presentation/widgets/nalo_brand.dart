@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 
-/// 展示 Figma 导出的 Nalo Symbol 和 Wordmark。
+/// 根据页面背景展示对应颜色的 Nalo Symbol 和 Wordmark。
 class NaloBrand extends StatelessWidget {
   const NaloBrand({this.onBlue = true, super.key});
 
@@ -15,12 +15,12 @@ class NaloBrand extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Image.asset(
-          'assets/images/nalo_logo_temp.png',
+          onBlue
+              ? 'assets/images/nalo_logo_white.png'
+              : 'assets/images/nalo_logo_blue.png',
           width: 80,
           height: 64,
           fit: BoxFit.contain,
-          color: onBlue ? const Color(0xFFFDDA7C) : color,
-          colorBlendMode: BlendMode.srcIn,
         ),
         const SizedBox(height: 12),
         Text(

@@ -12,6 +12,7 @@ class TestHistoryState {
     this.counts = const TestHistoryCounts.empty(),
     this.groups = const [],
     this.isInitialLoading = false,
+    this.isRefreshing = false,
     this.isLoadingMore = false,
     this.hasMore = false,
     this.nextEndDate = '',
@@ -23,6 +24,7 @@ class TestHistoryState {
   final TestHistoryCounts counts;
   final List<TestHistoryGroup> groups;
   final bool isInitialLoading;
+  final bool isRefreshing;
   final bool isLoadingMore;
   final bool hasMore;
   final String nextEndDate;
@@ -38,6 +40,7 @@ class TestHistoryState {
     TestHistoryCounts? counts,
     List<TestHistoryGroup>? groups,
     bool? isInitialLoading,
+    bool? isRefreshing,
     bool? isLoadingMore,
     bool? hasMore,
     String? nextEndDate,
@@ -49,6 +52,7 @@ class TestHistoryState {
     counts: counts ?? this.counts,
     groups: groups ?? this.groups,
     isInitialLoading: isInitialLoading ?? this.isInitialLoading,
+    isRefreshing: isRefreshing ?? this.isRefreshing,
     isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     hasMore: hasMore ?? this.hasMore,
     nextEndDate: nextEndDate ?? this.nextEndDate,
@@ -69,7 +73,12 @@ class TestHistoryViewModel extends Notifier<TestHistoryState> {
   Future<void> loadInitial() => _loadFirstPage(state.filter);
 
   /// 下拉刷新当前筛选并保留现有内容，由 RefreshIndicator 单独展示刷新进度。
-  Future<void> refresh() => _loadFirstPage(state.filter, preserveContent: true);
+  Future<void> refresh() {
+    if (state.isRefreshing || state.isInitialLoading || state.isLoadingMore) {
+      return Future.value();
+    }
+    return _loadFirstPage(state.filter, preserveContent: true);
+  }
 
   /// 切换筛选时优先恢复当前页面周期内的缓存，未加载时请求第一页。
   Future<void> selectFilter(TestHistoryFilter filter) async {
@@ -90,7 +99,9 @@ class TestHistoryViewModel extends Notifier<TestHistoryState> {
     final generation = ++_requestGeneration;
     final previous = state;
     final existingCounts = state.counts;
-    if (!preserveContent) {
+    if (preserveContent) {
+      state = state.copyWith(isRefreshing: true);
+    } else {
       state = TestHistoryState(
         filter: filter,
         counts: existingCounts,
@@ -113,14 +124,14 @@ class TestHistoryViewModel extends Notifier<TestHistoryState> {
     } catch (error) {
       if (generation != _requestGeneration) return;
       state = preserveContent
-          ? previous
+          ? previous.copyWith(isRefreshing: false)
           : TestHistoryState(filter: filter, initialError: error);
     }
   }
 
   /// 列表接近底部时加载下一页，同一时间只允许一个分页请求。
   Future<void> loadMore() async {
-    if (state.isInitialLoading || state.isLoadingMore || !state.hasMore || state.nextEndDate.isEmpty) return;
+    if (state.isInitialLoading || state.isRefreshing || state.isLoadingMore || !state.hasMore || state.nextEndDate.isEmpty) return;
     final generation = _requestGeneration;
     state = state.copyWith(isLoadingMore: true, loadMoreError: false);
     try {

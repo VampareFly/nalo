@@ -1,4 +1,4 @@
-// 应用冷启动认证门，根据 Session、本地用户快照和 Welcome 状态分流。
+// 应用冷启动认证门，等待本地会话结果并分流。
 // Token 生命周期由 AuthSessionNotifier 管理，启动分流不请求 user/info。
 
 import 'package:flutter/material.dart';
@@ -60,7 +60,7 @@ class AuthGatePage extends ConsumerWidget {
       });
     });
     return Scaffold(
-      backgroundColor: const Color(0xFFEDE8E0),
+      backgroundColor: const Color(0xFFFFFAF5),
       body: destination.hasError
           ? Center(
               child: FilledButton(
