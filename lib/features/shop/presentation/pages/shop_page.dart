@@ -390,14 +390,14 @@ class _ShopTopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'nalo',
-                  style: TextStyle(
-                    color: _blue,
-                    fontSize: 26,
-                    height: 1,
-                    fontWeight: FontWeight.w800,
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Image.asset(
+                    'assets/images/nalo_wordmark_blue.png',
+                    width: 88,
+                    height: 20,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),

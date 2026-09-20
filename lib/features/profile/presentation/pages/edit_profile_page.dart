@@ -296,13 +296,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'nalo',
-                    style: TextStyle(
-                      color: Color(0xFF008BC7),
-                      fontSize: 27,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  Image.asset(
+                    'assets/images/nalo_wordmark_blue.png',
+                    width: 92,
+                    height: 22,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 16),
                   const Text.rich(

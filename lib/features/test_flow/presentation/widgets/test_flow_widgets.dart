@@ -20,10 +20,11 @@ const flowMuted = Color(0xFF9FA89E);
 /// 检测流程使用的浅蓝辅助色。
 const flowSoftBlue = Color(0xFFB6D0DF);
 
-/// 在非蓝色的检测页面中统一展示蓝色 Nalo 标识。
+/// 在检测页面中展示 Nalo 标识；占位图可按背景传入着色。
 class FlowNaloMark extends StatelessWidget {
-  const FlowNaloMark({this.width = 40, super.key});
+  const FlowNaloMark({this.width = 40, this.color, super.key});
   final double width;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Image.asset(
@@ -31,6 +32,8 @@ class FlowNaloMark extends StatelessWidget {
     width: width,
     height: width * .75,
     fit: BoxFit.contain,
+    color: color,
+    colorBlendMode: color == null ? null : BlendMode.srcIn,
   );
 }
 

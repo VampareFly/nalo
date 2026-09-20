@@ -10,7 +10,6 @@ class NaloBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = onBlue ? Colors.white : const Color(0xFF008BC7);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -23,14 +22,13 @@ class NaloBrand extends StatelessWidget {
           fit: BoxFit.contain,
         ),
         const SizedBox(height: 12),
-        Text(
-          'nalo',
-          style: TextStyle(
-            color: color,
-            fontSize: 37,
-            height: 1,
-            fontWeight: FontWeight.w800,
-          ),
+        Image.asset(
+          onBlue
+              ? 'assets/images/nalo_wordmark_white.png'
+              : 'assets/images/nalo_wordmark_blue.png',
+          width: 132,
+          height: 30,
+          fit: BoxFit.contain,
         ),
       ],
     );
