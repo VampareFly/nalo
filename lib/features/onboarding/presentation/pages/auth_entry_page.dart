@@ -17,6 +17,8 @@ import 'package:nalo/features/onboarding/presentation/widgets/nalo_brand.dart';
 import 'package:nalo/features/onboarding/repositories/auth_entry_config_repository.dart';
 import 'package:nalo/features/onboarding/services/shopify_backend_auth_service.dart';
 import 'package:nalo/features/onboarding/view_models/auth_entry_view_model.dart';
+import 'package:nalo/features/shop/presentation/pages/guest_kit_shop_page.dart';
+import 'package:nalo/features/shop/providers/pending_kit_purchase_provider.dart';
 
 /// Figma 登录注册流程的统一入口页面。
 class AuthEntryPage extends ConsumerStatefulWidget {
@@ -43,8 +45,9 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(authEntryViewModelProvider);
     final isAnyAuthenticationBusy = state.isLoading;
+    final initialShowAppleLogin = ref.watch(initialShowAppleLoginProvider);
     final showAppleLogin = Platform.isIOS
-        ? (ref.watch(showAppleLoginProvider).value ?? true)
+        ? (ref.watch(showAppleLoginProvider).value ?? initialShowAppleLogin)
         : false;
 
     void handleAuthorizationResult(OnboardingAuthResult? result) {
@@ -85,6 +88,9 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
     }
 
     Future<void> authorize(ShopifyAuthIntent intent) async {
+      if (intent != ShopifyAuthIntent.kitPurchase) {
+        ref.read(pendingKitPurchaseProvider.notifier).clear();
+      }
       switch (intent) {
         case ShopifyAuthIntent.loginOrSignUp:
           unawaited(
@@ -121,6 +127,7 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
     }
 
     Future<void> authorizeApple() async {
+      ref.read(pendingKitPurchaseProvider.notifier).clear();
       unawaited(
         ref.report(
           AnalyticsEvent.loginClick,
@@ -197,7 +204,12 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
                   InkWell(
                     onTap: isAnyAuthenticationBusy
                         ? null
-                        : () => authorize(ShopifyAuthIntent.kitPurchase),
+                        : () {
+                            unawaited(
+                              ref.report(AnalyticsEvent.iNeedKitClick),
+                            );
+                            context.push(GuestKitShopPage.path);
+                          },
                     splashFactory: NoSplash.splashFactory,
                     overlayColor: const WidgetStatePropertyAll(
                       Colors.transparent,

@@ -16,6 +16,8 @@ import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/onboarding/view_models/account_profile_view_model.dart';
+import 'package:nalo/features/shop/providers/pending_kit_purchase_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 /// 收集新用户资料并处理未成年与高龄边界。
@@ -212,6 +214,16 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
       case AccountProfileSubmitResult.submissionFailed:
         return;
       case AccountProfileSubmitResult.completed:
+        final hasPendingPurchase =
+            ref.read(pendingKitPurchaseProvider) != null;
+        if (hasPendingPurchase) EasyLoading.show();
+        final purchaseResult = hasPendingPurchase
+            ? await ref
+                  .read(pendingKitPurchaseProvider.notifier)
+                  .createPurchaseLink()
+            : null;
+        if (hasPendingPurchase) EasyLoading.dismiss();
+        if (!mounted) return;
         context.go(
           OnboardingWelcomePage.location(
             _nameController.text.trim(),
@@ -219,6 +231,24 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
             widget.completionDestination,
           ),
         );
+        final uri = purchaseResult?.url;
+        if (uri == null) {
+          final message = purchaseResult?.errorMessage;
+          if (message != null) {
+            BotToast.showText(text: message, align: Alignment.center);
+          }
+          return;
+        }
+        final didOpen = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!didOpen) {
+          BotToast.showText(
+            text: 'Unable to open the shop.',
+            align: Alignment.center,
+          );
+        }
         return;
     }
   }

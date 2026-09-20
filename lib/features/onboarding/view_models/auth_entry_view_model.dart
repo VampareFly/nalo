@@ -27,8 +27,11 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
   @override
   AuthEntryState build() => const AuthEntryState();
 
-  /// 按入口意图发起 Shopify 服务端认证。
-  Future<OnboardingAuthResult?> authorize(ShopifyAuthIntent intent) async {
+  /// 按入口意图发起 Shopify 认证，并以发起页面记录认证结果来源。
+  Future<OnboardingAuthResult?> authorize(
+    ShopifyAuthIntent intent, {
+    AnalyticsPageName pageName = AnalyticsPageName.loginSignIn,
+  }) async {
     return _authorize(
       request: () async {
         final repository = await ref.read(
@@ -38,6 +41,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
       },
       loginMethod: AnalyticsLoginMethod.shopify,
       providerName: 'Shopify',
+      pageName: pageName,
     );
   }
 
@@ -50,6 +54,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
       },
       loginMethod: AnalyticsLoginMethod.apple,
       providerName: 'Apple',
+      pageName: AnalyticsPageName.loginSignIn,
     );
   }
 
@@ -57,6 +62,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
     required Future<OnboardingAuthResult> Function() request,
     required AnalyticsLoginMethod loginMethod,
     required String providerName,
+    required AnalyticsPageName pageName,
   }) async {
     if (state.isLoading) return null;
     state = const AuthEntryState(isLoading: true);
@@ -71,7 +77,11 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         ),
         loginMethod: loginMethod,
       );
-      await _reportLoginResult(isSuccess: true, loginMethod: loginMethod);
+      await _reportLoginResult(
+        isSuccess: true,
+        loginMethod: loginMethod,
+        pageName: pageName,
+      );
       state = const AuthEntryState();
       return result;
     } on FlutterAppAuthUserCancelledException {
@@ -79,6 +89,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: 'oauth_cancelled: User cancelled Shopify authorization',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = const AuthEntryState(errorMessage: 'Shopify login was cancelled');
       return null;
@@ -90,6 +101,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
             ? 'oauth_cancelled: User cancelled Apple authorization'
             : 'oauth_error: ${error.message}',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = AuthEntryState(
         errorMessage: isCancelled
@@ -102,6 +114,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: 'identity_token_missing: Apple returned no identity token',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = const AuthEntryState(
         errorMessage: 'Apple did not return an identity token',
@@ -112,6 +125,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: '${error.code}: ${error.message}',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
@@ -120,6 +134,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: 'session_expired: ${error.message}',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
@@ -128,6 +143,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: '${error.type.name}: ${error.message}',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
@@ -136,6 +152,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: 'response_format_error: ${error.message}',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = AuthEntryState(errorMessage: error.message);
       return null;
@@ -145,6 +162,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: 'oauth_error: $message',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = AuthEntryState(errorMessage: message);
       return null;
@@ -153,6 +171,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         isSuccess: false,
         failReason: 'unknown_error: Unable to log in with $providerName',
         loginMethod: loginMethod,
+        pageName: pageName,
       );
       state = AuthEntryState(
         errorMessage: 'Unable to log in with $providerName',
@@ -166,6 +185,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
   Future<void> _reportLoginResult({
     required bool isSuccess,
     required AnalyticsLoginMethod loginMethod,
+    required AnalyticsPageName pageName,
     String failReason = '',
   }) {
     return ref
@@ -173,8 +193,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         .report(
           AnalyticsEvent.loginRequestResult,
           properties: {
-            AnalyticsEventProperty.pageName:
-                AnalyticsPageName.loginSignIn.value,
+            AnalyticsEventProperty.pageName: pageName.value,
             AnalyticsEventProperty.loginMethod: loginMethod.value,
             AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
             AnalyticsEventProperty.failReason: failReason,

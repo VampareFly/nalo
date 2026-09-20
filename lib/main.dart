@@ -1,4 +1,4 @@
-// 应用启动入口，依次完成系统 UI、基础服务、运行环境与全局 Provider 初始化。
+// 应用启动入口，依次完成系统 UI、基础服务、首帧配置与全局 Provider 初始化。
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +12,9 @@ import 'package:nalo/core/analytics/amplitude_config.dart';
 import 'package:nalo/core/crash_reporting/crash_reporting_service.dart';
 import 'package:nalo/core/network/dio_provider.dart';
 import 'package:nalo/core/network/provider_retry_policy.dart';
+import 'package:nalo/core/storage/shared_preferences_provider.dart';
+import 'package:nalo/features/onboarding/repositories/auth_entry_config_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   /// 确保flutter framework与底层引擎的链接
@@ -42,6 +45,9 @@ Future<void> main() async {
 
   await Hive.initFlutter();
 
+  final preferences = await SharedPreferences.getInstance();
+  final initialShowAppleLogin = readInitialShowAppleLogin(preferences);
+
   final bootstrapContainer = ProviderContainer(retry: appProviderRetry);
   final environment = await bootstrapContainer.read(
     appEnvironmentProvider.future,
@@ -52,7 +58,11 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       retry: appProviderRetry,
-      overrides: [amplitudeProvider.overrideWithValue(amplitude)],
+      overrides: [
+        amplitudeProvider.overrideWithValue(amplitude),
+        sharedPreferencesProvider.overrideWith((ref) => preferences),
+        initialShowAppleLoginProvider.overrideWithValue(initialShowAppleLogin),
+      ],
       child: const NaloApp(),
     ),
   );

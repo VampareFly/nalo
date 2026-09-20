@@ -10,11 +10,18 @@ import 'package:nalo/core/storage/shared_preferences_provider.dart';
 import 'package:nalo/features/onboarding/services/auth_entry_config_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const _showAppleLoginKey = 'auth_show_apple_login';
+
+/// App 启动时读取 Apple 登录缓存；首次安装无缓存时默认显示。
+bool readInitialShowAppleLogin(SharedPreferences preferences) =>
+    preferences.getBool(_showAppleLoginKey) ?? true;
+
+/// 提供登录页首帧使用的 Apple 登录显示状态，由启动入口注入缓存值。
+final initialShowAppleLoginProvider = Provider<bool>((ref) => true);
+
 /// 为登录入口提供缓存值和最新远端配置。
 class AuthEntryConfigRepository {
   const AuthEntryConfigRepository(this._service, this._preferences);
-
-  static const _showAppleLoginKey = 'auth_show_apple_login';
 
   final AuthEntryConfigService _service;
   final SharedPreferences _preferences;
@@ -46,7 +53,7 @@ final authEntryConfigRepositoryProvider = FutureProvider.autoDispose<
 final showAppleLoginProvider = StreamProvider.autoDispose<bool>((ref) async* {
   final repository = await ref.watch(authEntryConfigRepositoryProvider.future);
   final cachedValue = repository.readCachedShowAppleLogin();
-  yield cachedValue ?? true;
+  yield cachedValue ?? ref.read(initialShowAppleLoginProvider);
 
   // 有缓存时只做本次进入的正常刷新，不保持网络状态监听。
   if (cachedValue != null) {

@@ -195,8 +195,11 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
     }
   }
 
-  /// 点击 Get kit 时生成一次性 Shopify 购买 URL。
-  Future<ShopPurchaseResult> createPurchaseLink(TestKitProduct product) async {
+  /// 点击 Get kit 时生成一次性 Shopify URL，并记录购买意图来源页面。
+  Future<ShopPurchaseResult> createPurchaseLink(
+    TestKitProduct product, {
+    required AnalyticsPageName pageName,
+  }) async {
     final current = state.asData?.value;
     if (current == null || current.loadingProductId != null) {
       return ShopPurchaseResult.failure('A shop request is already running.');
@@ -207,6 +210,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
       final link = await repository.createPurchaseLink(product);
       await _reportPurchaseLinkResult(
         product,
+        pageName: pageName,
         url: link.url.toString(),
         isSuccess: true,
       );
@@ -221,6 +225,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
           );
       await _reportPurchaseLinkResult(
         product,
+        pageName: pageName,
         isSuccess: false,
         failReason: _analyticsFailReason(error),
       );
@@ -235,6 +240,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
 
   Future<void> _reportPurchaseLinkResult(
     TestKitProduct product, {
+    required AnalyticsPageName pageName,
     required bool isSuccess,
     String url = '',
     String failReason = '',
@@ -244,7 +250,7 @@ class ShopViewModel extends AsyncNotifier<ShopState> {
         .report(
           AnalyticsEvent.shopShopifyUrlRequest,
           properties: {
-            AnalyticsEventProperty.pageName: AnalyticsPageName.tabShop.value,
+            AnalyticsEventProperty.pageName: pageName.value,
             AnalyticsEventProperty.productId: product.productId.toString(),
             AnalyticsEventProperty.variantId: product.variantId.toString(),
             AnalyticsEventProperty.url: url,

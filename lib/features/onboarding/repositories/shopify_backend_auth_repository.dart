@@ -53,15 +53,12 @@ class ShopifyBackendAuthRepository {
       final hasCompletedWelcome = _welcomeCompletionRepository.isCompleted(
         user.id,
       );
-      final completionDestination = intent == ShopifyAuthIntent.kitPurchase
-          ? OnboardingCompletionDestination.shop
-          : OnboardingCompletionDestination.home;
+      // Kit 购买只作为独立的待办续接，不改变 App 登录后的正常分流。
+      const completionDestination = OnboardingCompletionDestination.home;
       final destination = !user.isProfileCompleted
           ? OnboardingAuthDestination.accountProfile
           : !hasCompletedWelcome
           ? OnboardingAuthDestination.welcome
-          : completionDestination == OnboardingCompletionDestination.shop
-          ? OnboardingAuthDestination.shop
           : OnboardingAuthDestination.home;
       return OnboardingAuthResult(
         destination: destination,

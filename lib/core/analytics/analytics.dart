@@ -107,6 +107,7 @@ enum AnalyticsPageName {
   welcome('welcome'),
   tabHome('tab_home'),
   tabShop('tab_shop'),
+  shop('shop'),
   testAbout('test_about'),
   testBeforeStart('test_before_start'),
   testSwab('test_swab'),
@@ -484,8 +485,9 @@ Map<AnalyticsEventProperty, Object> referralAnalyticsProperties({
   };
 }
 
-/// 按埋点文档构造 Shop 商品事件属性，并统一转换美分金额。
+/// 按商品所在页面构造 Shop 事件属性，并统一转换美分金额。
 Map<AnalyticsEventProperty, Object> skuAnalyticsProperties({
+  required AnalyticsPageName pageName,
   required int productId,
   required int variantId,
   required String? title,
@@ -496,7 +498,7 @@ Map<AnalyticsEventProperty, Object> skuAnalyticsProperties({
   required String? currency,
 }) {
   return {
-    AnalyticsEventProperty.pageName: AnalyticsPageName.tabShop.value,
+    AnalyticsEventProperty.pageName: pageName.value,
     AnalyticsEventProperty.productId: productId.toString(),
     AnalyticsEventProperty.variantId: variantId.toString(),
     AnalyticsEventProperty.title: title?.trim() ?? '',

@@ -1,5 +1,5 @@
-// 展示 Shop 商品并协调曝光、点击、分页和购买跳转。
-// 商品达到 10% 可视比例时按单次页面可见周期去重，点击在请求链接前上报。
+// 展示可复用的 Shop 商品列表并协调曝光、分页和购买跳转。
+// Home 模式展示个人入口；登录前模式由外部回调接管 Get kit 并隐藏非商品内容。
 
 import 'dart:async';
 
@@ -34,6 +34,10 @@ class ShopPage extends ConsumerStatefulWidget {
     required this.isActive,
     required this.exposureCycle,
     required this.onMinePressed,
+    this.showTopBar = true,
+    this.showReferral = true,
+    this.analyticsPageName = AnalyticsPageName.tabShop,
+    this.onPurchaseRequested,
   });
 
   /// 当前 Shop Tab 是否实际可见。
@@ -42,6 +46,18 @@ class ShopPage extends ConsumerStatefulWidget {
   /// Shop 每次重新可见时递增，用于开启新一轮商品曝光。
   final int exposureCycle;
   final VoidCallback onMinePressed;
+
+  /// 是否展示 Home Shop Tab 使用的个人中心顶部栏。
+  final bool showTopBar;
+
+  /// 是否展示仅面向已登录用户的 Referral 卡片。
+  final bool showReferral;
+
+  /// 区分 Home Shop Tab 与登录前独立 Shop 页的事件来源。
+  final AnalyticsPageName analyticsPageName;
+
+  /// 登录前商品页传入时，由调用方接管认证和购买续接流程。
+  final Future<void> Function(TestKitProduct product)? onPurchaseRequested;
 
   @override
   ConsumerState<ShopPage> createState() => _ShopPageState();
@@ -101,9 +117,14 @@ class _ShopPageState extends ConsumerState<ShopPage> {
     unawaited(
       ref.report(AnalyticsEvent.skuClick, properties: _skuProperties(product)),
     );
+    final purchaseHandler = widget.onPurchaseRequested;
+    if (purchaseHandler != null) {
+      await purchaseHandler(product);
+      return;
+    }
     final result = await ref
         .read(shopViewModelProvider.notifier)
-        .createPurchaseLink(product);
+        .createPurchaseLink(product, pageName: widget.analyticsPageName);
     if (!mounted) return;
     final uri = result.url;
     if (uri == null) {
@@ -176,6 +197,7 @@ class _ShopPageState extends ConsumerState<ShopPage> {
 
   Map<AnalyticsEventProperty, Object> _skuProperties(TestKitProduct product) {
     return skuAnalyticsProperties(
+      pageName: widget.analyticsPageName,
       productId: product.productId,
       variantId: product.variantId,
       title: product.title,
@@ -239,9 +261,11 @@ class _ShopPageState extends ConsumerState<ShopPage> {
   Widget build(BuildContext context) {
     final products = ref.watch(shopViewModelProvider);
     final imageCacheWidth = _imageCacheWidth(context);
-    final dashboard = ref.watch(homeDashboardProvider);
-    final initial = dashboard.asData?.value.userInitial ?? 'N';
-    final referralOffer = dashboard.asData?.value.referralOffer;
+    final dashboard = widget.showTopBar || widget.showReferral
+        ? ref.watch(homeDashboardProvider)
+        : null;
+    final initial = dashboard?.asData?.value.userInitial ?? 'N';
+    final referralOffer = dashboard?.asData?.value.referralOffer;
     ref.listen(
       shopViewModelProvider.select(
         (value) => value.asData?.value.loadingProductId != null,
@@ -261,7 +285,11 @@ class _ShopPageState extends ConsumerState<ShopPage> {
       color: _pageBackground,
       child: Column(
         children: [
-          _ShopTopBar(initial: initial, onProfilePressed: widget.onMinePressed),
+          if (widget.showTopBar)
+            _ShopTopBar(
+              initial: initial,
+              onProfilePressed: widget.onMinePressed,
+            ),
           Expanded(
             child: products.when(
               loading: () =>
@@ -324,7 +352,7 @@ class _ShopPageState extends ConsumerState<ShopPage> {
                               ),
                               const SizedBox(height: 20),
                             ],
-                          if (referralOffer != null)
+                          if (widget.showReferral && referralOffer != null)
                             VisibilityDetector(
                               key: ValueKey(
                                 'shop-referral-${widget.exposureCycle}',

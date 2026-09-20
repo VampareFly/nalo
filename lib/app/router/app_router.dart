@@ -13,6 +13,7 @@ import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_p
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_page.dart';
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
+import 'package:nalo/features/shop/presentation/pages/guest_kit_shop_page.dart';
 import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 
 /// 提供全局弹窗和根导航共用的 Navigator Key。
@@ -58,6 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AuthEntryPage.path,
         pageBuilder: (context, state) =>
             const NoTransitionPage(child: AuthEntryPage()),
+      ),
+      GoRoute(
+        name: AnalyticsPageName.shop.value,
+        path: GuestKitShopPage.path,
+        builder: (context, state) => const GuestKitShopPage(),
       ),
       GoRoute(
         name: AnalyticsPageName.createAccount.value,

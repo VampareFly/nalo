@@ -10,7 +10,7 @@ class ShopService {
 
   final ApiClient _apiClient;
 
-  /// 获取指定页的商品，detectionType 为空时获取全部类型。
+  /// 匿名获取指定页商品，供登录前 Kit 列表和登录后 Shop Tab 复用。
   Future<TestKitProductPage> getProducts({
     required int page,
     required int pageSize,
@@ -24,6 +24,7 @@ class ShopService {
         if (detectionType != null) 'detection_type': detectionType,
       },
       decoder: _decodeProductPage,
+      requiresAuth: false,
     );
     if (result == null) {
       throw const ResponseFormatException('The products response is empty.');
