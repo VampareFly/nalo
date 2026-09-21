@@ -10,6 +10,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:nalo/app/navigation/initial_page_ready_provider.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/widgets/nalo_back_button.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
@@ -84,6 +85,10 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(initialPageReadyProvider.notifier).markReady();
+    });
     Future.microtask(
       () => ref
           .read(accountProfileViewModelProvider.notifier)

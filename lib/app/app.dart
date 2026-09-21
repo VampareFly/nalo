@@ -6,9 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:nalo/app/router/app_router.dart';
 import 'package:nalo/app/config/app_environment.dart';
 import 'package:nalo/app/config/environment_picker_dialog.dart';
+import 'package:nalo/app/navigation/universal_link_provider.dart';
+import 'package:nalo/app/router/app_router.dart';
 import 'package:nalo/app/theme/app_theme.dart';
 import 'package:nalo/core/network/api_providers.dart';
 import 'package:nalo/core/device/shake_detector.dart';
@@ -111,6 +112,7 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
     final router = ref.watch(appRouterProvider);
     ref.watch(appNotificationPermissionProvider);
     ref.watch(pushMessagingProvider);
+    ref.watch(universalLinkProvider);
     ref.listen(sessionExpirationStreamProvider, (_, next) {
       if (next.hasValue) {
         ref.read(authSessionProvider.notifier).markExpired(next.requireValue);

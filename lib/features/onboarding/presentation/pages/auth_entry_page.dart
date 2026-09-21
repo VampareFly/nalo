@@ -1,4 +1,4 @@
-// 登录注册入口页，展示 Shopify 与仅限 iOS 的 Apple 认证入口。
+// 登录注册入口页，展示最近 Shopify 账号快捷登录与仅限 iOS 的 Apple 入口。
 
 import 'dart:async';
 import 'dart:io';
@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/app/navigation/initial_page_ready_provider.dart';
 import 'package:nalo/core/analytics/analytics.dart';
+import 'package:nalo/features/auth/last_shopify_account_storage.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
@@ -37,6 +39,7 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      ref.read(initialPageReadyProvider.notifier).markReady();
       unawaited(ref.prepareAnalyticsTrackingAuthorization());
     });
   }
@@ -46,6 +49,7 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
     final state = ref.watch(authEntryViewModelProvider);
     final isAnyAuthenticationBusy = state.isLoading;
     final initialShowAppleLogin = ref.watch(initialShowAppleLoginProvider);
+    final lastShopifyAccount = ref.watch(lastShopifyAccountProvider).value;
     final showAppleLogin = Platform.isIOS
         ? (ref.watch(showAppleLoginProvider).value ?? initialShowAppleLogin)
         : false;
@@ -87,7 +91,10 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
       }
     }
 
-    Future<void> authorize(ShopifyAuthIntent intent) async {
+    Future<void> authorize(
+      ShopifyAuthIntent intent, {
+      bool forceLogin = false,
+    }) async {
       if (intent != ShopifyAuthIntent.kitPurchase) {
         ref.read(pendingKitPurchaseProvider.notifier).clear();
       }
@@ -121,7 +128,7 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
       EasyLoading.show();
       final result = await ref
           .read(authEntryViewModelProvider.notifier)
-          .authorize(intent);
+          .authorize(intent, forceLogin: forceLogin);
       EasyLoading.dismiss();
       handleAuthorizationResult(result);
     }
@@ -175,20 +182,34 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
                     subtitle: 'Choose an account to continue.',
                     child: Column(
                       children: [
-                        _PillButton(
-                          label: 'Continue with Shopify',
-                          foregroundColor: const Color(0xFF1A2433),
-                          backgroundColor: Colors.white,
-                          icon: Image.asset(
-                            'assets/icons/shopify_login.png',
-                            width: 24,
-                            height: 24,
+                        if (lastShopifyAccount == null)
+                          _PillButton(
+                            label: 'Continue with Shopify',
+                            foregroundColor: const Color(0xFF1A2433),
+                            backgroundColor: Colors.white,
+                            icon: Image.asset(
+                              'assets/icons/shopify_login.png',
+                              width: 24,
+                              height: 24,
+                            ),
+                            onPressed: isAnyAuthenticationBusy
+                                ? null
+                                : () => authorize(
+                                    ShopifyAuthIntent.loginOrSignUp,
+                                  ),
+                          )
+                        else
+                          _ReturningShopifyAccount(
+                            maskedEmail: lastShopifyAccount.maskedEmail,
+                            isEnabled: !isAnyAuthenticationBusy,
+                            onContinue: () => authorize(
+                              ShopifyAuthIntent.loginOrSignUp,
+                            ),
+                            onUseAnotherAccount: () => authorize(
+                              ShopifyAuthIntent.loginOrSignUp,
+                              forceLogin: true,
+                            ),
                           ),
-                          onPressed: isAnyAuthenticationBusy
-                              ? null
-                              : () =>
-                                    authorize(ShopifyAuthIntent.loginOrSignUp),
-                        ),
                         if (showAppleLogin) ...[
                           const SizedBox(height: 12),
                           _AppleLoginButton(
@@ -291,6 +312,112 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 展示最近 Shopify 账号，并提供复用 Session 或重新登录两个入口。
+class _ReturningShopifyAccount extends StatelessWidget {
+  const _ReturningShopifyAccount({
+    required this.maskedEmail,
+    required this.isEnabled,
+    required this.onContinue,
+    required this.onUseAnotherAccount,
+  });
+
+  final String maskedEmail;
+  final bool isEnabled;
+  final VoidCallback onContinue;
+  final VoidCallback onUseAnotherAccount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Last used Shopify account',
+          style: TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: Row(
+            children: [
+              Image.asset(
+                'assets/icons/shopify_login.png',
+                width: 24,
+                height: 24,
+              ),
+              const SizedBox(width: 10),
+              const CircleAvatar(
+                radius: 14,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, size: 18, color: Color(0xFFB5BBC4)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  maskedEmail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Last used',
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _PillButton(
+          label: 'Continue as $maskedEmail',
+          foregroundColor: const Color(0xFF008BC7),
+          backgroundColor: Colors.white,
+          onPressed: isEnabled ? onContinue : null,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton(
+            onPressed: isEnabled ? onUseAnotherAccount : null,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              disabledForegroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white),
+              shape: const StadiumBorder(),
+              overlayColor: Colors.transparent,
+              splashFactory: NoSplash.splashFactory,
+              textStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: const Text('Use another Shopify account'),
+          ),
+        ),
+      ],
     );
   }
 }

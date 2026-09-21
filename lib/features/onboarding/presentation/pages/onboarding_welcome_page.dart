@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/app/navigation/initial_page_ready_provider.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
@@ -51,6 +52,15 @@ class OnboardingWelcomePage extends ConsumerStatefulWidget {
 
 class _OnboardingWelcomePageState extends ConsumerState<OnboardingWelcomePage> {
   bool _isCompleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(initialPageReadyProvider.notifier).markReady();
+    });
+  }
 
   Future<void> _completeWelcome() async {
     if (_isCompleting) return;

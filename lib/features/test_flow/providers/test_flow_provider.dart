@@ -10,6 +10,22 @@ import 'package:nalo/features/test_flow/repositories/test_flow_repository.dart';
 
 const _unset = Object();
 
+/// 记录检测流程页面是否位于顶层，供外部跳转避免重复打开流程。
+final testFlowVisibilityProvider = Provider<TestFlowVisibilityTracker>(
+  (ref) => TestFlowVisibilityTracker(),
+);
+
+/// 由检测流程的 RouteAware 回调维护顶层标记，不触发 Widget 重建。
+class TestFlowVisibilityTracker {
+  bool _isVisible = false;
+
+  /// 当前检测流程页面是否位于顶层。
+  bool get isVisible => _isVisible;
+
+  /// 在页面进入或离开顶层时同步展示标记。
+  void setVisible(bool isVisible) => _isVisible = isVisible;
+}
+
 /// 检测流程的不可变页面状态。
 class TestFlowState {
   const TestFlowState({

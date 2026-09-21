@@ -19,11 +19,17 @@ import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 /// 提供全局弹窗和根导航共用的 Navigator Key。
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// 向页面暴露实际路由层级变化，用于判断业务页面是否位于顶层。
+final appRouteObserver = RouteObserver<PageRoute<dynamic>>();
+
 /// 集中维护应用路由和页面跳转配置。
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    observers: [ref.watch(analyticsNavigatorObserverProvider)],
+    observers: [
+      ref.watch(analyticsNavigatorObserverProvider),
+      appRouteObserver,
+    ],
     initialLocation: AuthGatePage.path,
     routes: [
       GoRoute(

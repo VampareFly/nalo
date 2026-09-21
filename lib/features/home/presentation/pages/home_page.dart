@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/app/config/app_version_provider.dart';
+import 'package:nalo/app/navigation/initial_page_ready_provider.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/sharing/platform_share_service.dart';
 import 'package:nalo/features/app_update/models/app_version_update.dart';
@@ -64,6 +65,7 @@ class _HomePageState extends ConsumerState<HomePage>
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      ref.read(initialPageReadyProvider.notifier).markReady();
       unawaited(ref.reportAnalyticsPageView(_selectedPageName));
       _hasRenderedFirstFrame = true;
       final update = _pendingVersionUpdate;

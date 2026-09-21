@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/app/router/app_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
@@ -24,9 +25,10 @@ class TestFlowPage extends ConsumerStatefulWidget {
 }
 
 class _TestFlowPageState extends ConsumerState<TestFlowPage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, RouteAware {
   bool _isExiting = false;
   bool _ownsLoadingToast = false;
+  PageRoute<dynamic>? _pageRoute;
 
   @override
   void initState() {
@@ -40,7 +42,35 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is! PageRoute<dynamic> || identical(route, _pageRoute)) return;
+    if (_pageRoute != null) appRouteObserver.unsubscribe(this);
+    _pageRoute = route;
+    appRouteObserver.subscribe(this, route);
+  }
+
+  @override
+  void didPush() => _setRouteVisible(true);
+
+  @override
+  void didPopNext() => _setRouteVisible(true);
+
+  @override
+  void didPushNext() => _setRouteVisible(false);
+
+  @override
+  void didPop() => _setRouteVisible(false);
+
+  void _setRouteVisible(bool isVisible) {
+    ref.read(testFlowVisibilityProvider).setVisible(isVisible);
+  }
+
+  @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
+    _setRouteVisible(false);
     if (_ownsLoadingToast) EasyLoading.dismiss();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
