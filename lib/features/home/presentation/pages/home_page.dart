@@ -31,6 +31,15 @@ class HomePage extends ConsumerStatefulWidget {
   static const path = '/home';
   static const shopPath = '$path?tab=shop';
 
+  /// 为外部跳转生成唯一 Tab 地址，确保当前已在主容器时也会切换。
+  static String externalTabLocation({required bool shop}) => Uri(
+    path: path,
+    queryParameters: {
+      if (shop) 'tab': 'shop',
+      'externalNavigation': DateTime.now().microsecondsSinceEpoch.toString(),
+    },
+  ).toString();
+
   final int initialIndex;
 
   @override

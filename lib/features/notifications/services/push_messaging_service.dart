@@ -4,16 +4,28 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-/// 客户端关心的远程消息最小模型；业务 Payload 协议确认后在此集中扩展。
+/// 保存客户端调试和业务分发所需的远程消息字段。
 class PushRemoteMessage {
-  const PushRemoteMessage({required this.messageId, required this.data});
+  const PushRemoteMessage({
+    required this.messageId,
+    required this.notificationTitle,
+    required this.notificationBody,
+    required this.data,
+  });
 
   final String? messageId;
+  final String? notificationTitle;
+  final String? notificationBody;
   final Map<String, dynamic> data;
 
   /// 从 Firebase 消息转换为业务无关的客户端消息。
   factory PushRemoteMessage.fromFirebase(RemoteMessage message) {
-    return PushRemoteMessage(messageId: message.messageId, data: message.data);
+    return PushRemoteMessage(
+      messageId: message.messageId,
+      notificationTitle: message.notification?.title,
+      notificationBody: message.notification?.body,
+      data: message.data,
+    );
   }
 }
 
@@ -24,6 +36,9 @@ abstract interface class PushMessagingService {
   Stream<PushRemoteMessage> get onForegroundMessage;
 
   Stream<PushRemoteMessage> get onMessageOpenedApp;
+
+  /// 配置 iOS 在前台收到通知消息时展示系统横幅和声音，不更新角标。
+  Future<void> configureForegroundPresentation();
 
   /// 获取当前 App 实例的 FCM Token；iOS 尚未取得 APNs Token 时返回空。
   Future<String?> getToken();
@@ -50,6 +65,15 @@ class FirebasePushMessagingService implements PushMessagingService {
       FirebaseMessaging.onMessageOpenedApp.map(
         PushRemoteMessage.fromFirebase,
       );
+
+  @override
+  Future<void> configureForegroundPresentation() {
+    return _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: false,
+      sound: true,
+    );
+  }
 
   @override
   Future<String?> getToken() async {
