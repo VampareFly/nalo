@@ -8,7 +8,6 @@ import 'package:nalo/features/home/presentation/pages/home_page.dart';
 import 'package:nalo/features/home/presentation/pages/test_history_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
-import 'package:nalo/features/onboarding/presentation/pages/auth_gate_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_page.dart';
@@ -22,6 +21,11 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 /// 向页面暴露实际路由层级变化，用于判断业务页面是否位于顶层。
 final appRouteObserver = RouteObserver<PageRoute<dynamic>>();
 
+/// 由启动解析器覆盖，使 Flutter 首帧直接进入最终业务页面。
+final initialAppLocationProvider = Provider<String>(
+  (ref) => AuthEntryPage.path,
+);
+
 /// 集中维护应用路由和页面跳转配置。
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -30,12 +34,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ref.watch(analyticsNavigatorObserverProvider),
       appRouteObserver,
     ],
-    initialLocation: AuthGatePage.path,
+    initialLocation: ref.watch(initialAppLocationProvider),
     routes: [
-      GoRoute(
-        path: AuthGatePage.path,
-        builder: (context, state) => const AuthGatePage(),
-      ),
       GoRoute(
         path: HomePage.path,
         pageBuilder: (context, state) => NoTransitionPage(

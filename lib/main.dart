@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nalo/app/app.dart';
+import 'package:nalo/app/bootstrap/app_startup_destination.dart';
 import 'package:nalo/app/config/app_environment.dart';
+import 'package:nalo/app/router/app_router.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/analytics/amplitude_config.dart';
 import 'package:nalo/core/crash_reporting/crash_reporting_service.dart';
@@ -47,6 +49,7 @@ Future<void> main() async {
 
   final preferences = await SharedPreferences.getInstance();
   final initialShowAppleLogin = readInitialShowAppleLogin(preferences);
+  final initialAppLocation = await resolveAppStartupLocation(preferences);
 
   final bootstrapContainer = ProviderContainer(retry: appProviderRetry);
   final environment = await bootstrapContainer.read(
@@ -62,6 +65,7 @@ Future<void> main() async {
         amplitudeProvider.overrideWithValue(amplitude),
         sharedPreferencesProvider.overrideWith((ref) => preferences),
         initialShowAppleLoginProvider.overrideWithValue(initialShowAppleLogin),
+        initialAppLocationProvider.overrideWithValue(initialAppLocation),
       ],
       child: const NaloApp(),
     ),

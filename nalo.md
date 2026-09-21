@@ -140,6 +140,8 @@ Token有效且User未完善 → 完善资料页
 Token有效且User已完善 → Welcome或首页
 ```
 
+上述目标路由在 `runApp()` 前仅根据本地数据计算。原生启动页结束后，Flutter首帧直接展示最终页面，不再显示独立的认证分流中间页；运行期 Session恢复、后台刷新和过期弹窗仍由 `AuthSessionNotifier` 负责。
+
 ## Token刷新
 
 ```text
