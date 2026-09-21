@@ -29,6 +29,7 @@ class TestFlowVisibilityTracker {
 /// 检测流程的不可变页面状态。
 class TestFlowState {
   const TestFlowState({
+    this.source,
     this.step = TestFlowStep.about,
     this.type = DetectionType.cortisol,
     this.config = DetectionConfig.fallback,
@@ -50,6 +51,7 @@ class TestFlowState {
     this.errorMessage,
   });
 
+  final AnalyticsTestFlowSource? source;
   final TestFlowStep step;
   final DetectionType type;
   final DetectionConfig config;
@@ -97,6 +99,7 @@ class TestFlowState {
     bool? isLoading,
     Object? errorMessage = _unset,
   }) => TestFlowState(
+    source: source,
     step: step ?? this.step,
     type: type ?? this.type,
     config: config ?? this.config,
@@ -153,6 +156,22 @@ class TestFlowController extends Notifier<TestFlowState> {
   TestFlowState build() {
     ref.onDispose(_stopTicker);
     return const TestFlowState();
+  }
+
+  /// 入口触发时记录本次检测会话来源，后续检测业务事件统一沿用。
+  void beginSession(AnalyticsTestFlowSource source) {
+    state = TestFlowState(
+      source: source,
+      type: state.type,
+      config: state.config,
+      recent: state.recent,
+    );
+  }
+
+  /// 检测路由退出后清空会话来源，避免污染流程外的同名事件。
+  void endSession() {
+    _stopTicker();
+    state = TestFlowState(config: state.config, recent: state.recent);
   }
 
   /// 每次进入检测页时确保配置可用，并在共享缓存缺失时加载最近三次结果。
@@ -277,6 +296,8 @@ class TestFlowController extends Notifier<TestFlowState> {
             .report(
               AnalyticsEvent.testTimerComplete,
               properties: {
+                if (state.source != null)
+                  AnalyticsEventProperty.source: state.source!.value,
                 AnalyticsEventProperty.pageName: _pageNameForStep(
                   completedStep,
                 ).value,
@@ -412,6 +433,8 @@ class TestFlowController extends Notifier<TestFlowState> {
             .report(
               AnalyticsEvent.testPhotoAnalysisRequestResult,
               properties: {
+                if (state.source != null)
+                  AnalyticsEventProperty.source: state.source!.value,
                 AnalyticsEventProperty.pageName:
                     AnalyticsPageName.testPhotoPreview.value,
                 AnalyticsEventProperty.detectionType: _analyticsDetectionType(
@@ -454,6 +477,8 @@ class TestFlowController extends Notifier<TestFlowState> {
               .report(
                 AnalyticsEvent.testPhotoAnalysisRequestResult,
                 properties: {
+                  if (state.source != null)
+                    AnalyticsEventProperty.source: state.source!.value,
                   AnalyticsEventProperty.pageName:
                       AnalyticsPageName.testPhotoPreview.value,
                   AnalyticsEventProperty.detectionType: _analyticsDetectionType(
@@ -493,6 +518,7 @@ class TestFlowController extends Notifier<TestFlowState> {
       state = state.copyWith(selectedLevel: value);
   void selectSampleDate(DateTime value) =>
       state = state.copyWith(sampledAt: value);
+
   /// 更新用户选择的检测时段，并同步该时段与检测类型对应的典型范围。
   void selectTimePeriod(String value) {
     final matches = state.effectiveConfig.timePeriods.options.where(
@@ -520,6 +546,8 @@ class TestFlowController extends Notifier<TestFlowState> {
     }
     final sampledAt = state.sampledAt;
     final requestProperties = <AnalyticsEventProperty, Object>{
+      if (state.source != null)
+        AnalyticsEventProperty.source: state.source!.value,
       AnalyticsEventProperty.pageName:
           AnalyticsPageName.testResultConfirm.value,
       AnalyticsEventProperty.detectionType: _analyticsDetectionType(
@@ -569,6 +597,8 @@ class TestFlowController extends Notifier<TestFlowState> {
               .report(
                 AnalyticsEvent.testResultRequestResult,
                 properties: {
+                  if (state.source != null)
+                    AnalyticsEventProperty.source: state.source!.value,
                   AnalyticsEventProperty.pageName:
                       AnalyticsPageName.testResultConfirm.value,
                   AnalyticsEventProperty.detectionType: _analyticsDetectionType(
@@ -590,6 +620,8 @@ class TestFlowController extends Notifier<TestFlowState> {
               .report(
                 AnalyticsEvent.testResultRequestResult,
                 properties: {
+                  if (state.source != null)
+                    AnalyticsEventProperty.source: state.source!.value,
                   AnalyticsEventProperty.pageName:
                       AnalyticsPageName.testResultConfirm.value,
                   AnalyticsEventProperty.detectionType: _analyticsDetectionType(
@@ -648,6 +680,7 @@ class TestFlowController extends Notifier<TestFlowState> {
     const initialType = DetectionType.cortisol;
     final cache = ref.read(recentTestsCacheProvider);
     state = TestFlowState(
+      source: state.source,
       type: initialType,
       config: state.config,
       recent: cache.hasLoaded(initialType)

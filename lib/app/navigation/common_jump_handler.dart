@@ -4,24 +4,22 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
-import 'package:nalo/app/router/app_router.dart';
+import 'package:nalo/app/navigation/test_flow_entry_coordinator.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/logging/logger_provider.dart';
 import 'package:nalo/features/auth/auth_session_provider.dart';
 import 'package:nalo/features/test_flow/providers/test_flow_provider.dart';
-import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 
 /// 提供 Push 和 Universal Link 共用的外部跳转处理器。
 final commonJumpHandlerProvider = Provider<CommonJumpHandler>((ref) {
   return CommonJumpHandler(
-    router: ref.read(appRouterProvider),
+    testFlowEntryCoordinator: ref.read(testFlowEntryCoordinatorProvider),
     logger: ref.read(loggerProvider),
     isAuthenticated: () =>
         ref.read(authSessionProvider).value?.status ==
         AuthSessionStatus.authenticated,
-    isTestFlowVisible: () =>
-        ref.read(testFlowVisibilityProvider).isVisible,
+    isTestFlowVisible: () => ref.read(testFlowVisibilityProvider).isVisible,
   );
 });
 
@@ -29,25 +27,28 @@ final commonJumpHandlerProvider = Provider<CommonJumpHandler>((ref) {
 class CommonJumpHandler {
   /// 创建通用跳转处理器，由 Provider 注入路由和日志依赖。
   CommonJumpHandler({
-    required GoRouter router,
+    required TestFlowEntryCoordinator testFlowEntryCoordinator,
     required Logger logger,
     required bool Function() isAuthenticated,
     required bool Function() isTestFlowVisible,
-  })
-    : _router = router,
-      _logger = logger,
-      _isAuthenticated = isAuthenticated,
-      _isTestFlowVisible = isTestFlowVisible;
+  }) : _testFlowEntryCoordinator = testFlowEntryCoordinator,
+       _logger = logger,
+       _isAuthenticated = isAuthenticated,
+       _isTestFlowVisible = isTestFlowVisible;
 
   static const _testFlowTarget = 'test_flow';
 
-  final GoRouter _router;
+  final TestFlowEntryCoordinator _testFlowEntryCoordinator;
   final Logger _logger;
   final bool Function() _isAuthenticated;
   final bool Function() _isTestFlowVisible;
 
   /// 解析外部跳转字段并执行白名单中的页面跳转，成功发起跳转时返回 true。
-  bool navigate({required String target, String action = ''}) {
+  bool navigate({
+    required String target,
+    String action = '',
+    AnalyticsTestFlowSource source = AnalyticsTestFlowSource.commonLink,
+  }) {
     final parameters = _parseAction(action);
     if (parameters == null) {
       _logger.w('External navigation ignored because action is invalid');
@@ -74,7 +75,7 @@ class CommonJumpHandler {
           );
           return false;
         }
-        unawaited(_router.push<void>(TestFlowPage.path));
+        unawaited(_testFlowEntryCoordinator.open(source: source));
         return true;
       default:
         _logger.w('External navigation ignored for unknown target: $target');

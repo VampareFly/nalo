@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nalo/app/config/app_version_provider.dart';
 import 'package:nalo/app/navigation/initial_page_ready_provider.dart';
+import 'package:nalo/app/navigation/test_flow_entry_coordinator.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/sharing/platform_share_service.dart';
 import 'package:nalo/features/app_update/models/app_version_update.dart';
@@ -21,7 +22,6 @@ import 'package:nalo/features/home/providers/home_dashboard_provider.dart';
 import 'package:nalo/features/notifications/providers/notification_permission_provider.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_page.dart';
 import 'package:nalo/features/shop/presentation/pages/shop_page.dart';
-import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// 登录后的主容器页面，负责首页、Shop 与 Scan 入口的协调。
@@ -230,18 +230,20 @@ class _HomePageState extends ConsumerState<HomePage>
     AnalyticsTestStartPosition position, {
     int? totalTestCount,
   }) async {
-    unawaited(
-      ref.report(
-        AnalyticsEvent.testStartEntryClick,
-        properties: {
-          AnalyticsEventProperty.pageName: _selectedPageName.value,
-          AnalyticsEventProperty.position: position.value,
-          AnalyticsEventProperty.totalTestCount:
-              totalTestCount ?? _currentTotalTestCount,
-        },
-      ),
-    );
-    await context.push(TestFlowPage.path);
+    final source = switch (position) {
+      AnalyticsTestStartPosition.homeCard => AnalyticsTestFlowSource.homeCard,
+      AnalyticsTestStartPosition.bottomScan => AnalyticsTestFlowSource.tabScan,
+      AnalyticsTestStartPosition.testHistoryEmpty =>
+        AnalyticsTestFlowSource.testHistoryEmpty,
+    };
+    await ref
+        .read(testFlowEntryCoordinatorProvider)
+        .open(
+          source: source,
+          pageName: _selectedPageName,
+          position: position,
+          totalTestCount: totalTestCount ?? _currentTotalTestCount,
+        );
     if (mounted) _resumeSelectedTabAfterChild();
   }
 

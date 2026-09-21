@@ -9,12 +9,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nalo/app/navigation/test_flow_entry_coordinator.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/widgets/nalo_back_button.dart';
 import 'package:nalo/core/widgets/nalo_state_view.dart';
 import 'package:nalo/features/home/models/test_history_models.dart';
 import 'package:nalo/features/home/view_models/test_history_view_model.dart';
-import 'package:nalo/features/test_flow/presentation/pages/test_flow_page.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 const _historyBlue = Color(0xFF008BC7);
@@ -65,8 +65,11 @@ class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
       return;
     }
     final state = ref.read(testHistoryViewModelProvider);
-    if (state.isInitialLoading || state.isRefreshing || state.isLoadingMore ||
-        !state.hasMore || state.nextEndDate.isEmpty) {
+    if (state.isInitialLoading ||
+        state.isRefreshing ||
+        state.isLoadingMore ||
+        !state.hasMore ||
+        state.nextEndDate.isEmpty) {
       return;
     }
     _loadMoreArmed = false;
@@ -92,19 +95,14 @@ class _TestHistoryPageState extends ConsumerState<TestHistoryPage> {
   }
 
   Future<void> _startTestFromEmptyState() async {
-    unawaited(
-      ref.report(
-        AnalyticsEvent.testStartEntryClick,
-        properties: {
-          AnalyticsEventProperty.pageName:
-              AnalyticsPageName.testHistory.value,
-          AnalyticsEventProperty.position:
-              AnalyticsTestStartPosition.testHistoryEmpty.value,
-          AnalyticsEventProperty.totalTestCount: 0,
-        },
-      ),
-    );
-    await context.push(TestFlowPage.path);
+    await ref
+        .read(testFlowEntryCoordinatorProvider)
+        .open(
+          source: AnalyticsTestFlowSource.testHistoryEmpty,
+          pageName: AnalyticsPageName.testHistory,
+          position: AnalyticsTestStartPosition.testHistoryEmpty,
+          totalTestCount: 0,
+        );
     if (!mounted) return;
     await ref.read(testHistoryViewModelProvider.notifier).loadInitial();
   }
@@ -354,8 +352,7 @@ class _HistoryContent extends ConsumerWidget {
               : NaloStateView(
                   illustrationAsset: NaloStateIllustration.testHistoryEmpty,
                   title: 'No matching results',
-                  description:
-                      'There are no results for this test type yet.',
+                  description: 'There are no results for this test type yet.',
                   actionLabel: 'View all results',
                   onAction: onViewAll,
                 )

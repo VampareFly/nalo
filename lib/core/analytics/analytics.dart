@@ -181,6 +181,7 @@ enum AnalyticsEventProperty {
   friendRewardType('friend_reward_type'),
   friendRewardValue('friend_reward_value'),
   friendRewardUnit('friend_reward_unit'),
+  source('source'),
   position('position'),
   totalTestCount('total_test_count'),
   detectionType('detection_type'),
@@ -309,6 +310,28 @@ enum AnalyticsTestStartPosition {
   const AnalyticsTestStartPosition(this.value);
 
   final String value;
+}
+
+/// 标识一次检测会话的固定入口来源，供检测全流程事件统一归因。
+enum AnalyticsTestFlowSource {
+  homeCard('home_card'),
+  tabScan('tab_scan'),
+  testHistoryEmpty('test_history_empty'),
+  commonLink('common_link'),
+  push('push'),
+  unknown('unknown');
+
+  const AnalyticsTestFlowSource(this.value);
+
+  final String value;
+
+  /// 将路由参数还原为来源枚举，缺失或非法值统一降级为 unknown。
+  static AnalyticsTestFlowSource fromValue(String? value) {
+    return AnalyticsTestFlowSource.values.firstWhere(
+      (source) => source.value == value,
+      orElse: () => AnalyticsTestFlowSource.unknown,
+    );
+  }
 }
 
 /// 计时页面展示时的状态值。

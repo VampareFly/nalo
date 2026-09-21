@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nalo/app/navigation/common_jump_handler.dart';
 import 'package:nalo/app/navigation/initial_page_ready_provider.dart';
+import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/logging/logger_provider.dart';
 
 /// 提供应用进程内共享的 Universal Link 监听生命周期。
@@ -78,9 +79,12 @@ class UniversalLinkNotifier extends Notifier<void> {
   void _navigate(Uri uri) {
     final target = uri.queryParameters['target']?.trim();
     if (target == null || target.isEmpty) return;
-    ref.read(commonJumpHandlerProvider).navigate(
-      target: target,
-      action: uri.queryParameters['action'] ?? '',
-    );
+    ref
+        .read(commonJumpHandlerProvider)
+        .navigate(
+          target: target,
+          action: uri.queryParameters['action'] ?? '',
+          source: AnalyticsTestFlowSource.commonLink,
+        );
   }
 }

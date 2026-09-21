@@ -183,6 +183,8 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
       ref.report(
         AnalyticsEvent.testTimerView,
         properties: {
+          if (state.source != null)
+            AnalyticsEventProperty.source: state.source!.value,
           AnalyticsEventProperty.pageName: pageName.value,
           AnalyticsEventProperty.detectionType: _analyticsDetectionType(
             state.type,
@@ -365,6 +367,8 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   Map<AnalyticsEventProperty, Object> _flowProperties(TestFlowState state) {
     final pageName = _analyticsPageName(state.step);
     return {
+      if (state.source != null)
+        AnalyticsEventProperty.source: state.source!.value,
       AnalyticsEventProperty.pageName: pageName?.value ?? '',
       AnalyticsEventProperty.detectionType: _analyticsDetectionType(
         state.type,

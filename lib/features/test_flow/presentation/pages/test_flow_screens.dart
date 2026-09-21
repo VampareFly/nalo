@@ -40,10 +40,12 @@ class _AboutTestScreenState extends ConsumerState<AboutTestScreen> {
   final Set<String> _viewedItems = {};
 
   void _selectType(DetectionType type) {
+    final source = ref.read(testFlowProvider).source;
     unawaited(
       ref.report(
         AnalyticsEvent.testTypeClick,
         properties: {
+          if (source != null) AnalyticsEventProperty.source: source.value,
           AnalyticsEventProperty.pageName: AnalyticsPageName.testAbout.value,
           AnalyticsEventProperty.detectionType: _analyticsDetectionType(
             type,
@@ -61,6 +63,7 @@ class _AboutTestScreenState extends ConsumerState<AboutTestScreen> {
         properties: _testFlowProperties(
           AnalyticsPageName.testAbout,
           state.type,
+          state.source,
         ),
       ),
     );
@@ -76,7 +79,11 @@ class _AboutTestScreenState extends ConsumerState<AboutTestScreen> {
       ref.report(
         AnalyticsEvent.testResultSectionView,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testAbout, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testAbout,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.itemCount: state.recent.length,
           AnalyticsEventProperty.position: 1,
         },
@@ -100,7 +107,11 @@ class _AboutTestScreenState extends ConsumerState<AboutTestScreen> {
       ref.report(
         AnalyticsEvent.testResultItemView,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testAbout, type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testAbout,
+            type,
+            ref.read(testFlowProvider).source,
+          ),
           AnalyticsEventProperty.testId: testId,
           AnalyticsEventProperty.position: position,
           AnalyticsEventProperty.date: item.date,
@@ -217,11 +228,11 @@ class _AboutTestScreenState extends ConsumerState<AboutTestScreen> {
                   key: ValueKey('test-about-section-${state.type.name}'),
                   onVisibilityChanged: (info) =>
                       _reportSectionView(state, info.visibleFraction),
-                child: RecentResultsHeader(
-                  count: state.recent.length,
-                  type: state.type,
-                  showTypeInTitle: false,
-                ),
+                  child: RecentResultsHeader(
+                    count: state.recent.length,
+                    type: state.type,
+                    showTypeInTitle: false,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 RecentResultsList(
@@ -508,7 +519,11 @@ class _BeforeStartScreenState extends ConsumerState<BeforeStartScreen> {
       ref.report(
         AnalyticsEvent.testPreparationTipView,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testBeforeStart, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testBeforeStart,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.position: position,
           AnalyticsEventProperty.title: title,
           AnalyticsEventProperty.desc: desc,
@@ -524,6 +539,7 @@ class _BeforeStartScreenState extends ConsumerState<BeforeStartScreen> {
         properties: _testFlowProperties(
           AnalyticsPageName.testBeforeStart,
           state.type,
+          state.source,
         ),
       ),
     );
@@ -685,10 +701,7 @@ class TestTimerScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Center(
-                    child: const FlowNaloMark(
-                      color: Colors.white,
-                      width: 64,
-                    ),
+                    child: const FlowNaloMark(color: Colors.white, width: 64),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -829,7 +842,11 @@ class TestTimerScreen extends ConsumerWidget {
       ref.report(
         AnalyticsEvent.testTimerClick,
         properties: {
-          ..._testFlowProperties(_timerPageName(state.step), state.type),
+          ..._testFlowProperties(
+            _timerPageName(state.step),
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.action: action.value,
           AnalyticsEventProperty.timerDurationSeconds:
               state.timerDuration.inSeconds,
@@ -852,7 +869,11 @@ class TestTimerScreen extends ConsumerWidget {
       ref.report(
         AnalyticsEvent.testTimerAlertView,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testDevelop, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testDevelop,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.timerAction: timerAction.value,
           AnalyticsEventProperty.title: title,
           AnalyticsEventProperty.desc: desc,
@@ -871,7 +892,11 @@ class TestTimerScreen extends ConsumerWidget {
       ref.report(
         AnalyticsEvent.testTimerAlertClick,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testDevelop, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testDevelop,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.timerAction: timerAction.value,
           AnalyticsEventProperty.action: confirmed
               ? AnalyticsConfirmationAction.confirm.value
@@ -1101,6 +1126,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         properties: _testFlowProperties(
           AnalyticsPageName.testCapture,
           state.type,
+          state.source,
         ),
       ),
     );
@@ -1114,7 +1140,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           ref.report(
             AnalyticsEvent.testPhotoCaptureResult,
             properties: {
-              ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+              ..._testFlowProperties(
+                AnalyticsPageName.testCapture,
+                state.type,
+                state.source,
+              ),
               AnalyticsEventProperty.isSuccess: 1,
               AnalyticsEventProperty.failReason: '',
             },
@@ -1128,7 +1158,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           ref.report(
             AnalyticsEvent.testPhotoCaptureResult,
             properties: {
-              ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+              ..._testFlowProperties(
+                AnalyticsPageName.testCapture,
+                state.type,
+                state.source,
+              ),
               AnalyticsEventProperty.isSuccess: 0,
               AnalyticsEventProperty.failReason:
                   'photo_capture_failed: Photo capture failed',
@@ -1160,12 +1194,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     return Rect.fromLTWH(
       (frameOrigin.dx / previewSize.width).clamp(0.0, 1.0).toDouble(),
       (frameOrigin.dy / previewSize.height).clamp(0.0, 1.0).toDouble(),
-      (frameBox.size.width / previewSize.width)
-          .clamp(0.0, 1.0)
-          .toDouble(),
-      (frameBox.size.height / previewSize.height)
-          .clamp(0.0, 1.0)
-          .toDouble(),
+      (frameBox.size.width / previewSize.width).clamp(0.0, 1.0).toDouble(),
+      (frameBox.size.height / previewSize.height).clamp(0.0, 1.0).toDouble(),
     );
   }
 
@@ -1179,7 +1209,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       ref.report(
         AnalyticsEvent.testCameraPermissionResult,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testCapture,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.permissionStatus: status.value,
           AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
           AnalyticsEventProperty.failReason: failReason,
@@ -1194,7 +1228,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       ref.report(
         AnalyticsEvent.testCameraPermissionClick,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testCapture,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.action: action.value,
         },
       ),
@@ -1209,7 +1247,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       ref.report(
         AnalyticsEvent.testCameraInitResult,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testCapture,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.isSuccess: isSuccess ? 1 : 0,
           AnalyticsEventProperty.failReason: isSuccess
               ? ''
@@ -1227,7 +1269,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       ref.report(
         AnalyticsEvent.testCaptureGuideView,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testCapture, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testCapture,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.title: 'Align the entire test cassette',
           AnalyticsEventProperty.desc:
               'Keep the whole cassette inside the frame.\nPlace the cassette flat on a plain, dark surface. Make sure it is well lit and free from glare.',
@@ -1269,10 +1315,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                     Text(
                       'Keep the whole cassette inside the frame.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0x99FFFFFF),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Color(0x99FFFFFF), fontSize: 12),
                     ),
                   ],
                 ),
@@ -1529,6 +1572,7 @@ class _PhotoPreviewScreenState extends ConsumerState<PhotoPreviewScreen> {
             ..._testFlowProperties(
               AnalyticsPageName.testPhotoPreview,
               state.type,
+              state.source,
             ),
             AnalyticsEventProperty.title: 'Photo capture',
             AnalyticsEventProperty.desc:
@@ -1547,6 +1591,7 @@ class _PhotoPreviewScreenState extends ConsumerState<PhotoPreviewScreen> {
           ..._testFlowProperties(
             AnalyticsPageName.testPhotoPreview,
             state.type,
+            state.source,
           ),
           AnalyticsEventProperty.method:
               AnalyticsPhotoRetakeMethod.retakeButton.value,
@@ -1563,6 +1608,7 @@ class _PhotoPreviewScreenState extends ConsumerState<PhotoPreviewScreen> {
         properties: _testFlowProperties(
           AnalyticsPageName.testPhotoPreview,
           state.type,
+          state.source,
         ),
       ),
     );
@@ -1926,7 +1972,8 @@ class _ConfirmResultScreenState extends ConsumerState<ConfirmResultScreen> {
                               Text(
                                 option.range,
                                 style: TextStyle(
-                                  color: state.selectedTimePeriod == option.value
+                                  color:
+                                      state.selectedTimePeriod == option.value
                                       ? const Color(0xBFFFFFFF)
                                       : flowMuted,
                                   fontSize: 12,
@@ -2330,7 +2377,11 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
       ref.report(
         AnalyticsEvent.testResultSectionView,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testResult, state.type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testResult,
+            state.type,
+            state.source,
+          ),
           AnalyticsEventProperty.itemCount: itemCount,
           AnalyticsEventProperty.position: 1,
         },
@@ -2351,7 +2402,11 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
       ref.report(
         AnalyticsEvent.testResultItemView,
         properties: {
-          ..._testFlowProperties(AnalyticsPageName.testResult, type),
+          ..._testFlowProperties(
+            AnalyticsPageName.testResult,
+            type,
+            ref.read(testFlowProvider).source,
+          ),
           AnalyticsEventProperty.testId: item.id.toString(),
           AnalyticsEventProperty.position: position,
           AnalyticsEventProperty.date: item.date,
@@ -2385,7 +2440,10 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
     unawaited(
       ref.report(
         AnalyticsEvent.referralView,
-        properties: _resultReferralProperties(offer),
+        properties: _resultReferralProperties(
+          offer,
+          ref.read(testFlowProvider).source,
+        ),
       ),
     );
   }
@@ -2394,7 +2452,10 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
     unawaited(
       ref.report(
         AnalyticsEvent.referralClick,
-        properties: _resultReferralProperties(offer),
+        properties: _resultReferralProperties(
+          offer,
+          ref.read(testFlowProvider).source,
+        ),
       ),
     );
     unawaited(_showReferralShare(offer.actionUrl, offer.shareText));
@@ -2421,6 +2482,7 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
         properties: _testFlowProperties(
           AnalyticsPageName.testResult,
           state.type,
+          state.source,
         ),
       ),
     );
@@ -2633,7 +2695,9 @@ class _ResultDetailsScreenState extends ConsumerState<ResultDetailsScreen> {
               child: Row(
                 children: [
                   Image(
-                    image: AssetImage('assets/icons/notification_bell_blue.png'),
+                    image: AssetImage(
+                      'assets/icons/notification_bell_blue.png',
+                    ),
                     width: 18,
                     height: 19,
                     fit: BoxFit.contain,
@@ -2800,8 +2864,10 @@ class _ResultMetric extends StatelessWidget {
 Map<AnalyticsEventProperty, Object> _testFlowProperties(
   AnalyticsPageName pageName,
   DetectionType type,
+  AnalyticsTestFlowSource? source,
 ) {
   return {
+    if (source != null) AnalyticsEventProperty.source: source.value,
     AnalyticsEventProperty.pageName: pageName.value,
     AnalyticsEventProperty.detectionType: _analyticsDetectionType(type).value,
   };
@@ -2812,23 +2878,27 @@ Map<AnalyticsEventProperty, Object> _testResultProperties(
   TestFlowState state,
 ) {
   return {
-    ..._testFlowProperties(pageName, state.type),
+    ..._testFlowProperties(pageName, state.type, state.source),
     AnalyticsEventProperty.testId: state.analysis?.id.toString() ?? '',
   };
 }
 
 Map<AnalyticsEventProperty, Object> _resultReferralProperties(
   HomeReferralOffer offer,
-) => referralAnalyticsProperties(
-  pageName: AnalyticsPageName.testResult,
-  url: offer.actionUrl,
-  advocateRewardType: offer.advocateRewardType,
-  advocateRewardValue: offer.advocateRewardValue,
-  advocateRewardUnit: offer.advocateRewardUnit,
-  friendRewardType: offer.friendRewardType,
-  friendRewardValue: offer.friendRewardValue,
-  friendRewardUnit: offer.friendRewardUnit,
-);
+  AnalyticsTestFlowSource? source,
+) => {
+  ...referralAnalyticsProperties(
+    pageName: AnalyticsPageName.testResult,
+    url: offer.actionUrl,
+    advocateRewardType: offer.advocateRewardType,
+    advocateRewardValue: offer.advocateRewardValue,
+    advocateRewardUnit: offer.advocateRewardUnit,
+    friendRewardType: offer.friendRewardType,
+    friendRewardValue: offer.friendRewardValue,
+    friendRewardUnit: offer.friendRewardUnit,
+  ),
+  if (source != null) AnalyticsEventProperty.source: source.value,
+};
 
 String _analyticsDate(DateTime value) {
   return '${value.year.toString().padLeft(4, '0')}-'

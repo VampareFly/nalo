@@ -119,17 +119,21 @@ class PushMessagingNotifier extends Notifier<void> {
   }
 
   void _handleForegroundMessage(PushRemoteMessage message) {
-    ref.read(loggerProvider).d(
-      'Foreground push received. messageId=${message.messageId ?? 'none'}',
-    );
+    ref
+        .read(loggerProvider)
+        .d(
+          'Foreground push received. messageId=${message.messageId ?? 'none'}',
+        );
     // TODO: <pf> 服务端确认 Push Payload 和前台 UI 后，在此分发前台消息。
   }
 
   void _handleMessageOpenedApp(PushRemoteMessage message) {
-    ref.read(loggerProvider).d(
-      'Push opened from background. messageId=${message.messageId ?? 'none'}',
-    );
-    // TODO: <pf> 服务端确认 Payload 与页面映射后，通过路由白名单处理跳转。
+    ref
+        .read(loggerProvider)
+        .d(
+          'Push opened from background. messageId=${message.messageId ?? 'none'}',
+        );
+    // TODO: <pf> 服务端确认 Payload 与页面映射后，通过统一跳转处理器传入 source=push。
   }
 
   Future<void> _handleInitialMessage() async {
@@ -138,11 +142,13 @@ class PushMessagingNotifier extends Notifier<void> {
           .read(pushMessagingServiceProvider)
           .getInitialMessage();
       if (message == null) return;
-      ref.read(loggerProvider).d(
-        'Push opened from terminated state. '
-        'messageId=${message.messageId ?? 'none'}',
-      );
-      // TODO: <pf> 服务端确认 Payload 与页面映射后，通过路由白名单处理跳转。
+      ref
+          .read(loggerProvider)
+          .d(
+            'Push opened from terminated state. '
+            'messageId=${message.messageId ?? 'none'}',
+          );
+      // TODO: <pf> 服务端确认 Payload 与页面映射后，通过统一跳转处理器传入 source=push。
     } catch (error, stackTrace) {
       _logTokenError(
         'Initial push message handling failed.',
@@ -155,21 +161,11 @@ class PushMessagingNotifier extends Notifier<void> {
   void _logMessageStreamError(Object error, StackTrace stackTrace) {
     ref
         .read(loggerProvider)
-        .e(
-          'Push message stream failed.',
-          error: error,
-          stackTrace: stackTrace,
-        );
+        .e('Push message stream failed.', error: error, stackTrace: stackTrace);
   }
 
-  void _logTokenError(
-    String message,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    ref
-        .read(loggerProvider)
-        .e(message, error: error, stackTrace: stackTrace);
+  void _logTokenError(String message, Object error, StackTrace stackTrace) {
+    ref.read(loggerProvider).e(message, error: error, stackTrace: stackTrace);
   }
 
   bool get _isSupportedPlatform =>
