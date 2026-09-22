@@ -23,6 +23,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// 客户端发送到 Amplitude 与 GA4 的事件名称。
 enum AnalyticsEvent {
   pageView('page_view'),
+  loginMethodView('login_method_view'),
   loginClick('login_click'),
   iNeedKitClick('i_need_kit_click'),
   loginRequestResult('login_request_result'),
@@ -157,6 +158,8 @@ enum AnalyticsEventProperty {
   pageName('page_name'),
   previousPage('previous_page'),
   method('method'),
+  hasSavedShopifyAccount('has_saved_shopify_account'),
+  appleVisible('apple_visible'),
   loginMethod('login_method'),
   isSuccess('is_success'),
   failReason('fail_reason'),
@@ -236,11 +239,13 @@ enum AnalyticsUserProperty {
   final String propertyName;
 }
 
-/// `login_click.method` 的文档枚举值。
+/// 登录入口曝光与点击共用的 `method` 枚举值。
 enum AnalyticsLoginClickMethod {
   continueWithShopify('1'),
   signIn('2'),
-  continueWithApple('3');
+  continueWithApple('3'),
+  continueAsShopifyAccount('4'),
+  useAnotherShopifyAccount('5');
 
   const AnalyticsLoginClickMethod(this.value);
 

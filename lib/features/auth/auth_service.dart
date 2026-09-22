@@ -13,7 +13,7 @@ class AuthService {
 
   final ApiClient _apiClient;
 
-  /// 使用 Refresh Token 获取新 Token；失败由 Session 层静默回退旧 Token。
+  /// 使用 Refresh Token获取新 Token；具体失败反馈由调用场景决定。
   Future<AuthTokenDto> refresh({required String refreshToken}) async {
     final token = await _apiClient.post<AuthTokenDto>(
       '/api/v1/app/auth/refresh',

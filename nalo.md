@@ -109,7 +109,7 @@ I need a kit → 完成相同资料和Welcome流程后进入Shop Tab
 
 ## Session与本地数据
 
-Token通过 `TokenStorage` 保存，目前使用 SharedPreferences：
+当前 Session Token通过 `TokenStorage` 保存，目前使用 SharedPreferences：
 
 ```text
 auth_access_token
@@ -125,6 +125,16 @@ key：auth_current_user
 ```
 
 `login_provider` 当前支持 `shopify`、`apple`：只有 Shopify Email只读且更新资料时不提交；其他登录方式（包括缺失或未知值）的 Email均可在 Create account和 Edit profile直接编辑，并通过 `user/update.email` 更新，不需要验证码。
+
+Shopify快捷登录凭证与当前 Session分离保存：
+
+- 内容：`userId`、脱敏 Email、`login_provider = shopify`、最新 Refresh Token。
+- Refresh Token当前暂沿用 SharedPreferences，并以 `// TODO: <pf>` 标记；正式发布前迁移到 iOS Keychain / Android Keystore安全存储。
+- Logout清除当前 Session但保留快捷凭证；Deactivate仅在待注销用户与快捷凭证 `userId` 相同时清除。
+- Apple用户与 Shopify快捷账号 `userId` 不同时，Apple Logout和 Deactivate均保留 Shopify快捷凭证。
+- `Continue as` 优先 Refresh；成功后调用 `user/info` 更新 User并进入首页，`1000002`/`1000016` 时清除快捷凭证并自动转无痕 Shopify授权。
+- `Use another Shopify account` 始终使用无痕 Shopify授权，新账号成功后覆盖旧快捷账号。
+- `Continue with Shopify`、底部 `Sign in`、商品 Get kit登录和所有 OAuth兜底同样使用隔离 Shopify授权；仅快捷 Refresh成功时不打开浏览器。
 
 Welcome状态按 `userId` 独立保存：
 

@@ -1,5 +1,5 @@
-// 管理登录注册入口页的 Shopify 与 Apple 服务端认证状态。
-// 完整认证结束后分别绑定 Amplitude 与 GA4 用户并上报结果。
+// 管理登录入口的 Shopify完整授权、快捷登录与 Apple认证状态。
+// 认证结束后分别绑定 Amplitude与 GA4用户并上报结果。
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
@@ -27,8 +27,27 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
   @override
   AuthEntryState build() => const AuthEntryState();
 
-  /// 按入口意图发起 Shopify 认证，并以发起页面记录认证结果来源。
+  /// 按入口意图认证；所有 Shopify浏览器授权默认重新展示登录过程。
   Future<OnboardingAuthResult?> authorize(
+    ShopifyAuthIntent intent, {
+    AnalyticsPageName pageName = AnalyticsPageName.loginSignIn,
+    bool forceLogin = true,
+  }) async {
+    return _authorize(
+      request: () async {
+        final repository = await ref.read(
+          shopifyBackendAuthRepositoryProvider.future,
+        );
+        return repository.authorize(intent, forceLogin: forceLogin);
+      },
+      loginMethod: AnalyticsLoginMethod.shopify,
+      providerName: 'Shopify',
+      pageName: pageName,
+    );
+  }
+
+  /// 使用最近 Shopify账号快捷恢复 Session，凭证失效时由 Repository转无痕授权。
+  Future<OnboardingAuthResult?> authorizeReturningShopify(
     ShopifyAuthIntent intent, {
     AnalyticsPageName pageName = AnalyticsPageName.loginSignIn,
   }) async {
@@ -37,7 +56,7 @@ class AuthEntryViewModel extends Notifier<AuthEntryState> {
         final repository = await ref.read(
           shopifyBackendAuthRepositoryProvider.future,
         );
-        return repository.authorize(intent);
+        return repository.authorizeReturning(intent);
       },
       loginMethod: AnalyticsLoginMethod.shopify,
       providerName: 'Shopify',
