@@ -586,17 +586,35 @@ class _PillButton extends StatelessWidget {
       height: 48,
       child: FilledButton(
         onPressed: onPressed,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              icon!,
-              const SizedBox(width: 8),
-            ],
-            Text(label),
-          ],
-        ),
+        child: icon == null
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  icon!,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
         style: FilledButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
