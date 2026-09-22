@@ -4,6 +4,7 @@
 import 'package:nalo/features/auth/current_user_storage.dart';
 import 'package:nalo/features/auth/token_storage.dart';
 import 'package:nalo/features/home/presentation/pages/home_page.dart';
+import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
 import 'package:nalo/features/onboarding/presentation/pages/account_profile_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
@@ -27,7 +28,12 @@ Future<String> resolveAppStartupLocation(
       if (user == null) return AuthEntryPage.path;
 
       if (!user.isProfileCompleted) {
-        return AccountProfilePage.location(user.email ?? '', user.id);
+        return AccountProfilePage.location(
+          user.email ?? '',
+          user.id,
+          OnboardingCompletionDestination.home,
+          user.loginProvider,
+        );
       }
 
       final welcomeRepository = WelcomeCompletionRepository(preferences);

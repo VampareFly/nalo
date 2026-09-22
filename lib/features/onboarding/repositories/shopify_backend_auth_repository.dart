@@ -66,6 +66,7 @@ class ShopifyBackendAuthRepository {
         token: token,
         userId: user.id,
         shopifyCustomerId: user.shopifyCustomerId,
+        loginProvider: user.loginProvider,
         email: user.email,
         fullName: user.fullName,
       );

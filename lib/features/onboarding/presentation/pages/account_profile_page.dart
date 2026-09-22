@@ -1,4 +1,4 @@
-// 新用户 Shopify 授权后的资料补充页。
+// 新用户第三方授权后的资料补充页，按登录来源控制 Email编辑能力。
 // 页面上报按钮与弹窗行为；校验、年龄边界和请求结果由 ViewModel 管理。
 
 import 'dart:async';
@@ -14,6 +14,7 @@ import 'package:nalo/app/navigation/initial_page_ready_provider.dart';
 import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/widgets/nalo_back_button.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
+import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/onboarding/view_models/account_profile_view_model.dart';
@@ -26,6 +27,7 @@ class AccountProfilePage extends ConsumerStatefulWidget {
   const AccountProfilePage({
     required this.email,
     required this.userId,
+    this.loginProvider,
     this.completionDestination = OnboardingCompletionDestination.home,
     super.key,
   });
@@ -34,21 +36,24 @@ class AccountProfilePage extends ConsumerStatefulWidget {
 
   final String email;
   final int userId;
+  final LoginProvider? loginProvider;
 
   /// 资料和 Welcome 流程完成后的最终页面。
   final OnboardingCompletionDestination completionDestination;
 
-  /// 构造包含 Shopify Email 的页面地址。
+  /// 构造包含服务端 Email和登录来源的页面地址。
   static String location(
     String email,
     int userId, [
     OnboardingCompletionDestination completionDestination =
         OnboardingCompletionDestination.home,
+    LoginProvider? loginProvider,
   ]) => Uri(
     path: path,
     queryParameters: {
       'email': email,
       'userId': userId.toString(),
+      if (loginProvider != null) 'loginProvider': loginProvider.value,
       if (completionDestination == OnboardingCompletionDestination.shop)
         'destination': 'shop',
     },
@@ -67,6 +72,8 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
 
   final _nameController = TextEditingController();
   final _nameFocusNode = FocusNode();
+  final _emailController = TextEditingController();
+  final _emailFocusNode = FocusNode();
   bool _over65ViewReported = false;
   bool _ownsLoadingToast = false;
 
@@ -89,11 +96,12 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
       if (!mounted) return;
       ref.read(initialPageReadyProvider.notifier).markReady();
     });
-    Future.microtask(
-      () => ref
+    Future.microtask(() {
+      _emailController.text = widget.email;
+      ref
           .read(accountProfileViewModelProvider.notifier)
-          .initializeEmail(widget.email),
-    );
+          .initializeIdentity(widget.email, widget.loginProvider);
+    });
   }
 
   @override
@@ -101,6 +109,8 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
     if (_ownsLoadingToast) EasyLoading.dismiss();
     _nameController.dispose();
     _nameFocusNode.dispose();
+    _emailController.dispose();
+    _emailFocusNode.dispose();
     super.dispose();
   }
 
@@ -178,6 +188,7 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
   }
 
   void _dismissKeyboard() {
+    _emailFocusNode.unfocus();
     _nameFocusNode.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
   }
@@ -430,6 +441,16 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                   ),
                   const SizedBox(height: 12),
                 ],
+                if (state.showEmailFormatError) ...[
+                  const Text(
+                    'Please enter a valid email address.',
+                    style: TextStyle(
+                      color: Color(0xFFD4183D),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 if (state.submissionError != null) ...[
                   Text(
                     state.submissionError!,
@@ -442,7 +463,22 @@ class _AccountProfilePageState extends ConsumerState<AccountProfilePage> {
                 ],
                 _FieldLabel(
                   label: 'Email',
-                  child: _ReadOnlyField(value: state.email, showLock: true),
+                  child: state.canEditEmail
+                      ? TextField(
+                          controller: _emailController,
+                          focusNode: _emailFocusNode,
+                          enabled: !state.isSubmitting,
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          textCapitalization: TextCapitalization.none,
+                          onChanged: ref
+                              .read(accountProfileViewModelProvider.notifier)
+                              .updateEmail,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _dismissKeyboard(),
+                          decoration: _inputDecoration('Enter email address'),
+                        )
+                      : _ReadOnlyField(value: state.email, showLock: true),
                 ),
                 const SizedBox(height: 16),
                 _FieldLabel(

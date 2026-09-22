@@ -1,6 +1,7 @@
 // 定义服务端完成 Shopify 认证后，客户端需要进入的流程节点。
 
 import 'package:nalo/features/auth/auth_token.dart';
+import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 
 /// Shopify 认证成功后的页面分流。
 enum OnboardingAuthDestination { accountProfile, welcome, home, shop }
@@ -16,6 +17,7 @@ class OnboardingAuthResult {
     required this.token,
     required this.userId,
     this.shopifyCustomerId,
+    this.loginProvider,
     this.email,
     this.fullName,
   });
@@ -29,6 +31,7 @@ class OnboardingAuthResult {
 
   /// 登录成功用户对应的 Shopify 客户 ID，用于绑定 GA4 身份。
   final int? shopifyCustomerId;
+  final LoginProvider? loginProvider;
   final String? email;
   final String? fullName;
 }

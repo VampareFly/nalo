@@ -4,6 +4,24 @@
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/auth/auth_token.dart';
 
+/// 服务端返回的第三方登录来源，用于控制资料字段是否允许编辑。
+enum LoginProvider {
+  shopify('shopify'),
+  apple('apple');
+
+  const LoginProvider(this.value);
+
+  final String value;
+
+  /// 将服务端字符串转换为已支持来源，未知值返回空并由 UI 安全降级。
+  static LoginProvider? tryParse(Object? value) {
+    for (final provider in values) {
+      if (provider.value == value) return provider;
+    }
+    return null;
+  }
+}
+
 /// prepare 接口创建的一次性 Shopify 授权配置。
 class ShopifyAuthPreparation {
   const ShopifyAuthPreparation({
@@ -81,6 +99,7 @@ class AppUserInfo {
   const AppUserInfo({
     required this.id,
     required this.isProfileCompleted,
+    this.loginProvider,
     this.shopifyCustomerId,
     this.shopifyAccountUrl,
     this.email,
@@ -95,6 +114,9 @@ class AppUserInfo {
 
   /// 服务端确认的 Profile 完成状态，用于登录和冷启动分流。
   final bool isProfileCompleted;
+
+  /// 当前账号的第三方登录来源；除 Shopify 外的登录方式可以编辑联系邮箱。
+  final LoginProvider? loginProvider;
 
   /// Shopify 客户 ID，用于 App 与 Shopify Web 共用 GA4 User-ID。
   final int? shopifyCustomerId;
@@ -125,6 +147,7 @@ class AppUserInfo {
     return AppUserInfo(
       id: id,
       isProfileCompleted: profileCompleted == 1,
+      loginProvider: LoginProvider.tryParse(json['login_provider']),
       shopifyCustomerId: _positiveInt(json['shopify_customer_id']),
       shopifyAccountUrl: json['shopify_account_url'] is String
           ? json['shopify_account_url'] as String
@@ -152,6 +175,7 @@ class AppUserInfo {
     'birth_day': birthDay,
     'gender': gender,
     'is_profile_completed': isProfileCompleted ? 1 : 0,
+    if (loginProvider != null) 'login_provider': loginProvider!.value,
     if (testInfo != null) 'test_info': testInfo!.toJson(),
     if (referralCard != null) 'referral_card': referralCard!.toJson(),
   };

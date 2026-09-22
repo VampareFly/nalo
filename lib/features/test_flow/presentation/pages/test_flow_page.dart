@@ -26,6 +26,8 @@ class TestFlowPage extends ConsumerStatefulWidget {
 
 class _TestFlowPageState extends ConsumerState<TestFlowPage>
     with WidgetsBindingObserver, RouteAware {
+  late final TestFlowController _testFlowController;
+  late final TestFlowVisibilityTracker _visibilityTracker;
   bool _isExiting = false;
   bool _ownsLoadingToast = false;
   PageRoute<dynamic>? _pageRoute;
@@ -33,6 +35,8 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   @override
   void initState() {
     super.initState();
+    _testFlowController = ref.read(testFlowProvider.notifier);
+    _visibilityTracker = ref.read(testFlowVisibilityProvider);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -64,15 +68,15 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   void didPop() => _setRouteVisible(false);
 
   void _setRouteVisible(bool isVisible) {
-    ref.read(testFlowVisibilityProvider).setVisible(isVisible);
+    _visibilityTracker.setVisible(isVisible);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     appRouteObserver.unsubscribe(this);
     _setRouteVisible(false);
     if (_ownsLoadingToast) EasyLoading.dismiss();
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -80,7 +84,7 @@ class _TestFlowPageState extends ConsumerState<TestFlowPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // 倒计时保存的是结束时间，回到前台时同步即可得到真实剩余时长。
     if (state == AppLifecycleState.resumed) {
-      ref.read(testFlowProvider.notifier).syncTimer();
+      _testFlowController.syncTimer();
     }
   }
 

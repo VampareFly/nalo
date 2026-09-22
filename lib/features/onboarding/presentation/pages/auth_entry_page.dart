@@ -70,6 +70,7 @@ class _AuthEntryPageState extends ConsumerState<AuthEntryPage> {
               result.email ?? '',
               result.userId,
               result.completionDestination,
+              result.loginProvider,
             ),
           );
           return;

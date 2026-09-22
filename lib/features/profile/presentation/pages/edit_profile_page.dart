@@ -16,7 +16,7 @@ import 'package:nalo/features/profile/view_models/edit_profile_view_model.dart';
 import 'package:nalo/features/profile/view_models/profile_view_model.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-/// 编辑当前登录用户的姓名、生日和生理性别。
+/// 编辑当前用户资料，并仅锁定 Shopify登录用户的 Email。
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
 
@@ -35,6 +35,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   final _nameController = TextEditingController();
   final _nameFocusNode = FocusNode();
+  final _emailController = TextEditingController();
+  final _emailFocusNode = FocusNode();
   bool _over65ViewReported = false;
   bool _suppressSystemBackReport = false;
   bool _ownsLoadingToast = false;
@@ -45,6 +47,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     final user = ref.read(profileViewModelProvider).user;
     if (user != null) {
       _nameController.text = user.fullName?.trim() ?? '';
+      _emailController.text = user.email?.trim() ?? '';
     }
   }
 
@@ -55,6 +58,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
     _nameController.dispose();
     _nameFocusNode.dispose();
+    _emailController.dispose();
+    _emailFocusNode.dispose();
     super.dispose();
   }
 
@@ -139,6 +144,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   }
 
   void _dismissKeyboard() {
+    _emailFocusNode.unfocus();
     _nameFocusNode.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
   }
@@ -359,6 +365,16 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ),
                     const SizedBox(height: 12),
                   ],
+                  if (state.showEmailFormatError) ...[
+                    const Text(
+                      'Please enter a valid email address.',
+                      style: TextStyle(
+                        color: Color(0xFFD4183D),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   if (state.errorMessage != null) ...[
                     Text(
                       state.errorMessage!,
@@ -371,9 +387,25 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   ],
                   _FieldLabel(
                     label: 'Email',
-                    child: _ReadOnlyField(value: state.email, showLock: true),
+                    child: state.canEditEmail
+                        ? TextField(
+                            controller: _emailController,
+                            focusNode: _emailFocusNode,
+                            enabled: !state.isSubmitting,
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            textCapitalization: TextCapitalization.none,
+                            onChanged: ref
+                                .read(editProfileViewModelProvider.notifier)
+                                .updateEmail,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _dismissKeyboard(),
+                            decoration: _inputDecoration(
+                              'Enter email address',
+                            ),
+                          )
+                        : _ReadOnlyField(value: state.email, showLock: true),
                   ),
-                  // TODO: <pf> 服务端支持修改 Email 后开放编辑并补充校验。
                   const SizedBox(height: 16),
                   _FieldLabel(
                     label: 'Name',

@@ -22,11 +22,12 @@ class UserProfileService {
     return user;
   }
 
-  /// 更新用户资料；服务端要求高龄确认后才按需携带 age_confirm。
+  /// 更新资料；非 Shopify用户按需提交 Email，高龄确认后提交 age_confirm。
   Future<AppUserInfo> update({
     required String fullName,
     required DateTime birthDay,
     required int gender,
+    String? email,
     bool ageConfirmed = false,
   }) async {
     final user = await _apiClient.post<AppUserInfo>(
@@ -35,6 +36,7 @@ class UserProfileService {
         'full_name': fullName.trim(),
         'birth_day': _formatDate(birthDay),
         'gender': gender,
+        if (email != null) 'email': email.trim(),
         if (ageConfirmed) 'age_confirm': 1,
       },
       decoder: _decodeUser,

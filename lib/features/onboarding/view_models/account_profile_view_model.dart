@@ -5,6 +5,7 @@ import 'package:nalo/core/analytics/analytics.dart';
 import 'package:nalo/core/network/api_business_code.dart';
 import 'package:nalo/core/network/api_client.dart';
 import 'package:nalo/features/onboarding/repositories/user_profile_repository.dart';
+import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 
 /// Figma 注册资料页支持的生理性别。
 enum BiologicalSex { female, male }
@@ -21,37 +22,48 @@ enum AccountProfileSubmitResult {
 /// 判断完整姓名是否超过 50 个字符，用于输入限制和提交校验。
 bool isProfileFullNameTooLong(String value) => value.runes.length > 50;
 
+/// 判断资料页邮箱是否符合基础地址格式。
+bool isProfileEmailValid(String value) => RegExp(
+  r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+).hasMatch(value.trim());
+
 /// 注册资料页面状态。
 class AccountProfileState {
   const AccountProfileState({
     this.email = '',
+    this.loginProvider,
     this.fullName = '',
     this.dateOfBirth,
     this.biologicalSex,
     this.showMissingFieldsError = false,
     this.showFullNameLengthError = false,
+    this.showEmailFormatError = false,
     this.requiresAgeConfirmation = false,
     this.isSubmitting = false,
     this.submissionError,
   });
 
   final String email;
+  final LoginProvider? loginProvider;
   final String fullName;
   final DateTime? dateOfBirth;
   final BiologicalSex? biologicalSex;
   final bool showMissingFieldsError;
   final bool showFullNameLengthError;
+  final bool showEmailFormatError;
   final bool requiresAgeConfirmation;
   final bool isSubmitting;
   final String? submissionError;
 
   AccountProfileState copyWith({
     String? email,
+    LoginProvider? loginProvider,
     String? fullName,
     DateTime? dateOfBirth,
     BiologicalSex? biologicalSex,
     bool? showMissingFieldsError,
     bool? showFullNameLengthError,
+    bool? showEmailFormatError,
     bool? requiresAgeConfirmation,
     bool? isSubmitting,
     String? submissionError,
@@ -59,6 +71,7 @@ class AccountProfileState {
   }) {
     return AccountProfileState(
       email: email ?? this.email,
+      loginProvider: loginProvider ?? this.loginProvider,
       fullName: fullName ?? this.fullName,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       biologicalSex: biologicalSex ?? this.biologicalSex,
@@ -66,6 +79,8 @@ class AccountProfileState {
           showMissingFieldsError ?? this.showMissingFieldsError,
       showFullNameLengthError:
           showFullNameLengthError ?? this.showFullNameLengthError,
+      showEmailFormatError:
+          showEmailFormatError ?? this.showEmailFormatError,
       requiresAgeConfirmation:
           requiresAgeConfirmation ?? this.requiresAgeConfirmation,
       isSubmitting: isSubmitting ?? this.isSubmitting,
@@ -74,6 +89,9 @@ class AccountProfileState {
           : submissionError ?? this.submissionError,
     );
   }
+
+  /// 除 Shopify 外的登录方式均允许修改联系邮箱。
+  bool get canEditEmail => loginProvider != LoginProvider.shopify;
 }
 
 /// 编排资料输入、服务端年龄错误码处理和创建账号。
@@ -81,12 +99,26 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
   @override
   AccountProfileState build() => const AccountProfileState();
 
-  /// 初始化 Shopify 服务端返回的只读邮箱。
-  void initializeEmail(String email) {
-    if (state.email == email) return;
+  /// 初始化服务端返回的邮箱和登录来源。
+  void initializeIdentity(String email, LoginProvider? loginProvider) {
+    if (state.email == email && state.loginProvider == loginProvider) return;
     state = state.copyWith(
       email: email,
+      loginProvider: loginProvider,
       showMissingFieldsError: _shouldKeepMissingFieldsError(email: email),
+      clearSubmissionError: true,
+    );
+  }
+
+  /// 更新非 Shopify 用户可编辑的联系邮箱。
+  void updateEmail(String value) {
+    if (!state.canEditEmail) return;
+    state = state.copyWith(
+      email: value,
+      showEmailFormatError: state.showEmailFormatError &&
+          value.trim().isNotEmpty &&
+          !isProfileEmailValid(value),
+      showMissingFieldsError: _shouldKeepMissingFieldsError(email: value),
       clearSubmissionError: true,
     );
   }
@@ -111,11 +143,13 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
   void updateDateOfBirth(DateTime value) {
     state = AccountProfileState(
       email: state.email,
+      loginProvider: state.loginProvider,
       fullName: state.fullName,
       dateOfBirth: value,
       biologicalSex: state.biologicalSex,
       showMissingFieldsError: _shouldKeepMissingFieldsError(dateOfBirth: value),
       showFullNameLengthError: state.showFullNameLengthError,
+      showEmailFormatError: state.showEmailFormatError,
       requiresAgeConfirmation: false,
       isSubmitting: state.isSubmitting,
       submissionError: null,
@@ -159,9 +193,14 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
       state = state.copyWith(showMissingFieldsError: true);
       return AccountProfileSubmitResult.missingFields;
     }
+    if (!isProfileEmailValid(state.email)) {
+      state = state.copyWith(showEmailFormatError: true);
+      return AccountProfileSubmitResult.missingFields;
+    }
     state = state.copyWith(
       showMissingFieldsError: false,
       showFullNameLengthError: false,
+      showEmailFormatError: false,
     );
     if (state.isSubmitting) return AccountProfileSubmitResult.missingFields;
     state = state.copyWith(isSubmitting: true, clearSubmissionError: true);
@@ -172,6 +211,7 @@ class AccountProfileViewModel extends Notifier<AccountProfileState> {
         fullName: state.fullName,
         birthDay: state.dateOfBirth!,
         gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
+        email: state.canEditEmail ? state.email.trim() : null,
         ageConfirmed: state.requiresAgeConfirmation,
       );
       await _reportRequestResult(submittedProfile, isSuccess: true);

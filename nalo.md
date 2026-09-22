@@ -121,8 +121,10 @@ auth_expires_at
 
 ```text
 key：auth_current_user
-内容：id、email、full_name、birth_day、gender、is_profile_completed等字段
+内容：id、email、login_provider、full_name、birth_day、gender、is_profile_completed等字段
 ```
+
+`login_provider` 当前支持 `shopify`、`apple`：只有 Shopify Email只读且更新资料时不提交；其他登录方式（包括缺失或未知值）的 Email均可在 Create account和 Edit profile直接编辑，并通过 `user/update.email` 更新，不需要验证码。
 
 Welcome状态按 `userId` 独立保存：
 

@@ -20,17 +20,19 @@ class UserProfileRepository {
     return user;
   }
 
-  /// 更新资料并透传可选高龄确认，成功后保存服务端最新用户。
+  /// 更新资料并透传可选 Email和高龄确认，成功后保存最新用户。
   Future<AppUserInfo> update({
     required String fullName,
     required DateTime birthDay,
     required int gender,
+    String? email,
     bool ageConfirmed = false,
   }) async {
     final user = await _service.update(
       fullName: fullName,
       birthDay: birthDay,
       gender: gender,
+      email: email,
       ageConfirmed: ageConfirmed,
     );
     await _saveSnapshot(user);

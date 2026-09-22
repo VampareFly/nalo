@@ -23,11 +23,13 @@ enum EditProfileSubmitResult {
 class EditProfileState {
   const EditProfileState({
     this.email = '',
+    this.loginProvider,
     this.fullName = '',
     this.dateOfBirth,
     this.biologicalSex,
     this.showMissingFieldsError = false,
     this.showFullNameLengthError = false,
+    this.showEmailFormatError = false,
     this.requiresAgeConfirmation = false,
     this.isSubmitting = false,
     this.errorMessage,
@@ -35,11 +37,13 @@ class EditProfileState {
   });
 
   final String email;
+  final LoginProvider? loginProvider;
   final String fullName;
   final DateTime? dateOfBirth;
   final BiologicalSex? biologicalSex;
   final bool showMissingFieldsError;
   final bool showFullNameLengthError;
+  final bool showEmailFormatError;
   final bool requiresAgeConfirmation;
   final bool isSubmitting;
   final String? errorMessage;
@@ -48,11 +52,13 @@ class EditProfileState {
   /// 生成保留未修改字段的新页面状态。
   EditProfileState copyWith({
     String? email,
+    LoginProvider? loginProvider,
     String? fullName,
     DateTime? dateOfBirth,
     BiologicalSex? biologicalSex,
     bool? showMissingFieldsError,
     bool? showFullNameLengthError,
+    bool? showEmailFormatError,
     bool? requiresAgeConfirmation,
     bool? isSubmitting,
     String? errorMessage,
@@ -60,6 +66,7 @@ class EditProfileState {
     bool clearError = false,
   }) => EditProfileState(
     email: email ?? this.email,
+    loginProvider: loginProvider ?? this.loginProvider,
     fullName: fullName ?? this.fullName,
     dateOfBirth: dateOfBirth ?? this.dateOfBirth,
     biologicalSex: biologicalSex ?? this.biologicalSex,
@@ -67,12 +74,17 @@ class EditProfileState {
         showMissingFieldsError ?? this.showMissingFieldsError,
     showFullNameLengthError:
         showFullNameLengthError ?? this.showFullNameLengthError,
+    showEmailFormatError:
+        showEmailFormatError ?? this.showEmailFormatError,
     requiresAgeConfirmation:
         requiresAgeConfirmation ?? this.requiresAgeConfirmation,
     isSubmitting: isSubmitting ?? this.isSubmitting,
     errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     updatedUser: updatedUser ?? this.updatedUser,
   );
+
+  /// 除 Shopify 外的登录方式均允许修改联系邮箱。
+  bool get canEditEmail => loginProvider != LoginProvider.shopify;
 }
 
 /// 编排编辑资料输入和 user/update 请求。
@@ -83,6 +95,7 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
     if (user == null) return const EditProfileState();
     return EditProfileState(
       email: user.email?.trim() ?? '',
+      loginProvider: user.loginProvider,
       fullName: user.fullName?.trim() ?? '',
       dateOfBirth: _parseDate(user.birthDay),
       biologicalSex: switch (user.gender) {
@@ -90,6 +103,18 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
         2 => BiologicalSex.female,
         _ => null,
       },
+    );
+  }
+
+  /// 更新非 Shopify 用户可编辑的联系邮箱。
+  void updateEmail(String value) {
+    if (!state.canEditEmail) return;
+    state = state.copyWith(
+      email: value,
+      showEmailFormatError: state.showEmailFormatError &&
+          value.trim().isNotEmpty &&
+          !isProfileEmailValid(value),
+      clearError: true,
     );
   }
 
@@ -128,15 +153,21 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
       state = state.copyWith(showFullNameLengthError: true);
       return EditProfileSubmitResult.missingFields;
     }
-    if (state.fullName.trim().isEmpty ||
+    if (state.email.trim().isEmpty ||
+        state.fullName.trim().isEmpty ||
         state.dateOfBirth == null ||
         state.biologicalSex == null) {
       state = state.copyWith(showMissingFieldsError: true);
       return EditProfileSubmitResult.missingFields;
     }
+    if (!isProfileEmailValid(state.email)) {
+      state = state.copyWith(showEmailFormatError: true);
+      return EditProfileSubmitResult.missingFields;
+    }
     state = state.copyWith(
       showMissingFieldsError: false,
       showFullNameLengthError: false,
+      showEmailFormatError: false,
       clearError: true,
     );
     if (state.isSubmitting) return EditProfileSubmitResult.missingFields;
@@ -149,6 +180,7 @@ class EditProfileViewModel extends Notifier<EditProfileState> {
         fullName: state.fullName,
         birthDay: state.dateOfBirth!,
         gender: state.biologicalSex == BiologicalSex.male ? 1 : 2,
+        email: state.canEditEmail ? state.email.trim() : null,
         ageConfirmed: state.requiresAgeConfirmation,
       );
       await _reportRequestResult(submittedProfile, isSuccess: true);

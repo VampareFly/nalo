@@ -51,7 +51,12 @@ class _GuestKitShopPageState extends ConsumerState<GuestKitShopPage> {
     }
     if (result.destination == OnboardingAuthDestination.accountProfile) {
       context.go(
-        AccountProfilePage.location(result.email ?? '', result.userId),
+        AccountProfilePage.location(
+          result.email ?? '',
+          result.userId,
+          result.completionDestination,
+          result.loginProvider,
+        ),
       );
       return;
     }

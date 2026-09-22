@@ -10,6 +10,7 @@ import 'package:nalo/features/onboarding/presentation/pages/account_profile_page
 import 'package:nalo/features/onboarding/presentation/pages/auth_entry_page.dart';
 import 'package:nalo/features/onboarding/presentation/pages/onboarding_welcome_page.dart';
 import 'package:nalo/features/onboarding/models/onboarding_auth_result.dart';
+import 'package:nalo/features/onboarding/models/shopify_backend_auth_models.dart';
 import 'package:nalo/features/profile/presentation/pages/profile_page.dart';
 import 'package:nalo/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:nalo/features/shop/presentation/pages/guest_kit_shop_page.dart';
@@ -77,6 +78,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => AccountProfilePage(
           email: state.uri.queryParameters['email'] ?? '',
           userId: int.tryParse(state.uri.queryParameters['userId'] ?? '') ?? -1,
+          loginProvider: LoginProvider.tryParse(
+            state.uri.queryParameters['loginProvider'],
+          ),
           completionDestination:
               state.uri.queryParameters['destination'] == 'shop'
               ? OnboardingCompletionDestination.shop
