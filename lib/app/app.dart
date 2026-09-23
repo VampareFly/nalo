@@ -190,13 +190,4 @@ class _NaloAppState extends ConsumerState<NaloApp> with WidgetsBindingObserver {
     );
     _isSessionExpiredDialogVisible = false;
   }
-
-  void greet({required String name}) {
-    test(name: 'hello world');
-    print(name);
-  }
-
-  void test({required String name}) {
-    print(name);
-  }
 }
